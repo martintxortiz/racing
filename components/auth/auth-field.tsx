@@ -1,6 +1,6 @@
 "use client"
 
-import { View, ViewOff } from "@carbon/icons-react"
+import { ViewOffFilled, ViewFilled } from "@carbon/icons-react"
 import React, { useState } from "react"
 
 import { Input } from "@/components/ui/input"
@@ -42,6 +42,7 @@ const AuthField = ({
           type={isPassword && visible ? "text" : type}
           aria-invalid={Boolean(error)}
           className={cn(
+            "text-base sm:text-sm",
             isPassword ? "w-full pr-9" : "w-full",
             error && "!ring-1 !ring-red-500 !focus-visible:ring-1 !focus-visible:ring-red-500",
             className
@@ -55,7 +56,7 @@ const AuthField = ({
             className="absolute inset-y-0 right-0 flex w-9 items-center justify-center text-white/30 hover:text-white/70 transition-colors cursor-pointer"
             aria-label={visible ? "Hide password" : "Show password"}
           >
-            {visible ? <ViewOff size={16} /> : <View size={16} />}
+            {visible ? <ViewOffFilled size={16} /> : <ViewFilled size={16} />}
           </button>
         )}
       </div>

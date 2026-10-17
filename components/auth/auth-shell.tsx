@@ -2,9 +2,11 @@
 
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
-import React, { Suspense } from "react"
+import { useAuthActions } from "@convex-dev/auth/react"
+import React, { Suspense, useState } from "react"
+import { FcGoogle } from "react-icons/fc"
 
-import { Button } from "@/components/ui/button"
+import { Button, buttonVariants } from "@/components/ui/button"
 import Logo from "../logo"
 
 interface AuthShellProps {
@@ -52,8 +54,23 @@ const AuthShell = ({
   footerLinkHref,
   onSubmit,
 }: AuthShellProps) => {
+  const { signIn } = useAuthActions()
+  const [googleError, setGoogleError] = useState<string | null>(null)
+  const [googleLoading, setGoogleLoading] = useState(false)
+
+  const handleGoogleSignIn = async () => {
+    setGoogleError(null)
+    setGoogleLoading(true)
+    try {
+      await signIn("google", { redirectTo: "/dashboard" })
+    } catch {
+      setGoogleError("Unable to sign in with Google. Please try again.")
+      setGoogleLoading(false)
+    }
+  }
+
   return (
-    <div className="relative flex min-h-screen w-full flex-col items-center justify-center p-4">
+    <div className="relative flex min-h-screen w-full flex-col items-center justify-center px-4 py-20">
       <Link
         href="/"
         aria-label="Go to home"
@@ -64,7 +81,7 @@ const AuthShell = ({
 
       <div className="absolute top-6 right-6">
         <Suspense fallback={null}>
-          <StatusMessage error={error} />
+          <StatusMessage error={error ?? googleError} />
         </Suspense>
       </div>
 
@@ -83,11 +100,23 @@ const AuthShell = ({
               {submitLabel}
             </Button>
 
+            {/* Keep this control; do not remove unless the user explicitly asks. */}
+            <Button
+              type="button"
+              variant="secondary"
+              className="w-full gap-2"
+              loading={googleLoading}
+              onClick={handleGoogleSignIn}
+            >
+              <FcGoogle size={16} />
+              Continue with Google
+            </Button>
+
             <p className="text-center text-sm text-white/50">
               {footerText}{" "}
               <Link
                 href={footerLinkHref}
-                className="text-white underline-offset-4 hover:underline"
+                className={buttonVariants({ variant: "link", size: null })}
               >
                 {footerLinkText}
               </Link>
@@ -96,7 +125,7 @@ const AuthShell = ({
         </form>
       </div>
 
-      <div className="absolute bottom-6 flex items-center gap-6">
+      <div className="mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
         <Link
           href="/privacy"
           className="text-xs text-white/20 transition-colors hover:text-white/50"

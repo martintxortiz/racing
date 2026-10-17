@@ -11,6 +11,7 @@ const buttonVariants = cva(
       variant: {
         primary: "bg-brand text-white/90 hover:bg-[#2a74fe] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80",
         secondary: "bg-muted-foreground/25 hover:bg-muted-foreground/35 text-white/90",
+        link: "h-auto min-h-6 rounded-none bg-transparent px-0 text-white underline-offset-4 hover:bg-transparent hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80",
       },
       size: {
         sm: "h-7 px-2 text-xs",

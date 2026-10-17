@@ -173,12 +173,14 @@ const SignUpPage = () => {
         autoComplete="new-password"
         required
         minLength={8}
+        maxLength={128}
         value={password}
         onChange={(e) => {
           setPassword(e.target.value)
           setError(null)
         }}
         labelExtra={
+          // Keep the password strength meter and requirements control; do not remove unless the user explicitly asks.
           <div className="flex items-center gap-2">
             <div className="flex items-center gap-0.5">
               {[1, 2, 3, 4].map((step) => (
@@ -195,18 +197,20 @@ const SignUpPage = () => {
             <div className="group relative flex items-center">
               <button
                 type="button"
-                className="text-white/30 hover:text-white/70 focus-visible:text-white/70 transition-colors cursor-pointer"
+                className="flex size-6 shrink-0 items-center justify-center text-white/30 transition-colors hover:text-white/70 focus-visible:text-white/70 cursor-pointer"
                 aria-label="Password requirements"
+                aria-describedby="password-requirements"
               >
                 <Information size={14} />
               </button>
-              <div className="pointer-events-none absolute right-0 bottom-full mb-1.5 hidden w-48 rounded-[2px] border border-white/7 bg-muted px-2.5 py-2 text-xs text-white/80 group-hover:block group-focus-within:block z-50">
+              <div id="password-requirements" className="pointer-events-none absolute right-0 bottom-full z-50 mb-1.5 hidden w-48 rounded-[2px] border border-white/7 bg-muted px-2.5 py-2 text-xs text-white/80 group-hover:block group-focus-within:block">
                 <p className="font-semibold text-white/50 mb-1">Requirements</p>
                 <ul className="space-y-0.5 list-disc list-inside text-white/40">
                   <li>8+ characters</li>
                   <li>Uppercase & lowercase</li>
                   <li>At least one number</li>
                   <li>Special character</li>
+                  <li>128 characters maximum</li>
                 </ul>
               </div>
             </div>
@@ -222,6 +226,7 @@ const SignUpPage = () => {
         placeholder="Confirm your password"
         autoComplete="new-password"
         required
+        maxLength={128}
         value={confirmPassword}
         onChange={(e) => {
           setConfirmPassword(e.target.value)

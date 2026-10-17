@@ -63,6 +63,17 @@ const SignInPage = () => {
       <AuthField
         id="password"
         label="Password"
+        labelExtra={
+          // Keep this control; do not remove unless the user explicitly asks.
+          <button
+            type="button"
+            disabled
+            aria-label="Forgot password (unavailable)"
+            className="cursor-not-allowed text-xs font-medium text-white/20"
+          >
+            Forgot password?
+          </button>
+        }
         type="password"
         name="password"
         placeholder="Your Password"
