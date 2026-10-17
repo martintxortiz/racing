@@ -7,6 +7,7 @@ import "@fontsource/ibm-plex-mono/400.css";
 import "@fontsource/ibm-plex-mono/500.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import "./globals.css";
+import ConvexProvider from "@/components/convex-provider";
 
 export const metadata: Metadata = {
   title: "Prisma",
@@ -20,14 +21,16 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className="h-full antialiased"
     >
       <body className="min-h-full flex flex-col">
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
-        >
-          {children}
-        </ThemeProvider>
+        <ConvexProvider>
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="system"
+            enableSystem
+            disableTransitionOnChange
+          >
+              {children}
+          </ThemeProvider>
+          </ConvexProvider>
       </body>
     </html>
   );
