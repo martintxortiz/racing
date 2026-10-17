@@ -1,11 +1,19 @@
 "use client"
 
 import { Information } from "@carbon/icons-react"
-import React, { useState } from "react"
+import { useAuthActions } from "@convex-dev/auth/react"
+import { useQuery } from "convex/react"
+import { useRouter } from "next/navigation"
+import React, { useEffect, useState } from "react"
 
 import AuthField from "@/components/auth/auth-field"
 import AuthShell from "@/components/auth/auth-shell"
+import { Spinner } from "@/components/ui/spinner"
+import { api } from "@/convex/_generated/api"
+import { getAuthErrorMessage } from "@/lib/auth-error"
 import { cn } from "@/lib/utils"
+
+const USERNAME_PATTERN = /^[a-z0-9_]{3,20}$/
 
 function getPasswordStrength(pass: string): number {
   if (!pass) return 0
@@ -26,19 +34,86 @@ const STRENGTH_COLORS = [
 ]
 
 const SignUpPage = () => {
+  const { signIn } = useAuthActions()
+  const router = useRouter()
+  const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
+  const [email, setEmail] = useState("")
   const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [debouncedUsername, setDebouncedUsername] = useState("")
+  const [usernameTouched, setUsernameTouched] = useState(false)
+
+  const normalizedUsername = username.trim().toLowerCase()
+  const validUsername = USERNAME_PATTERN.test(normalizedUsername)
+
+  useEffect(() => {
+    if (!validUsername) return
+    const timeout = window.setTimeout(
+      () => setDebouncedUsername(normalizedUsername),
+      300
+    )
+    return () => window.clearTimeout(timeout)
+  }, [normalizedUsername, validUsername])
+
+  const usernameAvailable = useQuery(
+    api.users.isUsernameAvailable,
+    validUsername && debouncedUsername === normalizedUsername
+      ? { username: normalizedUsername }
+      : "skip"
+  )
+  const checkingUsername =
+    validUsername &&
+    (debouncedUsername !== normalizedUsername || usernameAvailable === undefined)
+  const usernameTaken = validUsername && !checkingUsername && usernameAvailable === false
+  const canSubmitUsername =
+    validUsername && !checkingUsername && usernameAvailable === true
+
+  const usernameStatus = username.length > 0 && (
+    checkingUsername ? (
+      <span role="status" aria-live="polite" className="flex items-center gap-1.5 text-xs text-white/40">
+        <Spinner size={12} /> Checking…
+      </span>
+    ) : usernameTaken || error === "That username is already taken." ? (
+      <span role="status" aria-live="polite" className="text-xs text-red-400">
+        Username taken
+      </span>
+    ) : usernameAvailable === true ? (
+      <span role="status" aria-live="polite" className="text-xs text-green-400">
+        Available
+      </span>
+    ) : usernameTouched && !validUsername ? (
+      <span role="status" aria-live="polite" className="text-xs text-red-400">
+        Use 3–20 letters, numbers, or underscores
+      </span>
+    ) : null
+  )
 
   const score = getPasswordStrength(password)
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     if (password !== confirmPassword) {
       setError("Passwords do not match")
       return
     }
     setError(null)
+    setLoading(true)
+
+    try {
+      await signIn("password", {
+        flow: "signUp",
+        username: normalizedUsername,
+        email: email.trim().toLowerCase(),
+        password,
+      })
+      router.replace("/dashboard")
+    } catch (error) {
+      setError(getAuthErrorMessage(error, "signUp"))
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -48,6 +123,8 @@ const SignUpPage = () => {
       footerLinkText="Sign in"
       footerLinkHref="/auth/sign-in"
       error={error}
+      loading={loading}
+      submitDisabled={!canSubmitUsername}
       onSubmit={handleSubmit}
     >
       <AuthField
@@ -57,6 +134,17 @@ const SignUpPage = () => {
         placeholder="Your Username"
         autoComplete="username"
         required
+        minLength={3}
+        maxLength={20}
+        value={username}
+        labelExtra={usernameStatus}
+        onBlur={() => setUsernameTouched(true)}
+        onChange={(e) => {
+          setUsername(e.target.value)
+          setUsernameTouched(false)
+          setError(null)
+        }}
+        error={usernameTaken || error === "That username is already taken."}
       />
 
       <AuthField
@@ -67,6 +155,8 @@ const SignUpPage = () => {
         placeholder="Your Email"
         autoComplete="email"
         required
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
       />
 
       <AuthField
@@ -77,8 +167,12 @@ const SignUpPage = () => {
         placeholder="Create a password"
         autoComplete="new-password"
         required
+        minLength={8}
         value={password}
-        onChange={(e) => setPassword(e.target.value)}
+        onChange={(e) => {
+          setPassword(e.target.value)
+          setError(null)
+        }}
         labelExtra={
           <div className="flex items-center gap-2">
             <div className="flex items-center gap-0.5">
@@ -124,7 +218,10 @@ const SignUpPage = () => {
         autoComplete="new-password"
         required
         value={confirmPassword}
-        onChange={(e) => setConfirmPassword(e.target.value)}
+        onChange={(e) => {
+          setConfirmPassword(e.target.value)
+          setError(null)
+        }}
         error={Boolean(error && password !== confirmPassword)}
       />
     </AuthShell>

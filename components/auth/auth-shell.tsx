@@ -2,11 +2,10 @@
 
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
-import React, { Suspense, useState } from "react"
+import React, { Suspense } from "react"
 import { FcGoogle } from "react-icons/fc"
 
 import { Button } from "@/components/ui/button"
-import { Spinner } from "@/components/ui/spinner"
 import Logo from "../logo"
 
 interface AuthShellProps {
@@ -14,6 +13,7 @@ interface AuthShellProps {
   error?: string | null
   success?: string | null
   loading?: boolean
+  submitDisabled?: boolean
   submitLabel: string
   footerText: string
   footerLinkText: string
@@ -62,14 +62,13 @@ const AuthShell = ({
   error,
   success,
   loading = false,
+  submitDisabled = false,
   submitLabel,
   footerText,
   footerLinkText,
   footerLinkHref,
   onSubmit,
 }: AuthShellProps) => {
-  const [googleLoading, setGoogleLoading] = useState(false)
-
   return (
     <div className="relative flex min-h-screen w-full flex-col items-center justify-center p-4">
       <Link
@@ -97,6 +96,7 @@ const AuthShell = ({
                 variant="primary"
                 className="w-full text-sm font-medium"
                 loading={loading}
+                disabled={submitDisabled}
               >
                 {submitLabel}
               </Button>
@@ -105,11 +105,10 @@ const AuthShell = ({
                 type="button"
                 variant="secondary"
                 className="w-full gap-2"
-                disabled={googleLoading}
-                aria-busy={googleLoading}
-                onClick={() => setGoogleLoading(true)}
+                disabled
+                aria-label="Continue with Google (unavailable)"
               >
-                {googleLoading ? <Spinner size={16} /> : <FcGoogle size={16} />}
+                <FcGoogle size={16} />
                 Continue with Google
               </Button>
             </div>

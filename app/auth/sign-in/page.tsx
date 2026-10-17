@@ -1,17 +1,45 @@
 "use client"
 
-import Link from "next/link"
-import React, { useState } from "react"
+import { useAuthActions } from "@convex-dev/auth/react"
+import { useRouter } from "next/navigation"
+import React, { useRef, useState } from "react"
 
 import AuthField from "@/components/auth/auth-field"
 import AuthShell from "@/components/auth/auth-shell"
+import { getAuthErrorMessage } from "@/lib/auth-error"
 
 const SignInPage = () => {
-  const [hasError, setHasError] = useState(false)
+  const { signIn } = useAuthActions()
+  const router = useRouter()
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+  const [error, setError] = useState<string | null>(null)
+  const [invalidCredentials, setInvalidCredentials] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const passwordInputRef = useRef<HTMLInputElement>(null)
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    setHasError(true)
+    setError(null)
+    setInvalidCredentials(false)
+    setLoading(true)
+
+    try {
+      await signIn("password", {
+        flow: "signIn",
+        email: email.trim().toLowerCase(),
+        password,
+      })
+      router.replace("/dashboard")
+    } catch (error) {
+      const message = getAuthErrorMessage(error, "signIn")
+      setError(message)
+      const credentialsAreInvalid = message === "Incorrect email or password."
+      setInvalidCredentials(credentialsAreInvalid)
+      if (credentialsAreInvalid) passwordInputRef.current?.blur()
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -20,7 +48,8 @@ const SignInPage = () => {
       footerText="Don't have an account?"
       footerLinkText="Sign up"
       footerLinkHref="/auth/sign-up"
-      error={hasError ? "Invalid Credentials" : null}
+      error={error}
+      loading={loading}
       onSubmit={handleSubmit}
     >
       <AuthField
@@ -31,26 +60,41 @@ const SignInPage = () => {
         placeholder="Your Email"
         autoComplete="email"
         required
-        error={hasError}
+        value={email}
+        onChange={(e) => {
+          setEmail(e.target.value)
+          setError(null)
+          setInvalidCredentials(false)
+        }}
+        error={invalidCredentials || Boolean(error)}
       />
 
       <AuthField
         id="password"
+        ref={passwordInputRef}
         label="Password"
+        labelExtra={
+          <button
+            type="button"
+            disabled
+            aria-label="Forgot password (unavailable)"
+            className="cursor-not-allowed text-xs font-medium text-white/20"
+          >
+            Forgot password?
+          </button>
+        }
         type="password"
         name="password"
         placeholder="Your Password"
         autoComplete="current-password"
         required
-        error={hasError}
-        labelExtra={
-          <Link
-            href="/reset-password"
-            className="text-xs font-medium text-white/20 transition-colors hover:text-white/80"
-          >
-            Forgot password?
-          </Link>
-        }
+        value={password}
+        onChange={(e) => {
+          setPassword(e.target.value)
+          setError(null)
+          setInvalidCredentials(false)
+        }}
+        error={invalidCredentials || Boolean(error)}
       />
     </AuthShell>
   )
