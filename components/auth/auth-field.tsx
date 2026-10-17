@@ -11,7 +11,6 @@ interface AuthFieldProps extends React.ComponentProps<typeof Input> {
   label: string
   labelExtra?: React.ReactNode
   error?: boolean
-  children?: React.ReactNode
 }
 
 const AuthField = ({
@@ -22,7 +21,6 @@ const AuthField = ({
   labelExtra,
   error,
   className,
-  children,
   ...props
 }: AuthFieldProps) => {
   const isPassword = type === "password"
@@ -45,7 +43,7 @@ const AuthField = ({
           aria-invalid={Boolean(error)}
           className={cn(
             isPassword ? "w-full pr-9" : "w-full",
-            error && "ring-1 ring-red-500 focus-visible:ring-1 focus-visible:ring-red-500",
+            error && "!ring-1 !ring-red-500 !focus-visible:ring-1 !focus-visible:ring-red-500",
             className
           )}
           {...props}
@@ -61,7 +59,6 @@ const AuthField = ({
           </button>
         )}
       </div>
-      {children}
     </div>
   )
 }

@@ -3,7 +3,6 @@
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
 import React, { Suspense } from "react"
-import { FcGoogle } from "react-icons/fc"
 
 import { Button } from "@/components/ui/button"
 import Logo from "../logo"
@@ -11,26 +10,22 @@ import Logo from "../logo"
 interface AuthShellProps {
   children: React.ReactNode
   error?: string | null
-  success?: string | null
   loading?: boolean
   submitDisabled?: boolean
   submitLabel: string
   footerText: string
   footerLinkText: string
   footerLinkHref: string
-  onSubmit?: (e: React.FormEvent<HTMLFormElement>) => void
+  onSubmit: (e: React.FormEvent<HTMLFormElement>) => void
 }
 
 function StatusMessage({
   error,
-  success,
 }: {
   error?: string | null
-  success?: string | null
 }) {
   const searchParams = useSearchParams()
   const errorText = error ?? searchParams.get("error")
-  const successText = success ?? searchParams.get("success")
 
   if (errorText) {
     return (
@@ -43,24 +38,12 @@ function StatusMessage({
     )
   }
 
-  if (successText) {
-    return (
-      <div
-        role="status"
-        className="inline-flex h-9 items-center rounded-[2px] border-l-3 border-l-green-500 bg-muted px-3 text-sm font-medium text-white/90"
-      >
-        {successText}
-      </div>
-    )
-  }
-
   return null
 }
 
 const AuthShell = ({
   children,
   error,
-  success,
   loading = false,
   submitDisabled = false,
   submitLabel,
@@ -81,7 +64,7 @@ const AuthShell = ({
 
       <div className="absolute top-6 right-6">
         <Suspense fallback={null}>
-          <StatusMessage error={error} success={success} />
+          <StatusMessage error={error} />
         </Suspense>
       </div>
 
@@ -90,28 +73,15 @@ const AuthShell = ({
           <div className="flex flex-col gap-4">{children}</div>
 
           <div className="flex flex-col gap-4">
-            <div className="flex flex-col gap-2">
-              <Button
-                type="submit"
-                variant="primary"
-                className="w-full text-sm font-medium"
-                loading={loading}
-                disabled={submitDisabled}
-              >
-                {submitLabel}
-              </Button>
-
-              <Button
-                type="button"
-                variant="secondary"
-                className="w-full gap-2"
-                disabled
-                aria-label="Continue with Google (unavailable)"
-              >
-                <FcGoogle size={16} />
-                Continue with Google
-              </Button>
-            </div>
+            <Button
+              type="submit"
+              variant="primary"
+              className="w-full text-sm font-medium"
+              loading={loading}
+              disabled={submitDisabled}
+            >
+              {submitLabel}
+            </Button>
 
             <p className="text-center text-sm text-white/50">
               {footerText}{" "}

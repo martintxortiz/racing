@@ -2,16 +2,19 @@ import { convexAuth } from "@convex-dev/auth/server";
 import { Password } from "@convex-dev/auth/providers/Password";
 import { ConvexError } from "convex/values";
 
+import {
+  emailPattern,
+  normalizeEmail,
+  normalizeUsername,
+  usernamePattern,
+} from "../lib/auth-validation";
 import type { DataModel, Doc } from "./_generated/dataModel";
 import type { MutationCtx } from "./_generated/server";
-
-const usernamePattern = /^[a-z0-9_]{3,20}$/;
-const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const PasswordProvider = Password<DataModel>({
   profile(params) {
     const email =
-      typeof params.email === "string" ? params.email.trim().toLowerCase() : "";
+      typeof params.email === "string" ? normalizeEmail(params.email) : "";
     if (!emailPattern.test(email)) {
       throw new ConvexError("Enter a valid email address.");
     }
@@ -20,7 +23,7 @@ const PasswordProvider = Password<DataModel>({
 
     const username =
       typeof params.username === "string"
-        ? params.username.trim().toLowerCase()
+        ? normalizeUsername(params.username)
         : "";
     if (!usernamePattern.test(username)) {
       throw new ConvexError("Use 3–20 letters, numbers, or underscores for your username.");
@@ -56,7 +59,7 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
         return existingUserId;
       }
 
-      return await ctx.db.insert("users", userProfile);
+      return ctx.db.insert("users", userProfile);
     },
   },
 });

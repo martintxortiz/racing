@@ -3,24 +3,18 @@ import { NextResponse } from "next/server"
 
 export default convexAuthNextjsMiddleware(async (request, { convexAuth }) => {
   const pathname = request.nextUrl.pathname
+  const authenticated = await convexAuth.isAuthenticated()
+  const allowed = authenticated
+    ? pathname === "/auth/sign-out" ||
+      pathname === "/dashboard" ||
+      pathname.startsWith("/dashboard/")
+    : pathname === "/auth" || pathname.startsWith("/auth/")
 
-  // Convex Auth handles its sign-in endpoint before this route check.
-  if (pathname.startsWith("/api/")) return NextResponse.next()
-
-  const isAuthenticated = await convexAuth.isAuthenticated()
-  const isAuthRoute = pathname === "/auth" || pathname.startsWith("/auth/")
-  const isDashboardRoute =
-    pathname === "/dashboard" || pathname.startsWith("/dashboard/")
-
-  if (isAuthenticated) {
-    return isDashboardRoute
-      ? NextResponse.next()
-      : NextResponse.redirect(new URL("/dashboard", request.url))
-  }
-
-  return isAuthRoute
+  return allowed
     ? NextResponse.next()
-    : NextResponse.redirect(new URL("/auth/sign-in", request.url))
+    : NextResponse.redirect(
+        new URL(authenticated ? "/dashboard" : "/auth/sign-in", request.url)
+      )
 })
 
 export const config = {

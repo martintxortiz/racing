@@ -10,10 +10,9 @@ import AuthField from "@/components/auth/auth-field"
 import AuthShell from "@/components/auth/auth-shell"
 import { Spinner } from "@/components/ui/spinner"
 import { api } from "@/convex/_generated/api"
+import { normalizeUsername, usernamePattern } from "@/lib/auth-validation"
 import { getAuthErrorMessage } from "@/lib/auth-error"
 import { cn } from "@/lib/utils"
-
-const USERNAME_PATTERN = /^[a-z0-9_]{3,20}$/
 
 function getPasswordStrength(pass: string): number {
   if (!pass) return 0
@@ -42,11 +41,12 @@ const SignUpPage = () => {
   const [email, setEmail] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [accountCreated, setAccountCreated] = useState(false)
   const [debouncedUsername, setDebouncedUsername] = useState("")
   const [usernameTouched, setUsernameTouched] = useState(false)
 
-  const normalizedUsername = username.trim().toLowerCase()
-  const validUsername = USERNAME_PATTERN.test(normalizedUsername)
+  const normalizedUsername = normalizeUsername(username)
+  const validUsername = usernamePattern.test(normalizedUsername)
 
   useEffect(() => {
     if (!validUsername) return
@@ -59,18 +59,23 @@ const SignUpPage = () => {
 
   const usernameAvailable = useQuery(
     api.users.isUsernameAvailable,
-    validUsername && debouncedUsername === normalizedUsername
+    !accountCreated && validUsername && debouncedUsername === normalizedUsername
       ? { username: normalizedUsername }
       : "skip"
   )
   const checkingUsername =
     validUsername &&
     (debouncedUsername !== normalizedUsername || usernameAvailable === undefined)
-  const usernameTaken = validUsername && !checkingUsername && usernameAvailable === false
+  const usernameTaken =
+    !loading &&
+    !accountCreated &&
+    validUsername &&
+    !checkingUsername &&
+    usernameAvailable === false
   const canSubmitUsername =
     validUsername && !checkingUsername && usernameAvailable === true
 
-  const usernameStatus = username.length > 0 && (
+  const usernameStatus = !loading && !accountCreated && username.length > 0 && (
     checkingUsername ? (
       <span role="status" aria-live="polite" className="flex items-center gap-1.5 text-xs text-white/40">
         <Spinner size={12} /> Checking…
@@ -105,13 +110,13 @@ const SignUpPage = () => {
       await signIn("password", {
         flow: "signUp",
         username: normalizedUsername,
-        email: email.trim().toLowerCase(),
+        email,
         password,
       })
+      setAccountCreated(true)
       router.replace("/dashboard")
     } catch (error) {
       setError(getAuthErrorMessage(error, "signUp"))
-    } finally {
       setLoading(false)
     }
   }

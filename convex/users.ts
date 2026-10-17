@@ -1,13 +1,12 @@
 import { v } from "convex/values";
 
 import { query } from "./_generated/server";
-
-const usernamePattern = /^[a-z0-9_]{3,20}$/;
+import { normalizeUsername, usernamePattern } from "../lib/auth-validation";
 
 export const isUsernameAvailable = query({
   args: { username: v.string() },
   handler: async (ctx, { username }) => {
-    const normalized = username.trim().toLowerCase();
+    const normalized = normalizeUsername(username);
     if (!usernamePattern.test(normalized)) return false;
 
     return (await ctx.db
