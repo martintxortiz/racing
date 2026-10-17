@@ -1,0 +1,29 @@
+.ld-circular-dots {
+  width: var(--ld-size, 16px);
+  height: var(--ld-size, 16px);
+}
+
+.ld-circular-dots-dot {
+  animation: ld-circular-dots-fade var(--ld-duration, 800ms) linear infinite;
+  animation-delay: calc(var(--ld-duration, 800ms) * (var(--ld-step) - 8) / 8);
+}
+
+@keyframes ld-circular-dots-fade {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0.2;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ld-circular-dots-dot {
+    opacity: 0.6;
+  }
+
+  .ld-circular-dots,
+  .ld-circular-dots * {
+    animation: none;
+  }
+}
