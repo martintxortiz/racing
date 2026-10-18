@@ -60,7 +60,7 @@ export default function UsernameStatus({
         aria-live="polite"
         className="flex items-center gap-1.5 text-xs text-muted-foreground"
       >
-        <Spinner size={12} /> Checking…
+        <Spinner size={12} /> Checking
       </span>
     );
   }

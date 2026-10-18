@@ -32,16 +32,18 @@ const sidebarLinks = [
 const DashboardSidebar = () => {
   return (
     <div className="h-full w-11 shrink-0 border-r flex flex-col items-center">
-      <Button
-        variant="link"
-        size="sm"
-        className="h-9 w-9 mt-1 text-muted-foreground"
-      >
-        <Logo className="size-6" />
-      </Button>
-      <div className="flex flex-col justify-between h-full">
-        <SidebarNav items={sidebarLinks} iconOnly className="p-1" />
-        <div className="p-1 flex flex-col gap-px">
+      <div className="flex w-full flex-1 flex-col justify-between p-1">
+        <div className="flex flex-col gap-px">
+          <Button
+            variant="link"
+            size="sm"
+            className="h-9 w-9 text-muted-foreground"
+          >
+            <Logo className="size-6" />
+          </Button>
+          <SidebarNav items={sidebarLinks} iconOnly />
+        </div>
+        <div className="flex flex-col gap-px">
           <Button variant="ghost" size="sm" className="h-9 w-9">
             <Notification className="size-4 text-foreground" />
           </Button>
