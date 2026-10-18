@@ -10,7 +10,7 @@ export default function NotFound() {
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center gap-4 bg-background px-4 text-center text-foreground">
-      <h1 className="text-7xl font-semibold leading-none text-red-500 sm:text-9xl">
+      <h1 className="text-xl font-semibold leading-none text-[#da1e28] sm:text-9xl">
         404
       </h1>
       <Button

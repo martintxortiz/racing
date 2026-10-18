@@ -2,6 +2,7 @@
 
 import { useQuery } from "convex/react";
 
+import AccountAvatar from "@/components/dashboard/account-avatar";
 import SettingsRow from "@/components/dashboard/settings/settings-row";
 import SettingsSection from "@/components/dashboard/settings/settings-section";
 import SettingsShell from "@/components/dashboard/settings/settings-shell";
@@ -20,6 +21,7 @@ const AccountSettingsPage = () => {
           label="Username"
           value={me?.username ? `@${me.username}` : "—"}
           action="Change Username"
+          leading={<AccountAvatar className="size-10 shrink-0" />}
         />
         <SettingsRow
           label="Email"
@@ -27,7 +29,11 @@ const AccountSettingsPage = () => {
           action="Change Email"
         />
         <SettingsRow label="Subscription" value="Free" action="Upgrade" />
-        <SettingsRow label="Profile visibility" value="Public" action="Change" />
+        <SettingsRow
+          label="Profile visibility"
+          value="Public"
+          action="Change"
+        />
       </SettingsSection>
 
       <SettingsSection title="Security">

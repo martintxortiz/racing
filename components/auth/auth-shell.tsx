@@ -7,18 +7,21 @@ import React, { Suspense, useState } from "react";
 import { FcGoogle } from "react-icons/fc";
 
 import { Button, buttonVariants } from "@/components/ui/button";
-import Logo from "../logo";
+// import Logo from "../logo";
+import PrismLogo from "../logo-prism";
 
 type AuthMode = "sign-in" | "sign-up";
 
 const SHELL_COPY = {
   "sign-in": {
+    heading: "Sign In To Prisma",
     submitLabel: "Sign in",
     footerText: "Don't have an account?",
     footerLinkText: "Sign up",
     footerLinkHref: "/auth/sign-up",
   },
   "sign-up": {
+    heading: "Sign Up To Prisma",
     submitLabel: "Sign up",
     footerText: "Already have an account?",
     footerLinkText: "Sign in",
@@ -61,7 +64,7 @@ const AuthShell = ({
   submitDisabled = false,
   onSubmit,
 }: AuthShellProps) => {
-  const { submitLabel, footerText, footerLinkText, footerLinkHref } =
+  const { heading, submitLabel, footerText, footerLinkText, footerLinkHref } =
     SHELL_COPY[mode];
   const { signIn } = useAuthActions();
   const [googleError, setGoogleError] = useState<string | null>(null);
@@ -80,21 +83,28 @@ const AuthShell = ({
 
   return (
     <div className="relative flex min-h-screen w-full flex-col items-center justify-center px-4 py-20">
-      <Link
-        href="/"
-        aria-label="Go to home"
-        className="absolute top-6 left-6 flex items-center gap-1.5 text-foreground transition-opacity hover:opacity-80"
-      >
-        <Logo className="h-9 w-9" />
-      </Link>
-
       <div className="absolute top-6 right-6">
         <Suspense fallback={null}>
           <StatusMessage error={error ?? googleError} />
         </Suspense>
       </div>
 
-      <div className="w-full max-w-sm">
+      <div className="flex w-full max-w-sm flex-col gap-8">
+        <div className="flex flex-col items-center gap-4 mb-2">
+          <Link
+            href="/"
+            aria-label="Go to home"
+            className="flex items-center text-foreground"
+          >
+            {/* <Logo className="h-10 w-10" /> */}
+            <PrismLogo className="h-10 w-10" />
+          </Link>
+
+          <h1 className="text-center text-xl font-semibold tracking-tight">
+            {heading}
+          </h1>
+        </div>
+
         <form onSubmit={onSubmit} className="flex flex-col gap-6">
           <div className="flex flex-col gap-4">{children}</div>
 

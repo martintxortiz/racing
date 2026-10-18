@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useTheme } from "next-themes";
 
 import { api } from "@/convex/_generated/api";
-import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
+import AccountAvatar from "./account-avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,7 +20,6 @@ import {
 import { Download, Help, Logout, Rocket, Settings } from "@carbon/icons-react";
 
 const AccountMenu = () => {
-  const AVATAR_SRC = "https://api.dicebear.com/10.x/loops/svg?seed=f7k01ooo";
   const { theme, setTheme } = useTheme();
   const me = useQuery(api.users.me);
 
@@ -30,20 +29,11 @@ const AccountMenu = () => {
         aria-label="Open account menu"
         className="group relative size-9 cursor-pointer rounded-[2px] p-0"
       >
-        <Avatar className="relative inline-flex size-full overflow-hidden border rounded-[2px]">
-          <AvatarFallback className="flex size-full items-center justify-center rounded-[2px] bg-foreground/10 text-sm font-medium text-muted-foreground">
-            MO
-          </AvatarFallback>
-          <AvatarImage
-            src={AVATAR_SRC}
-            alt=""
-            className="block size-full rounded-[2px] object-cover"
-          />
-          <span
-            aria-hidden
-            className="pointer-events-none absolute inset-0 z-10 rounded-[2px] bg-black/20 opacity-0 transition-opacity duration-150 group-hover:opacity-100"
-          />
-        </Avatar>
+        <AccountAvatar className="size-full" />
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-0 z-10 rounded-[2px] bg-black/20 opacity-0 transition-opacity duration-150 group-hover:opacity-100"
+        />
       </DropdownMenuTrigger>
       <DropdownMenuPortal>
         <DropdownMenuPositioner side="right" align="end" sideOffset={8}>

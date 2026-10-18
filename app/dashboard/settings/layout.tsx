@@ -26,7 +26,10 @@ export default function SettingsLayout({
           {
             icon: <ArrowLeft className="size-4" />,
             label: "Back",
-            onClick: () => router.back(),
+            onClick: () =>
+              router.push(
+                sessionStorage.getItem("settingsOrigin") ?? "/dashboard",
+              ),
           },
           {
             href: "/dashboard/settings",

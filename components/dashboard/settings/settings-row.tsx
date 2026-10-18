@@ -7,18 +7,23 @@ export default function SettingsRow({
   value,
   action,
   variant,
+  leading,
 }: {
   label: string;
   value?: string;
   action?: string;
   variant?: ComponentProps<typeof Button>["variant"];
+  leading?: React.ReactNode;
 }) {
   return (
-    <div className="flex items-center gap-6 rounded-[2px] bg-muted px-5 py-4">
+    <div className="flex items-center gap-3 rounded-[2px] bg-muted px-5 py-4">
+      {leading}
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
         <span className="text-sm font-medium">{label}</span>
         {value && (
-          <span className="truncate text-sm text-muted-foreground">{value}</span>
+          <span className="truncate text-sm text-muted-foreground">
+            {value}
+          </span>
         )}
       </div>
       {action && (
