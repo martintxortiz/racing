@@ -19,9 +19,7 @@ const AccountSettingsPage = () => {
 
   return (
     <SettingsShell>
-      <SettingsSection
-        title="Account"
-      >
+      <SettingsSection title="Account">
         <SettingsRow
           label="Username"
           value={me?.username ? `@${me.username}` : "—"}
