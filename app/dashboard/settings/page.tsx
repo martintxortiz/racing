@@ -1,16 +1,21 @@
 "use client";
 
-import { useQuery } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
+import { useState } from "react";
 
 import AccountAvatar from "@/components/dashboard/account-avatar";
+import EditFieldDialog from "@/components/dashboard/settings/edit-field-dialog";
 import SettingsRow from "@/components/dashboard/settings/settings-row";
 import SettingsSection from "@/components/dashboard/settings/settings-section";
 import SettingsShell from "@/components/dashboard/settings/settings-shell";
+import UsernameStatus from "@/components/dashboard/settings/username-status";
 import { api } from "@/convex/_generated/api";
 
 const AccountSettingsPage = () => {
   const me = useQuery(api.users.me);
   const loading = me === undefined;
+  const updateUsername = useMutation(api.users.updateUsername);
+  const [usernameDialogOpen, setUsernameDialogOpen] = useState(false);
 
   return (
     <SettingsShell>
@@ -22,6 +27,7 @@ const AccountSettingsPage = () => {
           label="Username"
           value={me?.username ? `@${me.username}` : "—"}
           action="Change Username"
+          onAction={() => setUsernameDialogOpen(true)}
           leading={
             <AccountAvatar
               src={me?.image}
@@ -42,6 +48,26 @@ const AccountSettingsPage = () => {
           action="Change"
         />
       </SettingsSection>
+
+      <EditFieldDialog
+        open={usernameDialogOpen}
+        onOpenChange={setUsernameDialogOpen}
+        title="Change Username"
+        description="Pick a new username for your account."
+        label="Username"
+        placeholder="New username"
+        defaultValue={me?.username ?? ""}
+        status={({ value, setSubmittable }) => (
+          <UsernameStatus
+            value={value}
+            currentUsername={me?.username ?? undefined}
+            onSubmittableChange={setSubmittable}
+          />
+        )}
+        onSubmit={async (value) => {
+          await updateUsername({ username: value });
+        }}
+      />
 
       <SettingsSection title="Security">
         <SettingsRow

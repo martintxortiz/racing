@@ -9,6 +9,7 @@ export default function SettingsRow({
   variant,
   leading,
   loading,
+  onAction,
 }: {
   label: string;
   value?: string;
@@ -16,6 +17,7 @@ export default function SettingsRow({
   variant?: ComponentProps<typeof Button>["variant"];
   leading?: React.ReactNode;
   loading?: boolean;
+  onAction?: () => void;
 }) {
   return (
     <div className="flex items-center gap-3 rounded-[2px] bg-muted px-5 py-4">
@@ -32,6 +34,7 @@ export default function SettingsRow({
         <Button
           variant={variant ?? "secondary"}
           loading={loading}
+          onClick={onAction}
           className={
             variant
               ? "shrink-0 px-3"

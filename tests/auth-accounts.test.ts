@@ -286,3 +286,43 @@ describe("users queries", () => {
     expect(linked?.hasGoogle).toBe(true);
   });
 });
+
+describe("updateUsername", () => {
+  it("normalizes and saves a new username for the signed-in user", async () => {
+    const t = createTest();
+    const id = await seedUser(t, { email: "a@b.com", username: "rider" });
+
+    await t
+      .withIdentity({ subject: id })
+      .mutation(api.users.updateUsername, { username: " Rider_2 " });
+
+    expect((await t.run((ctx) => ctx.db.get(id)))?.username).toBe("rider_2");
+  });
+
+  it("rejects a username taken by another user", async () => {
+    const t = createTest();
+    const id = await seedUser(t, { email: "a@b.com", username: "rider" });
+    await seedUser(t, { email: "c@d.com", username: "taken" });
+
+    await expect(
+      t
+        .withIdentity({ subject: id })
+        .mutation(api.users.updateUsername, { username: "taken" }),
+    ).rejects.toMatchObject({ data: "That username is already taken." });
+  });
+
+  it("rejects a malformed username and anonymous callers", async () => {
+    const t = createTest();
+    const id = await seedUser(t, { email: "a@b.com", username: "rider" });
+
+    await expect(
+      t
+        .withIdentity({ subject: id })
+        .mutation(api.users.updateUsername, { username: "AB" }),
+    ).rejects.toMatchObject({ data: expect.stringContaining("username") });
+
+    await expect(
+      t.mutation(api.users.updateUsername, { username: "fresh" }),
+    ).rejects.toMatchObject({ data: "You must be signed in." });
+  });
+});

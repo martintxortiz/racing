@@ -1,7 +1,7 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
 
-import { query } from "./_generated/server";
+import { mutation, query } from "./_generated/server";
 import { normalizeUsername, usernamePattern } from "../lib/auth-validation";
 
 export const me = query({
@@ -38,5 +38,30 @@ export const isUsernameAvailable = query({
         .withIndex("by_username", (q) => q.eq("username", normalized))
         .first()) === null
     );
+  },
+});
+
+export const updateUsername = mutation({
+  args: { username: v.string() },
+  handler: async (ctx, { username }) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new ConvexError("You must be signed in.");
+
+    const normalized = normalizeUsername(username);
+    if (!usernamePattern.test(normalized)) {
+      throw new ConvexError(
+        "Use 3–20 letters, numbers, or underscores for your username.",
+      );
+    }
+
+    const existing = await ctx.db
+      .query("users")
+      .withIndex("by_username", (q) => q.eq("username", normalized))
+      .first();
+    if (existing && existing._id !== userId) {
+      throw new ConvexError("That username is already taken.");
+    }
+
+    await ctx.db.patch(userId, { username: normalized });
   },
 });

@@ -12,6 +12,7 @@ const buttonVariants = cva(
         primary:
           "bg-brand text-white/90 hover:bg-[#2a74fe] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80",
         secondary: "bg-secondary text-secondary-foreground hover:bg-accent",
+        card: "bg-foreground/10 text-foreground hover:bg-foreground/15",
         danger:
           "bg-[#da1e28]/90 text-white hover:bg-[#da1e28] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80",
         white:
