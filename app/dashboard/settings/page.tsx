@@ -3,7 +3,7 @@
 import { useMutation, useQuery } from "convex/react";
 import { useState } from "react";
 
-import AccountAvatar from "@/components/dashboard/account-avatar";
+import AvatarEditor from "@/components/dashboard/settings/avatar-editor";
 import EditFieldDialog from "@/components/dashboard/settings/edit-field-dialog";
 import SettingsRow from "@/components/dashboard/settings/settings-row";
 import SettingsSection from "@/components/dashboard/settings/settings-section";
@@ -21,27 +21,25 @@ const AccountSettingsPage = () => {
     <SettingsShell>
       <SettingsSection
         title="Account"
-        description="Manage your account details and public profile."
       >
         <SettingsRow
           label="Username"
           value={me?.username ? `@${me.username}` : "—"}
           action="Change Username"
           onAction={() => setUsernameDialogOpen(true)}
-          leading={
-            <AccountAvatar
-              src={me?.image}
-              name={me?.username}
-              className="size-10 shrink-0"
-            />
-          }
+          leading={<AvatarEditor src={me?.image} name={me?.username} />}
         />
         <SettingsRow
           label="Email"
           value={me?.email ?? "—"}
           action="Change Email"
         />
-        <SettingsRow label="Subscription" value="Free" action="Upgrade" />
+        <SettingsRow
+          label="Subscription"
+          value="Free"
+          action="Upgrade"
+          variant={"white"}
+        />
         <SettingsRow
           label="Profile visibility"
           value="Public"

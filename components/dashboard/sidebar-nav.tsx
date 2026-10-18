@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 
-import { Button } from "../ui/button";
+import { Button, buttonVariants } from "../ui/button";
 import { cn } from "@/lib/utils";
 
 export type SidebarItem = {
@@ -50,7 +50,11 @@ const SidebarNav = ({
           <>
             {item.icon}
             {item.label ? (
-              <span className="text-[16px] font-normal">{item.label}</span>
+              <span
+                className={cn("text-[16px] font-normal", iconOnly && "sr-only")}
+              >
+                {item.label}
+              </span>
             ) : null}
           </>
         );
@@ -61,10 +65,12 @@ const SidebarNav = ({
             key={key}
             href={item.href}
             aria-current={isActive ? "page" : undefined}
+            className={cn(
+              buttonVariants({ variant: "ghost", size: "sm" }),
+              buttonClassName,
+            )}
           >
-            <Button variant="ghost" size="sm" className={buttonClassName}>
-              {content}
-            </Button>
+            {content}
           </Link>
         ) : (
           <Button

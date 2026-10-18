@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Car,
   ChartRelationship,
   Grid,
   Notification,
@@ -17,16 +18,47 @@ import SidebarNav from "./sidebar-nav";
 import Logo from "../logo";
 
 const sidebarLinks = [
-  { href: "/dashboard", icon: <Grid className="size-4" />, exact: true },
-  { href: "/dashboard/search", icon: <Search className="size-4" /> },
-  { href: "/dashboard/library", icon: <PackageLibrary className="size-4" /> },
+  {
+    href: "/dashboard",
+    icon: <Grid className="size-4.5" />,
+    label: "Dashboard",
+    exact: true,
+  },
+  {
+    href: "/dashboard/search",
+    icon: <Search className="size-4.5" />,
+    label: "Search",
+  },
+  {
+    href: "/dashboard/library",
+    icon: <PackageLibrary className="size-4.5" />,
+    label: "Library",
+  },
   {
     href: "/dashboard/analysis",
-    icon: <ChartRelationship className="size-4" />,
+    icon: <ChartRelationship className="size-4.5" />,
+    label: "Analysis",
   },
-  { href: "/dashboard/layouts", icon: <Template className="size-4" /> },
-  { href: "/dashboard/setup", icon: <Tools className="size-4" /> },
-  { href: "/dashboard/tracks", icon: <Plan className="size-4" /> },
+  {
+    href: "/dashboard/layouts",
+    icon: <Template className="size-4.5" />,
+    label: "Layouts",
+  },
+  {
+    href: "/dashboard/setup",
+    icon: <Tools className="size-4.5" />,
+    label: "Setup",
+  },
+  {
+    href: "/dashboard/tracks",
+    icon: <Plan className="size-4.5" />,
+    label: "Tracks",
+  },
+  {
+    href: "/dashboard/vehicles",
+    icon: <Car className="size-4.5" />,
+    label: "Vehicles",
+  },
 ];
 
 const DashboardSidebar = () => {
@@ -37,15 +69,21 @@ const DashboardSidebar = () => {
           <Button
             variant="link"
             size="sm"
+            aria-label="Prisma"
             className="h-9 w-9 text-muted-foreground"
           >
-            <Logo className="size-6" />
+            <Logo className="size-8" />
           </Button>
           <SidebarNav items={sidebarLinks} iconOnly />
         </div>
         <div className="flex flex-col gap-px">
-          <Button variant="ghost" size="sm" className="h-9 w-9">
-            <Notification className="size-4 text-foreground" />
+          <Button
+            variant="ghost"
+            size="sm"
+            aria-label="Notifications"
+            className="h-9 w-9"
+          >
+            <Notification className="size-4.5 text-foreground" />
           </Button>
           <AccountMenu />
         </div>

@@ -45,7 +45,7 @@ const AuthField = ({
             "text-base sm:text-sm",
             isPassword ? "w-full pr-9" : "w-full",
             error &&
-              "!ring-1 !ring-red-500 !focus-visible:ring-1 !focus-visible:ring-red-500",
+              "!ring-1 !ring-danger-strong !focus-visible:ring-1 !focus-visible:ring-danger-strong",
             className,
           )}
           {...props}

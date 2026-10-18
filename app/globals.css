@@ -21,6 +21,12 @@
   animation: shake 0.35s ease-in-out;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .animate-shake {
+    animation: none;
+  }
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -33,6 +39,9 @@
   --color-input: var(--input);
   --color-border: var(--border);
   --color-destructive: var(--destructive);
+  --color-danger-strong: var(--danger-strong);
+  --color-success: var(--success);
+  --color-success-meter: #22c55e;
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);
@@ -48,7 +57,7 @@
 }
 
 :root {
-  --background: oklch(1 0 0);
+  --background: oklch(0.985 0.004 250);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.145 0 0);
@@ -56,15 +65,17 @@
   --popover-foreground: oklch(0.145 0 0);
   --primary: oklch(0.205 0 0);
   --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
+  --secondary: oklch(0.965 0.005 250);
   --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
+  --muted: oklch(0.965 0.005 250);
+  --muted-foreground: oklch(0.42 0.008 250);
+  --accent: oklch(0.965 0.005 250);
   --accent-foreground: oklch(0.205 0 0);
   --destructive: #da1e28;
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
+  --danger-strong: #ef4444;
+  --success: #15803d;
+  --border: oklch(0.88 0.008 250);
+  --input: oklch(0.88 0.008 250);
   --ring: oklch(0.708 0 0);
 }
 
@@ -84,6 +95,8 @@
   --accent: oklch(0.269 0 0);
   --accent-foreground: oklch(0.985 0 0);
   --destructive: #da1e28;
+  --danger-strong: #ef4444;
+  --success: #4ade80;
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.556 0 0);

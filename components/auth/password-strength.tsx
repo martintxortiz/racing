@@ -6,11 +6,13 @@ import { cn } from "@/lib/utils";
 
 const STRENGTH_COLORS = [
   "bg-foreground/15",
-  "bg-red-500",
+  "bg-danger-strong",
   "bg-orange-500",
   "bg-yellow-500",
-  "bg-green-500",
+  "bg-success-meter",
 ];
+
+const STRENGTH_LABELS = ["", "Weak", "Fair", "Good", "Strong"];
 
 function getPasswordStrength(pass: string): number {
   if (!pass) return 0;
@@ -28,6 +30,9 @@ const PasswordStrength = ({ password }: { password: string }) => {
 
   return (
     <div className="flex items-center gap-2">
+      <span className="sr-only">
+        {password ? `Password strength: ${STRENGTH_LABELS[score]}` : ""}
+      </span>
       <div className="flex items-center gap-0.5">
         {[1, 2, 3, 4].map((step) => (
           <div

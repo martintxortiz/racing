@@ -10,13 +10,13 @@ const buttonVariants = cva(
     variants: {
       variant: {
         primary:
-          "bg-brand text-white/90 hover:bg-[#2a74fe] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80",
+          "bg-brand text-white/90 hover:bg-[#2a74fe] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         secondary: "bg-secondary text-secondary-foreground hover:bg-accent",
         card: "bg-foreground/10 text-foreground hover:bg-foreground/15",
         danger:
-          "bg-[#da1e28]/90 text-white hover:bg-[#da1e28] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/80",
+          "bg-destructive/90 text-white hover:bg-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         white:
-          "bg-white text-neutral-950 hover:bg-white/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+          "bg-foreground text-background hover:bg-foreground/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         tertiary:
           "text-muted-foreground hover:text-foreground bg-white/8 hover:bg-white/15",
         ghost:
@@ -57,10 +57,18 @@ function Button({
         loading && isPrimary && "bg-[#0b4ecb] hover:bg-[#0b4ecb]",
         className,
       )}
+      aria-busy={loading || undefined}
       disabled={disabled || loading}
       {...props}
     >
-      {loading ? <Spinner size={16} /> : children}
+      {loading ? (
+        <>
+          <Spinner size={16} />
+          <span className="sr-only">{children}</span>
+        </>
+      ) : (
+        children
+      )}
     </ButtonPrimitive>
   );
 }

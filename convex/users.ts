@@ -65,3 +65,17 @@ export const updateUsername = mutation({
     await ctx.db.patch(userId, { username: normalized });
   },
 });
+
+export const updateAvatar = mutation({
+  args: { image: v.string() },
+  handler: async (ctx, { image }) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new ConvexError("You must be signed in.");
+
+    if (!image.startsWith("data:image/") || image.length > 100_000) {
+      throw new ConvexError("That image could not be saved.");
+    }
+
+    await ctx.db.patch(userId, { image });
+  },
+});

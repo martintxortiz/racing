@@ -81,7 +81,7 @@ export default function UsernameStatus({
     <span
       role="status"
       aria-live="polite"
-      className="flex items-center gap-1.5 text-xs text-green-700 dark:text-green-400"
+      className="flex items-center gap-1.5 text-xs text-[color:var(--success)]"
     >
       <CheckmarkFilled size={12} /> Available
     </span>

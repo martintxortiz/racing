@@ -104,7 +104,7 @@ const AccountMenu = () => {
             <DropdownMenuSeparator />
             <DropdownMenuItem
               render={<Link href="/auth/sign-out" />}
-              className={"hover:!text-red-500 hover:!bg-red-500/15"}
+              className={"hover:!text-danger-strong hover:!bg-danger-strong/15"}
             >
               <Logout className="size-4" />
               <span>Log out</span>

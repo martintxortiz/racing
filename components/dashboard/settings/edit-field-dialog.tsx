@@ -107,7 +107,11 @@ function EditFieldForm({
           }}
         />
       </div>
-      {error && <p className="text-sm text-destructive">{error}</p>}
+      {error && (
+        <p role="alert" className="text-sm text-destructive">
+          {error}
+        </p>
+      )}
       <div className="flex gap-2">
         <Dialog.Close
           render={<Button variant="card" type="button" />}
