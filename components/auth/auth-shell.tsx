@@ -7,6 +7,7 @@ import React, { Suspense, useState } from "react";
 import { FcGoogle } from "react-icons/fc";
 
 import { Button, buttonVariants } from "@/components/ui/button";
+import { getAuthErrorMessage } from "@/lib/auth-error";
 // import Logo from "../logo";
 import PrismLogo from "../logo-prism";
 
@@ -38,9 +39,23 @@ interface AuthShellProps {
   onSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
 }
 
-function StatusMessage({ error }: { error?: string | null }) {
+function StatusMessage({
+  error,
+  mode,
+}: {
+  error?: string | null;
+  mode: AuthMode;
+}) {
   const searchParams = useSearchParams();
-  const errorText = error ?? searchParams.get("error");
+  const paramError = searchParams.get("error");
+  const errorText =
+    error ??
+    (paramError
+      ? getAuthErrorMessage(
+          paramError,
+          mode === "sign-in" ? "signIn" : "signUp",
+        )
+      : null);
 
   if (errorText) {
     return (
@@ -85,7 +100,7 @@ const AuthShell = ({
     <div className="relative flex min-h-screen w-full flex-col items-center justify-center px-4 py-20">
       <div className="absolute top-6 right-6">
         <Suspense fallback={null}>
-          <StatusMessage error={error ?? googleError} />
+          <StatusMessage error={error ?? googleError} mode={mode} />
         </Suspense>
       </div>
 
@@ -100,7 +115,7 @@ const AuthShell = ({
             <PrismLogo className="h-10 w-10" />
           </Link>
 
-          <h1 className="text-center text-xl font-semibold tracking-tight">
+          <h1 className="text-center text-foreground/80 text-xl font-semibold tracking-tight">
             {heading}
           </h1>
         </div>

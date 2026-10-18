@@ -11,7 +11,18 @@ export const me = query({
     if (!userId) return null;
     const user = await ctx.db.get(userId);
     if (!user) return null;
-    return { username: user.username ?? null, email: user.email ?? null };
+    const accounts = await ctx.db
+      .query("authAccounts")
+      .withIndex("userIdAndProvider", (q) => q.eq("userId", userId))
+      .collect();
+    const providers = new Set(accounts.map((account) => account.provider));
+    return {
+      username: user.username ?? null,
+      email: user.email ?? null,
+      image: user.image ?? null,
+      hasPassword: providers.has("password"),
+      hasGoogle: providers.has("google"),
+    };
   },
 });
 

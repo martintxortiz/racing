@@ -10,6 +10,7 @@ import { api } from "@/convex/_generated/api";
 
 const AccountSettingsPage = () => {
   const me = useQuery(api.users.me);
+  const loading = me === undefined;
 
   return (
     <SettingsShell>
@@ -21,7 +22,13 @@ const AccountSettingsPage = () => {
           label="Username"
           value={me?.username ? `@${me.username}` : "—"}
           action="Change Username"
-          leading={<AccountAvatar className="size-10 shrink-0" />}
+          leading={
+            <AccountAvatar
+              src={me?.image}
+              name={me?.username}
+              className="size-10 shrink-0"
+            />
+          }
         />
         <SettingsRow
           label="Email"
@@ -39,13 +46,17 @@ const AccountSettingsPage = () => {
       <SettingsSection title="Security">
         <SettingsRow
           label="Password Sign In"
-          value="Reset your password"
-          action="Reset Password"
+          value={me?.hasPassword ? "Reset your password" : "No password set"}
+          action={me?.hasPassword ? "Reset Password" : "Enable"}
+          variant={loading || me?.hasPassword ? undefined : "white"}
+          loading={loading}
         />
         <SettingsRow
           label="Google Sign in"
           value={me?.email ?? "—"}
-          action="Disable"
+          variant={loading || me?.hasGoogle ? undefined : "white"}
+          action={me?.hasGoogle ? "Disable" : "Enable"}
+          loading={loading}
         />
         <SettingsRow
           label="Multi-factor authentication"

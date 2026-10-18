@@ -29,7 +29,11 @@ const AccountMenu = () => {
         aria-label="Open account menu"
         className="group relative size-9 cursor-pointer rounded-[2px] p-0"
       >
-        <AccountAvatar className="size-full" />
+        <AccountAvatar
+          src={me?.image}
+          name={me?.username}
+          className="size-full"
+        />
         <span
           aria-hidden
           className="pointer-events-none absolute inset-0 z-10 rounded-[2px] bg-black/20 opacity-0 transition-opacity duration-150 group-hover:opacity-100"

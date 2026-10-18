@@ -18,6 +18,27 @@ export function getAuthErrorMessage(error: unknown, flow: "signIn" | "signUp") {
   if (normalized.includes("username") && normalized.includes("taken")) {
     return "That username is already taken.";
   }
+  if (normalized.includes("letters, numbers, or underscores")) {
+    return "Use 3–20 letters, numbers, or underscores for your username.";
+  }
+  if (
+    normalized.includes("access_denied") ||
+    normalized.includes("accessdenied")
+  ) {
+    return "Sign-in was cancelled.";
+  }
+  if (normalized.includes("oauthaccountnotlinked")) {
+    return "This email is already linked to a different sign-in method.";
+  }
+  if (
+    normalized.includes("emailnotverified") ||
+    normalized.includes("email_not_verified")
+  ) {
+    return "Verify your email address to continue.";
+  }
+  if (normalized.includes("configuration") || normalized.includes("clientid")) {
+    return "Sign-in is temporarily unavailable. Please try again later.";
+  }
   if (flow === "signUp" && normalized.includes("already exists")) {
     return "An account with this email already exists.";
   }

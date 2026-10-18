@@ -8,12 +8,14 @@ export default function SettingsRow({
   action,
   variant,
   leading,
+  loading,
 }: {
   label: string;
   value?: string;
   action?: string;
   variant?: ComponentProps<typeof Button>["variant"];
   leading?: React.ReactNode;
+  loading?: boolean;
 }) {
   return (
     <div className="flex items-center gap-3 rounded-[2px] bg-muted px-5 py-4">
@@ -29,6 +31,7 @@ export default function SettingsRow({
       {action && (
         <Button
           variant={variant ?? "secondary"}
+          loading={loading}
           className={
             variant
               ? "shrink-0 px-3"

@@ -12,6 +12,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { api } from "@/convex/_generated/api";
 import { normalizeUsername, usernamePattern } from "@/lib/auth-validation";
 import { getAuthErrorMessage } from "@/lib/auth-error";
+import { CheckmarkFilled, Close, CloseFilled } from "@carbon/icons-react";
 
 const SignUpPage = () => {
   const { signIn } = useAuthActions();
@@ -73,17 +74,17 @@ const SignUpPage = () => {
       <span
         role="status"
         aria-live="polite"
-        className="text-xs text-destructive"
+        className="flex items-center gap-1.5 text-xs text-destructive"
       >
-        Username taken
+        <CloseFilled size={12} /> Username taken
       </span>
     ) : usernameAvailable === true ? (
       <span
         role="status"
         aria-live="polite"
-        className="text-xs text-green-700 dark:text-green-400"
+        className="flex items-center gap-1.5 text-xs text-green-700 dark:text-green-400"
       >
-        Available
+        <CheckmarkFilled size={12} /> Available
       </span>
     ) : usernameTouched && !validUsername ? (
       <span
