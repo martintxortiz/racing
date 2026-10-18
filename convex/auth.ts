@@ -31,7 +31,9 @@ const PasswordProvider = Password<DataModel>({
         ? normalizeUsername(params.username)
         : "";
     if (!usernamePattern.test(username)) {
-      throw new ConvexError("Use 3–20 letters, numbers, or underscores for your username.");
+      throw new ConvexError(
+        "Use 3–20 letters, numbers, or underscores for your username.",
+      );
     }
 
     return { email, username };
@@ -49,6 +51,24 @@ const PasswordProvider = Password<DataModel>({
     }
   },
 });
+
+async function deriveUniqueUsername(ctx: MutationCtx, email?: string) {
+  const base = (email?.split("@")[0] ?? "user")
+    .toLowerCase()
+    .replace(/[^a-z0-9_]/g, "_");
+  const stem = (base.length >= 3 ? base : `user${base}`).slice(0, 20);
+
+  let candidate = stem;
+  for (let n = 1; ; n++) {
+    const taken = await ctx.db
+      .query("users")
+      .withIndex("by_username", (q) => q.eq("username", candidate))
+      .first();
+    if (!taken) return candidate;
+    const suffix = String(n);
+    candidate = `${stem.slice(0, 20 - suffix.length)}${suffix}`;
+  }
+}
 
 const GoogleProvider = Google({
   profile(profile) {
@@ -95,7 +115,10 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
         throw new ConvexError("An account with this email already exists.");
       }
 
-      const username = profile.username;
+      const currentUser = linkedUserId ? await ctx.db.get(linkedUserId) : null;
+
+      let username =
+        typeof profile.username === "string" ? profile.username : undefined;
       if (typeof username === "string") {
         const existing = await ctx.db
           .query("users")
@@ -104,6 +127,8 @@ export const { auth, signIn, signOut, store, isAuthenticated } = convexAuth({
         if (existing && existing._id !== existingUserId) {
           throw new ConvexError("That username is already taken.");
         }
+      } else if (!currentUser?.username) {
+        username = await deriveUniqueUsername(ctx, email);
       }
 
       const userProfile: Partial<

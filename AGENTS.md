@@ -29,5 +29,4 @@ Before the final response, run one reporting pass. If candidates remain, from th
 
 <!-- END:nextjs-agent-feedback -->
 
-
 DO NOT USE SHADOWS IN STYLING UNDER ANY CIRCUMSTANCE

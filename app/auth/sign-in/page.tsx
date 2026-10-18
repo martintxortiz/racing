@@ -1,45 +1,42 @@
-"use client"
+"use client";
 
-import { useAuthActions } from "@convex-dev/auth/react"
-import { useRouter } from "next/navigation"
-import React, { useState } from "react"
+import { useAuthActions } from "@convex-dev/auth/react";
+import { useRouter } from "next/navigation";
+import React, { useState } from "react";
 
-import AuthField from "@/components/auth/auth-field"
-import AuthShell from "@/components/auth/auth-shell"
-import { getAuthErrorMessage } from "@/lib/auth-error"
+import AuthField from "@/components/auth/auth-field";
+import AuthShell from "@/components/auth/auth-shell";
+import { getAuthErrorMessage } from "@/lib/auth-error";
 
 const SignInPage = () => {
-  const { signIn } = useAuthActions()
-  const router = useRouter()
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
-  const [error, setError] = useState<string | null>(null)
-  const [loading, setLoading] = useState(false)
+  const { signIn } = useAuthActions();
+  const router = useRouter();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
-    setError(null)
-    setLoading(true)
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
 
     try {
       await signIn("password", {
         flow: "signIn",
         email,
         password,
-      })
-      router.replace("/dashboard")
+      });
+      router.replace("/dashboard");
     } catch (error) {
-      setError(getAuthErrorMessage(error, "signIn"))
-      setLoading(false)
+      setError(getAuthErrorMessage(error, "signIn"));
+      setLoading(false);
     }
-  }
+  };
 
   return (
     <AuthShell
-      submitLabel="Sign in"
-      footerText="Don't have an account?"
-      footerLinkText="Sign up"
-      footerLinkHref="/auth/sign-up"
+      mode="sign-in"
       error={error}
       loading={loading}
       onSubmit={handleSubmit}
@@ -54,8 +51,8 @@ const SignInPage = () => {
         required
         value={email}
         onChange={(e) => {
-          setEmail(e.target.value)
-          setError(null)
+          setEmail(e.target.value);
+          setError(null);
         }}
         error={Boolean(error)}
       />
@@ -69,7 +66,7 @@ const SignInPage = () => {
             type="button"
             disabled
             aria-label="Forgot password (unavailable)"
-            className="cursor-not-allowed text-xs font-medium text-white/20"
+            className="cursor-not-allowed text-xs font-medium text-muted-foreground"
           >
             Forgot password?
           </button>
@@ -81,13 +78,13 @@ const SignInPage = () => {
         required
         value={password}
         onChange={(e) => {
-          setPassword(e.target.value)
-          setError(null)
+          setPassword(e.target.value);
+          setError(null);
         }}
         error={Boolean(error)}
       />
     </AuthShell>
-  )
-}
+  );
+};
 
-export default SignInPage
+export default SignInPage;

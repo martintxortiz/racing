@@ -1,80 +1,89 @@
-"use client"
+"use client";
 
-import Link from "next/link"
-import { useSearchParams } from "next/navigation"
-import { useAuthActions } from "@convex-dev/auth/react"
-import React, { Suspense, useState } from "react"
-import { FcGoogle } from "react-icons/fc"
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { useAuthActions } from "@convex-dev/auth/react";
+import React, { Suspense, useState } from "react";
+import { FcGoogle } from "react-icons/fc";
 
-import { Button, buttonVariants } from "@/components/ui/button"
-import Logo from "../logo"
+import { Button, buttonVariants } from "@/components/ui/button";
+import Logo from "../logo";
+
+type AuthMode = "sign-in" | "sign-up";
+
+const SHELL_COPY = {
+  "sign-in": {
+    submitLabel: "Sign in",
+    footerText: "Don't have an account?",
+    footerLinkText: "Sign up",
+    footerLinkHref: "/auth/sign-up",
+  },
+  "sign-up": {
+    submitLabel: "Sign up",
+    footerText: "Already have an account?",
+    footerLinkText: "Sign in",
+    footerLinkHref: "/auth/sign-in",
+  },
+} as const;
 
 interface AuthShellProps {
-  children: React.ReactNode
-  error?: string | null
-  loading?: boolean
-  submitDisabled?: boolean
-  submitLabel: string
-  footerText: string
-  footerLinkText: string
-  footerLinkHref: string
-  onSubmit: (e: React.FormEvent<HTMLFormElement>) => void
+  children: React.ReactNode;
+  mode: AuthMode;
+  error?: string | null;
+  loading?: boolean;
+  submitDisabled?: boolean;
+  onSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
 }
 
-function StatusMessage({
-  error,
-}: {
-  error?: string | null
-}) {
-  const searchParams = useSearchParams()
-  const errorText = error ?? searchParams.get("error")
+function StatusMessage({ error }: { error?: string | null }) {
+  const searchParams = useSearchParams();
+  const errorText = error ?? searchParams.get("error");
 
   if (errorText) {
     return (
       <div
         role="alert"
-        className="inline-flex h-9 items-center rounded-[2px] border-l-3 border-l-red-500 bg-muted px-3 text-sm font-medium text-white/90"
+        className="inline-flex h-9 items-center rounded-[2px] border-l-3 border-l-destructive bg-muted px-3 text-sm font-medium text-foreground"
       >
         {errorText}
       </div>
-    )
+    );
   }
 
-  return null
+  return null;
 }
 
 const AuthShell = ({
   children,
+  mode,
   error,
   loading = false,
   submitDisabled = false,
-  submitLabel,
-  footerText,
-  footerLinkText,
-  footerLinkHref,
   onSubmit,
 }: AuthShellProps) => {
-  const { signIn } = useAuthActions()
-  const [googleError, setGoogleError] = useState<string | null>(null)
-  const [googleLoading, setGoogleLoading] = useState(false)
+  const { submitLabel, footerText, footerLinkText, footerLinkHref } =
+    SHELL_COPY[mode];
+  const { signIn } = useAuthActions();
+  const [googleError, setGoogleError] = useState<string | null>(null);
+  const [googleLoading, setGoogleLoading] = useState(false);
 
   const handleGoogleSignIn = async () => {
-    setGoogleError(null)
-    setGoogleLoading(true)
+    setGoogleError(null);
+    setGoogleLoading(true);
     try {
-      await signIn("google", { redirectTo: "/dashboard" })
+      await signIn("google", { redirectTo: "/dashboard" });
     } catch {
-      setGoogleError("Unable to sign in with Google. Please try again.")
-      setGoogleLoading(false)
+      setGoogleError("Unable to sign in with Google. Please try again.");
+      setGoogleLoading(false);
     }
-  }
+  };
 
   return (
     <div className="relative flex min-h-screen w-full flex-col items-center justify-center px-4 py-20">
       <Link
         href="/"
         aria-label="Go to home"
-        className="absolute top-6 left-6 flex items-center text-white/90 transition-opacity hover:opacity-80 gap-1.5"
+        className="absolute top-6 left-6 flex items-center gap-1.5 text-foreground transition-opacity hover:opacity-80"
       >
         <Logo className="h-9 w-9" />
       </Link>
@@ -112,7 +121,7 @@ const AuthShell = ({
               Continue with Google
             </Button>
 
-            <p className="text-center text-sm text-white/50">
+            <p className="text-center text-sm text-muted-foreground">
               {footerText}{" "}
               <Link
                 href={footerLinkHref}
@@ -128,19 +137,19 @@ const AuthShell = ({
       <div className="mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-2">
         <Link
           href="/privacy"
-          className="text-xs text-white/20 transition-colors hover:text-white/50"
+          className="text-xs text-muted-foreground transition-colors hover:text-foreground"
         >
           Privacy Policy
         </Link>
         <Link
           href="/terms"
-          className="text-xs text-white/20 transition-colors hover:text-white/50"
+          className="text-xs text-muted-foreground transition-colors hover:text-foreground"
         >
           Terms of Service
         </Link>
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default AuthShell
+export default AuthShell;

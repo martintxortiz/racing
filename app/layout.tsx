@@ -21,11 +21,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   await connection();
 
   return (
-    <html
-      lang="en"
-      suppressHydrationWarning
-      className="h-full antialiased"
-    >
+    <html lang="en" suppressHydrationWarning className="h-full antialiased">
       <body className="min-h-full flex flex-col">
         <ConvexAuthNextjsServerProvider>
           <ConvexClientProvider>

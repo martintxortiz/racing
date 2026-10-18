@@ -1,32 +1,32 @@
-"use client"
+"use client";
 
-import { useAuthActions } from "@convex-dev/auth/react"
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useAuthActions } from "@convex-dev/auth/react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
-import { Button } from "@/components/ui/button"
-import { Spinner } from "@/components/ui/spinner"
+import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 
 function SignOutPage() {
-  const { signOut } = useAuthActions()
-  const started = useRef(false)
-  const [error, setError] = useState(false)
+  const { signOut } = useAuthActions();
+  const started = useRef(false);
+  const [error, setError] = useState(false);
 
   const finishSignOut = useCallback(async () => {
-    setError(false)
+    setError(false);
     try {
-      await signOut()
-      window.location.replace("/auth/sign-in")
+      await signOut();
+      window.location.replace("/auth/sign-in");
     } catch {
-      started.current = false
-      setError(true)
+      started.current = false;
+      setError(true);
     }
-  }, [signOut])
+  }, [signOut]);
 
   useEffect(() => {
-    if (started.current) return
-    started.current = true
-    void finishSignOut()
-  }, [finishSignOut])
+    if (started.current) return;
+    started.current = true;
+    void finishSignOut();
+  }, [finishSignOut]);
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center gap-4">
@@ -36,10 +36,10 @@ function SignOutPage() {
           <Button onClick={finishSignOut}>Try again</Button>
         </>
       ) : (
-        <Spinner size={20} className="text-white/80" />
+        <Spinner size={20} className="text-foreground/80" />
       )}
     </main>
-  )
+  );
 }
 
-export default SignOutPage
+export default SignOutPage;

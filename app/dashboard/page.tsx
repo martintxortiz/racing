@@ -1,23 +1,7 @@
-"use client"
+import React from "react";
 
-import { useRouter } from "next/navigation"
+const DashboardPage = () => {
+  return <div>DashboardPage</div>;
+};
 
-import { Button } from "@/components/ui/button"
-
-function DashboardPage() {
-  const router = useRouter()
-
-  return (
-    <main className="flex min-h-screen items-center justify-center gap-4">
-      <h1>Dashboard</h1>
-      <Button
-        variant="secondary"
-        onClick={() => router.push("/auth/sign-out")}
-      >
-        Log out
-      </Button>
-    </main>
-  )
-}
-
-export default DashboardPage
+export default DashboardPage;

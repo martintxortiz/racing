@@ -1,16 +1,16 @@
-"use client"
+"use client";
 
-import { ViewOffFilled, ViewFilled } from "@carbon/icons-react"
-import React, { useState } from "react"
+import { ViewOffFilled, ViewFilled } from "@carbon/icons-react";
+import React, { useState } from "react";
 
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { cn } from "@/lib/utils"
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
 
 interface AuthFieldProps extends React.ComponentProps<typeof Input> {
-  label: string
-  labelExtra?: React.ReactNode
-  error?: boolean
+  label: string;
+  labelExtra?: React.ReactNode;
+  error?: boolean;
 }
 
 const AuthField = ({
@@ -23,14 +23,14 @@ const AuthField = ({
   className,
   ...props
 }: AuthFieldProps) => {
-  const isPassword = type === "password"
-  const [visible, setVisible] = useState(false)
-  const inputId = id ?? name
+  const isPassword = type === "password";
+  const [visible, setVisible] = useState(false);
+  const inputId = id ?? name;
 
   return (
     <div className={cn("flex flex-col gap-2", error && "animate-shake")}>
       <div className="flex items-center justify-between">
-        <Label htmlFor={inputId} className="text-sm text-white/50">
+        <Label htmlFor={inputId} className="text-sm text-muted-foreground">
           {label}
         </Label>
         {labelExtra}
@@ -44,8 +44,9 @@ const AuthField = ({
           className={cn(
             "text-base sm:text-sm",
             isPassword ? "w-full pr-9" : "w-full",
-            error && "!ring-1 !ring-red-500 !focus-visible:ring-1 !focus-visible:ring-red-500",
-            className
+            error &&
+              "!ring-1 !ring-red-500 !focus-visible:ring-1 !focus-visible:ring-red-500",
+            className,
           )}
           {...props}
         />
@@ -53,7 +54,7 @@ const AuthField = ({
           <button
             type="button"
             onClick={() => setVisible((v) => !v)}
-            className="absolute inset-y-0 right-0 flex w-9 items-center justify-center text-white/30 hover:text-white/70 transition-colors cursor-pointer"
+            className="absolute inset-y-0 right-0 flex w-9 cursor-pointer items-center justify-center text-muted-foreground transition-colors hover:text-foreground"
             aria-label={visible ? "Hide password" : "Show password"}
           >
             {visible ? <ViewOffFilled size={16} /> : <ViewFilled size={16} />}
@@ -61,7 +62,7 @@ const AuthField = ({
         )}
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default AuthField
+export default AuthField;

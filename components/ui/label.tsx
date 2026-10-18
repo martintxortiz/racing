@@ -1,6 +1,6 @@
-import type { ComponentProps } from "react"
+import type { ComponentProps } from "react";
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/lib/utils";
 
 function Label({ className, ...props }: ComponentProps<"label">) {
   return (
@@ -9,8 +9,7 @@ function Label({ className, ...props }: ComponentProps<"label">) {
       className={cn("text-sm font-medium text-muted-foreground", className)}
       {...props}
     />
-  )
+  );
 }
 
-export { Label }
-export type LabelProps = ComponentProps<"label">
+export { Label };
