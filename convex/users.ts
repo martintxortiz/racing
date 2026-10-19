@@ -1,7 +1,7 @@
 import {
   createAccount,
+  getAuthSessionId,
   getAuthUserId,
-  modifyAccountCredentials,
 } from "@convex-dev/auth/server";
 import { ConvexError, v } from "convex/values";
 
@@ -22,12 +22,16 @@ export const me = query({
       .withIndex("userIdAndProvider", (q) => q.eq("userId", userId))
       .collect();
     const providers = new Set(accounts.map((account) => account.provider));
+    const googleAccount = accounts.find(
+      (account) => account.provider === "google",
+    );
     return {
       username: user.username ?? null,
       email: user.email ?? null,
       image: user.image ?? null,
       hasPassword: providers.has("password"),
       hasGoogle: providers.has("google"),
+      googleEmail: googleAccount?.emailVerified ?? null,
     };
   },
 });
@@ -86,6 +90,29 @@ export const updateAvatar = mutation({
   },
 });
 
+export const prepareGoogleLink = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx);
+    const sessionId = await getAuthSessionId(ctx);
+    if (!userId || !sessionId) throw new ConvexError("You must be signed in.");
+
+    const requests = await ctx.db.query("googleLinkRequests").collect();
+    const now = Date.now();
+    if (requests.some((request) => request.requestedAt > now - 5 * 60_000)) {
+      throw new ConvexError(
+        "Another Google connection is in progress. Try again shortly.",
+      );
+    }
+    for (const request of requests) await ctx.db.delete(request._id);
+    await ctx.db.insert("googleLinkRequests", {
+      userId,
+      sessionId,
+      requestedAt: now,
+    });
+  },
+});
+
 export const passwordState = internalQuery({
   args: { userId: v.id("users") },
   handler: async (ctx, { userId }) => {
@@ -121,11 +148,7 @@ export const setPassword = action({
     if (!email) throw new ConvexError("Your account has no email address.");
 
     if (providerAccountId) {
-      await modifyAccountCredentials(ctx, {
-        provider: "password",
-        account: { id: providerAccountId, secret: password },
-      });
-      return;
+      throw new ConvexError("You already have a password.");
     }
 
     const { user } = await createAccount(ctx, {
@@ -151,7 +174,7 @@ export const unlinkGoogle = mutation({
       .collect();
     const google = accounts.find((account) => account.provider === "google");
     if (!google) throw new ConvexError("Google is not connected.");
-    if (accounts.length < 2) {
+    if (!accounts.some((account) => account.provider === "password")) {
       throw new ConvexError("Set a password before disconnecting Google.");
     }
 

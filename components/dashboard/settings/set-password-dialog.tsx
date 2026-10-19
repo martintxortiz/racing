@@ -17,14 +17,10 @@ type SetPasswordFormProps = {
 export default function SetPasswordDialog({
   open,
   onOpenChange,
-  title,
-  description,
   ...form
 }: Omit<SetPasswordFormProps, "onClose"> & {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  title: string;
-  description?: string;
 }) {
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
@@ -33,13 +29,11 @@ export default function SetPasswordDialog({
         <Dialog.Popup className="fixed top-1/2 left-1/2 flex w-96 max-w-[calc(100vw-3rem)] -translate-x-1/2 -translate-y-1/2 flex-col gap-5 rounded-[2px] bg-popover p-4 text-popover-foreground outline-none data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95">
           <div className="flex flex-col gap-1">
             <Dialog.Title className="text-base font-medium">
-              {title}
+              Enable Password
             </Dialog.Title>
-            {description && (
-              <Dialog.Description className="text-sm text-muted-foreground">
-                {description}
-              </Dialog.Description>
-            )}
+            <Dialog.Description className="text-sm text-muted-foreground">
+              Set a password so you can sign in without Google.
+            </Dialog.Description>
           </div>
           <SetPasswordForm {...form} onClose={() => onOpenChange(false)} />
         </Dialog.Popup>

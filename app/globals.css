@@ -21,8 +21,41 @@
   animation: shake 0.35s ease-in-out;
 }
 
+@keyframes kerb-scroll-right {
+  to {
+    background-position-x: 45.25px;
+  }
+}
+
+@keyframes kerb-scroll-left {
+  to {
+    background-position-x: -45.25px;
+  }
+}
+
+/* 45.25px is one 16px stripe period measured horizontally at 45deg, so the loop is seamless */
+.kerb-top {
+  background: repeating-linear-gradient(
+    45deg,
+    var(--destructive) 0 16px,
+    white 16px 32px
+  );
+  animation: kerb-scroll-right 1.2s linear infinite;
+}
+
+.kerb-bottom {
+  background: repeating-linear-gradient(
+    -45deg,
+    var(--destructive) 0 16px,
+    white 16px 32px
+  );
+  animation: kerb-scroll-left 1.2s linear infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .animate-shake {
+  .animate-shake,
+  .kerb-top,
+  .kerb-bottom {
     animation: none;
   }
 }

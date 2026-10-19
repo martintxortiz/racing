@@ -9,6 +9,7 @@ export default function SettingsRow({
   variant,
   leading,
   loading,
+  disabled,
   onAction,
 }: {
   label: string;
@@ -17,6 +18,7 @@ export default function SettingsRow({
   variant?: ComponentProps<typeof Button>["variant"];
   leading?: React.ReactNode;
   loading?: boolean;
+  disabled?: boolean;
   onAction?: () => void;
 }) {
   return (
@@ -34,6 +36,7 @@ export default function SettingsRow({
         <Button
           variant={variant ?? "secondary"}
           loading={loading}
+          disabled={disabled}
           onClick={onAction}
           className={
             variant

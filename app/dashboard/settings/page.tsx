@@ -5,7 +5,9 @@ import { useAction, useMutation, useQuery } from "convex/react";
 import { useState } from "react";
 
 import AvatarEditor from "@/components/dashboard/settings/avatar-editor";
+import ConfirmDisableGoogleDialog from "@/components/dashboard/settings/confirm-disable-google-dialog";
 import EditFieldDialog from "@/components/dashboard/settings/edit-field-dialog";
+import ResetPasswordDialog from "@/components/dashboard/settings/reset-password-dialog";
 import SetPasswordDialog from "@/components/dashboard/settings/set-password-dialog";
 import SettingsRow from "@/components/dashboard/settings/settings-row";
 import SettingsSection from "@/components/dashboard/settings/settings-section";
@@ -20,24 +22,54 @@ const AccountSettingsPage = () => {
   const loading = me === undefined;
   const updateUsername = useMutation(api.users.updateUsername);
   const setPassword = useAction(api.users.setPassword);
+  const prepareGoogleLink = useMutation(api.users.prepareGoogleLink);
   const unlinkGoogle = useMutation(api.users.unlinkGoogle);
   const [usernameDialogOpen, setUsernameDialogOpen] = useState(false);
   const [passwordDialogOpen, setPasswordDialogOpen] = useState(false);
+  const [resetPasswordDialogOpen, setResetPasswordDialogOpen] = useState(false);
+  const [googleConfirmOpen, setGoogleConfirmOpen] = useState(false);
   const [googlePending, setGooglePending] = useState(false);
   const [securityError, setSecurityError] = useState<string | null>(null);
 
-  const handleGoogleAction = () => {
+  const handlePasswordAction = () => {
     setSecurityError(null);
-    if (me?.hasGoogle) {
-      setGooglePending(true);
-      unlinkGoogle()
-        .catch((error) => setSecurityError(getErrorMessage(error)))
-        .finally(() => setGooglePending(false));
+    if (me?.hasPassword) {
+      setResetPasswordDialogOpen(true);
       return;
     }
-    signIn("google", { redirectTo: "/dashboard/settings" }).catch((error) =>
-      setSecurityError(getErrorMessage(error)),
-    );
+    setPasswordDialogOpen(true);
+  };
+
+  const handleGoogleAction = async () => {
+    setSecurityError(null);
+    if (me?.hasGoogle) {
+      setGoogleConfirmOpen(true);
+      return;
+    }
+    setGooglePending(true);
+    try {
+      await prepareGoogleLink();
+      const result = await signIn("google", {
+        redirectTo: "/dashboard/settings",
+      });
+      if (!result.redirect && !result.signingIn) setGooglePending(false);
+    } catch (error) {
+      setSecurityError(getErrorMessage(error));
+      setGooglePending(false);
+    }
+  };
+
+  const handleDisableGoogle = async () => {
+    setGooglePending(true);
+    setSecurityError(null);
+    try {
+      await unlinkGoogle();
+      setGoogleConfirmOpen(false);
+    } catch (error) {
+      setSecurityError(getErrorMessage(error));
+    } finally {
+      setGooglePending(false);
+    }
   };
 
   return (
@@ -91,29 +123,34 @@ const AccountSettingsPage = () => {
       <SettingsSection title="Security">
         <SettingsRow
           label="Password Sign In"
-          value={me?.hasPassword ? "Reset your password" : "No password set"}
+          value={
+            me?.hasPassword
+              ? "Request a password change by email"
+              : "No password set"
+          }
           action={me?.hasPassword ? "Reset Password" : "Enable"}
           variant={loading || me?.hasPassword ? undefined : "white"}
           loading={loading}
-          onAction={() => setPasswordDialogOpen(true)}
+          onAction={handlePasswordAction}
         />
         <SettingsRow
           label="Google Sign in"
-          value={me?.email ?? "—"}
+          value={me?.googleEmail ?? "No Google account connected"}
           variant={loading || me?.hasGoogle ? undefined : "white"}
           action={
-            me == null
-              ? undefined
-              : me.hasGoogle
-                ? me.hasPassword
+            loading
+              ? "Enable"
+              : me
+                ? me.hasGoogle
                   ? "Disable"
-                  : undefined
-                : "Enable"
+                  : "Enable"
+                : undefined
           }
+          disabled={Boolean(me?.hasGoogle && !me.hasPassword)}
           loading={loading || googlePending}
           onAction={handleGoogleAction}
         />
-        {securityError && (
+        {securityError && !googleConfirmOpen && (
           <p role="alert" className="text-sm text-destructive">
             {securityError}
           </p>
@@ -129,13 +166,22 @@ const AccountSettingsPage = () => {
       <SetPasswordDialog
         open={passwordDialogOpen}
         onOpenChange={setPasswordDialogOpen}
-        title={me?.hasPassword ? "Reset Password" : "Enable Password"}
-        description={
-          me?.hasPassword
-            ? "Choose a new password for your account."
-            : "Set a password so you can sign in without Google."
-        }
         onSubmit={(password) => setPassword({ password })}
+      />
+
+      <ResetPasswordDialog
+        open={resetPasswordDialogOpen}
+        onOpenChange={setResetPasswordDialogOpen}
+      />
+
+      <ConfirmDisableGoogleDialog
+        open={googleConfirmOpen}
+        onOpenChange={(open) => {
+          if (!googlePending) setGoogleConfirmOpen(open);
+        }}
+        loading={googlePending}
+        error={securityError}
+        onConfirm={handleDisableGoogle}
       />
 
       <SettingsSection title="Danger">

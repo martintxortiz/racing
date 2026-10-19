@@ -89,7 +89,8 @@ const AuthShell = ({
     setGoogleError(null);
     setGoogleLoading(true);
     try {
-      await signIn("google", { redirectTo: "/dashboard" });
+      const result = await signIn("google", { redirectTo: "/dashboard" });
+      if (!result.redirect && !result.signingIn) setGoogleLoading(false);
     } catch {
       setGoogleError("Unable to sign in with Google. Please try again.");
       setGoogleLoading(false);
@@ -129,7 +130,7 @@ const AuthShell = ({
               variant="primary"
               className="w-full text-sm font-medium"
               loading={loading}
-              disabled={submitDisabled}
+              disabled={submitDisabled || googleLoading}
             >
               {submitLabel}
             </Button>
@@ -140,6 +141,7 @@ const AuthShell = ({
               variant="secondary"
               className="w-full gap-2"
               loading={googleLoading}
+              disabled={loading}
               onClick={handleGoogleSignIn}
             >
               <FcGoogle size={16} />

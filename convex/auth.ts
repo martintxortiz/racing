@@ -75,6 +75,7 @@ export function googleProfile(profile: {
       profile.picture && !profile.picture.includes("/default-user")
         ? profile.picture
         : undefined,
+    emailVerified: true,
   };
 }
 
@@ -108,12 +109,13 @@ export async function deriveUniqueUsername(ctx: MutationCtx, email?: string) {
 export type CreateOrUpdateUserArgs = {
   existingUserId: Id<"users"> | null;
   type: "oauth" | "credentials" | "email" | "phone" | "verification";
+  provider: { id: string };
   profile: Record<string, unknown>;
 };
 
 export async function createOrUpdateUser(
   ctx: MutationCtx,
-  { existingUserId, type, profile }: CreateOrUpdateUserArgs,
+  { existingUserId, type, provider, profile }: CreateOrUpdateUserArgs,
 ) {
   const email =
     typeof profile.email === "string"
@@ -123,32 +125,73 @@ export async function createOrUpdateUser(
     throw new ConvexError("Enter a valid email address.");
   }
 
+  const sessionUserId = type === "oauth" ? null : await getAuthUserId(ctx);
+  const sessionUser = sessionUserId ? await ctx.db.get(sessionUserId) : null;
   const existingEmailUser = email
     ? await ctx.db
         .query("users")
         .withIndex("email", (q) => q.eq("email", email))
         .first()
     : null;
-  const sessionUserId =
-    type === "credentials" && existingUserId === null
-      ? await getAuthUserId(ctx)
-      : null;
-  const sessionUser =
-    sessionUserId === null ? null : await ctx.db.get(sessionUserId);
-
+  let requestedGoogleUserId: Id<"users"> | null = null;
+  if (type === "oauth" && provider.id === "google") {
+    const requests = await ctx.db.query("googleLinkRequests").collect();
+    const pendingRequest = requests.find(
+      (request) => request.requestedAt > Date.now() - 5 * 60_000,
+    );
+    const expiredRequest = requests.find(
+      (request) => request.requestedAt <= Date.now() - 5 * 60_000,
+    );
+    const verifiers = (await ctx.db.query("authVerifiers").collect()).filter(
+      (verifier) =>
+        verifier.sessionId && verifier._creationTime > Date.now() - 5 * 60_000,
+    );
+    if (
+      expiredRequest &&
+      verifiers.some(
+        (verifier) => verifier.sessionId === expiredRequest.sessionId,
+      )
+    ) {
+      throw new ConvexError("Google connection expired. Please try again.");
+    }
+    if (pendingRequest) {
+      const matchingVerifiers = verifiers.filter(
+        (verifier) => verifier.sessionId === pendingRequest.sessionId,
+      );
+      if (verifiers.length !== 1 || matchingVerifiers.length !== 1) {
+        throw new ConvexError(
+          "Finish one Google connection before starting another.",
+        );
+      }
+      const session = await ctx.db.get(pendingRequest.sessionId);
+      if (!session || session.expirationTime <= Date.now()) {
+        throw new ConvexError("Google connection expired. Please try again.");
+      }
+      requestedGoogleUserId = pendingRequest.userId;
+    }
+  }
+  if (
+    requestedGoogleUserId &&
+    existingUserId &&
+    requestedGoogleUserId !== existingUserId
+  ) {
+    throw new ConvexError(
+      "This Google account is connected to another account.",
+    );
+  }
   const linkedUserId =
     existingUserId ??
     (type === "oauth"
-      ? (existingEmailUser?._id ?? null)
-      : sessionUser && email !== undefined && sessionUser.email === email
+      ? requestedGoogleUserId
+      : sessionUser && sessionUser.email === email
         ? sessionUser._id
         : null);
+
   if (existingEmailUser && existingEmailUser._id !== linkedUserId) {
     throw new ConvexError("An account with this email already exists.");
   }
 
   const currentUser = linkedUserId ? await ctx.db.get(linkedUserId) : null;
-
   let username =
     typeof profile.username === "string" ? profile.username : undefined;
   if (typeof username === "string") {
@@ -163,30 +206,36 @@ export async function createOrUpdateUser(
     username = await deriveUniqueUsername(ctx, email);
   }
 
-  const image =
-    typeof profile.image === "string"
-      ? profile.image
-      : (currentUser?.image ??
-        (username ? generatedAvatarUrl(username) : undefined));
-
   const userProfile: Partial<
     Pick<
       Doc<"users">,
       "email" | "username" | "name" | "image" | "emailVerificationTime"
     >
   > = {
-    ...(email ? { email } : {}),
-    ...(type === "oauth" ? { emailVerificationTime: Date.now() } : {}),
-    ...(typeof username === "string" ? { username } : {}),
-    ...(typeof profile.name === "string" ? { name: profile.name } : {}),
-    ...(image ? { image } : {}),
+    ...(currentUser?.email ? {} : email ? { email } : {}),
+    ...(type === "oauth" && (!currentUser?.email || currentUser.email === email)
+      ? { emailVerificationTime: Date.now() }
+      : {}),
+    ...(username ? { username } : {}),
+    ...(!currentUser?.name && typeof profile.name === "string"
+      ? { name: profile.name }
+      : {}),
+    ...(!currentUser?.image && typeof profile.image === "string"
+      ? { image: profile.image }
+      : {}),
+    ...(!currentUser?.image && !profile.image && username
+      ? { image: generatedAvatarUrl(username) }
+      : {}),
   };
 
   if (linkedUserId) {
     await ctx.db.patch(linkedUserId, userProfile);
+    if (requestedGoogleUserId === linkedUserId) {
+      const requests = await ctx.db.query("googleLinkRequests").collect();
+      for (const request of requests) await ctx.db.delete(request._id);
+    }
     return linkedUserId;
   }
-
   return ctx.db.insert("users", userProfile);
 }
 

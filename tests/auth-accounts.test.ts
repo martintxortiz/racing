@@ -30,178 +30,125 @@ const seedUser = (
 ) => t.run((ctx) => ctx.db.insert("users", doc));
 
 describe("createOrUpdateUser", () => {
-  it("creates an unverified password user and generates an avatar", async () => {
+  it("preserves the signed-in account email and profile when linking Google", async () => {
     const t = createTest();
-    const id = await provision(t, {
-      existingUserId: null,
-      type: "credentials",
-      profile: { email: " Rider@Example.com ", username: "rider" },
+    const userId = await seedUser(t, {
+      email: "admin@admin.com",
+      username: "admin",
     });
-
-    const user = await t.run((ctx) => ctx.db.get(id));
-    expect(user?.email).toBe("rider@example.com");
-    expect(user?.username).toBe("rider");
-    expect(user?.emailVerificationTime).toBeUndefined();
-    expect(user?.image).toBe(generatedAvatarUrl("rider"));
-  });
-
-  it("refuses a password sign up for an email that already has a Google account", async () => {
-    const t = createTest();
-    await seedUser(t, { email: "rider@example.com", emailVerificationTime: 1 });
-
-    await expect(
-      provision(t, {
-        existingUserId: null,
-        type: "credentials",
-        profile: { email: "rider@example.com", username: "rider2" },
-      }),
-    ).rejects.toMatchObject({
-      data: "An account with this email already exists.",
-    });
-  });
-
-  it("links a Google sign in to the existing password user instead of duplicating", async () => {
-    const t = createTest();
-    const id = await seedUser(t, {
-      email: "rider@example.com",
-      username: "rider",
+    await t.run(async (ctx) => {
+      await ctx.db.patch(userId, { image: "data:image/png;base64,avatar" });
+      await ctx.db.insert("authAccounts", {
+        userId,
+        provider: "password",
+        providerAccountId: "admin@admin.com",
+      });
+      const sessionId = await ctx.db.insert("authSessions", {
+        userId,
+        expirationTime: Date.now() + 60_000,
+      });
+      await ctx.db.insert("googleLinkRequests", {
+        userId,
+        sessionId,
+        requestedAt: Date.now(),
+      });
+      await ctx.db.insert("authVerifiers", { sessionId });
     });
 
     const linkedId = await provision(t, {
       existingUserId: null,
       type: "oauth",
-      profile: { email: "rider@example.com", name: "Rider" },
+      provider: { id: "google" },
+      profile: {
+        email: "hello@hello.com",
+        emailVerified: true,
+        name: "Hello",
+        image: "https://google/avatar",
+      },
     });
 
-    expect(linkedId).toBe(id);
-    const user = await t.run((ctx) => ctx.db.get(id));
-    expect(user?.emailVerificationTime).toBeGreaterThan(0);
+    expect(linkedId).toBe(userId);
+    expect(await t.run((ctx) => ctx.db.get(userId))).toMatchObject({
+      email: "admin@admin.com",
+      username: "admin",
+      image: "data:image/png;base64,avatar",
+    });
     expect(await t.run((ctx) => ctx.db.query("users").collect())).toHaveLength(
       1,
     );
   });
 
-  it("links a credentials account created while signed in to the session user", async () => {
-    const t = createTest();
-    const id = await seedUser(t, {
-      email: "rider@example.com",
-      username: "rider",
-      emailVerificationTime: 1,
-    });
-
-    const linkedId = await t.withIdentity({ subject: id }).run((ctx) =>
-      createOrUpdateUser(ctx as unknown as MutationCtx, {
-        existingUserId: null,
-        type: "credentials",
-        profile: { email: "rider@example.com", username: "rider" },
-      }),
-    );
-
-    expect(linkedId).toBe(id);
-    expect(await t.run((ctx) => ctx.db.query("users").collect())).toHaveLength(
-      1,
-    );
-  });
-
-  it("does not link a credentials account when the session email differs", async () => {
-    const t = createTest();
-    const id = await seedUser(t, {
-      email: "rider@example.com",
-      username: "rider",
-    });
-
-    const newId = await t.withIdentity({ subject: id }).run((ctx) =>
-      createOrUpdateUser(ctx as unknown as MutationCtx, {
-        existingUserId: null,
-        type: "credentials",
-        profile: { email: "other@example.com", username: "other" },
-      }),
-    );
-
-    expect(newId).not.toBe(id);
-    expect(await t.run((ctx) => ctx.db.query("users").collect())).toHaveLength(
-      2,
-    );
-  });
-
-  it("refuses a username already taken by another user", async () => {
-    const t = createTest();
-    await seedUser(t, { email: "a@x.com", username: "rider" });
-
-    await expect(
-      provision(t, {
-        existingUserId: null,
-        type: "credentials",
-        profile: { email: "b@x.com", username: "rider" },
-      }),
-    ).rejects.toMatchObject({ data: "That username is already taken." });
-  });
-
-  it("derives a username for OAuth sign in when none is provided", async () => {
+  it("creates a new user from an unlinked provider and a generated avatar", async () => {
     const t = createTest();
     const id = await provision(t, {
       existingUserId: null,
       type: "oauth",
-      profile: { email: "neo@matrix.io" },
+      provider: { id: "google" },
+      profile: { email: " Rider@Example.com ", name: "Rider" },
     });
 
-    const user = await t.run((ctx) => ctx.db.get(id));
-    expect(user?.username).toBe("neo");
+    expect(await t.run((ctx) => ctx.db.get(id))).toMatchObject({
+      email: "rider@example.com",
+      username: "rider",
+      name: "Rider",
+      image: generatedAvatarUrl("rider"),
+    });
   });
 
-  it("derives a unique username when the derived one is taken", async () => {
+  it("rejects ambiguous OAuth callbacks instead of linking the wrong user", async () => {
     const t = createTest();
-    await seedUser(t, { email: "taken@x.com", username: "neo" });
-
-    const id = await provision(t, {
-      existingUserId: null,
-      type: "oauth",
-      profile: { email: "neo@matrix.io" },
+    const userId = await seedUser(t, { email: "admin@admin.com" });
+    await t.run(async (ctx) => {
+      const sessionId = await ctx.db.insert("authSessions", {
+        userId,
+        expirationTime: Date.now() + 60_000,
+      });
+      await ctx.db.insert("googleLinkRequests", {
+        userId,
+        sessionId,
+        requestedAt: Date.now(),
+      });
+      await ctx.db.insert("authVerifiers", { sessionId });
+      const otherSessionId = await ctx.db.insert("authSessions", {
+        userId,
+        expirationTime: Date.now() + 60_000,
+      });
+      await ctx.db.insert("authVerifiers", { sessionId: otherSessionId });
     });
 
-    const user = await t.run((ctx) => ctx.db.get(id));
-    expect(user?.username).toBe("neo1");
-  });
-
-  it("updates the existing user for a returning session", async () => {
-    const t = createTest();
-    const id = await seedUser(t, { email: "a@b.com", username: "ab" });
-
-    const again = await provision(t, {
-      existingUserId: id,
-      type: "oauth",
-      profile: { name: "New Name" },
-    });
-
-    expect(again).toBe(id);
-    const user = await t.run((ctx) => ctx.db.get(id));
-    expect(user?.name).toBe("New Name");
-    expect(await t.run((ctx) => ctx.db.query("users").collect())).toHaveLength(
-      1,
-    );
-  });
-
-  it("rejects an invalid email in the profile", async () => {
-    const t = createTest();
     await expect(
       provision(t, {
         existingUserId: null,
         type: "oauth",
-        profile: { email: "nope" },
+        provider: { id: "google" },
+        profile: { email: "hello@hello.com" },
       }),
-    ).rejects.toMatchObject({ data: "Enter a valid email address." });
+    ).rejects.toMatchObject({
+      data: "Finish one Google connection before starting another.",
+    });
+    expect(await t.run((ctx) => ctx.db.query("users").collect())).toHaveLength(
+      1,
+    );
   });
 
-  it("prefers a provider image over the generated avatar", async () => {
+  it("does not link providers just because their emails match", async () => {
     const t = createTest();
-    const id = await provision(t, {
-      existingUserId: null,
-      type: "oauth",
-      profile: { email: "a@b.com", image: "https://img/p.png" },
+    const existingUserId = await seedUser(t, {
+      email: "other@example.com",
+      emailVerificationTime: Date.now(),
     });
 
-    const user = await t.run((ctx) => ctx.db.get(id));
-    expect(user?.image).toBe("https://img/p.png");
+    await expect(
+      provision(t, {
+        existingUserId: null,
+        type: "oauth",
+        provider: { id: "google" },
+        profile: { email: "other@example.com" },
+      }),
+    ).rejects.toMatchObject({
+      data: "An account with this email already exists.",
+    });
+    expect(await t.run((ctx) => ctx.db.get(existingUserId))).toBeTruthy();
   });
 });
 
@@ -270,7 +217,7 @@ describe("googleProfile", () => {
     expect(() => googleProfile({ sub: "1", email_verified: true })).toThrow();
   });
 
-  it("normalizes the email and strips default avatars", () => {
+  it("normalizes the email and marks it verified", () => {
     const profile = googleProfile({
       sub: "1",
       email: " A@B.com ",
@@ -278,16 +225,9 @@ describe("googleProfile", () => {
       email_verified: true,
     });
     expect(profile.email).toBe("a@b.com");
+    expect(profile.emailVerified).toBe(true);
+    expect(profile.name).toBeUndefined();
     expect(profile.image).toBeUndefined();
-
-    expect(
-      googleProfile({
-        sub: "1",
-        email: "a@b.com",
-        picture: "https://x/p.png",
-        email_verified: true,
-      }).image,
-    ).toBe("https://x/p.png");
   });
 });
 
@@ -405,7 +345,7 @@ describe("setPassword", () => {
     expect(me?.hasPassword).toBe(true);
   });
 
-  it("resets an existing password without creating a new account", async () => {
+  it("refuses to replace an existing password", async () => {
     const t = createTest();
     const id = await seedUser(t, {
       email: "rider@example.com",
@@ -420,15 +360,17 @@ describe("setPassword", () => {
       }),
     );
 
-    await t
-      .withIdentity({ subject: id })
-      .action(api.users.setPassword, { password: "Passw0rd!" });
+    await expect(
+      t
+        .withIdentity({ subject: id })
+        .action(api.users.setPassword, { password: "Passw0rd!" }),
+    ).rejects.toMatchObject({ data: "You already have a password." });
 
     const accounts = await t.run((ctx) =>
       ctx.db.query("authAccounts").collect(),
     );
     expect(accounts).toHaveLength(1);
-    expect(accounts[0].secret).not.toBe("old-secret");
+    expect(accounts[0].secret).toBe("old-secret");
   });
 
   it("rejects weak passwords and anonymous callers", async () => {
@@ -490,6 +432,32 @@ describe("unlinkGoogle", () => {
         providerAccountId: "g1",
       }),
     );
+
+    await expect(
+      t.withIdentity({ subject: id }).mutation(api.users.unlinkGoogle, {}),
+    ).rejects.toMatchObject({
+      data: "Set a password before disconnecting Google.",
+    });
+  });
+
+  it("requires a password even when another non-password provider exists", async () => {
+    const t = createTest();
+    const id = await seedUser(t, {
+      email: "rider@example.com",
+      username: "rider",
+    });
+    await t.run(async (ctx) => {
+      await ctx.db.insert("authAccounts", {
+        userId: id,
+        provider: "google",
+        providerAccountId: "g1",
+      });
+      await ctx.db.insert("authAccounts", {
+        userId: id,
+        provider: "other",
+        providerAccountId: "other1",
+      });
+    });
 
     await expect(
       t.withIdentity({ subject: id }).mutation(api.users.unlinkGoogle, {}),

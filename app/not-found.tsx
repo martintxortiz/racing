@@ -2,22 +2,21 @@
 
 import { useRouter } from "next/navigation";
 
-import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "@carbon/icons-react";
+import { Button } from "@/components/ui/button";
 
 export default function NotFound() {
   const router = useRouter();
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center gap-4 bg-background px-4 text-center text-foreground">
-      <h1 className="text-xl font-semibold leading-none text-destructive sm:text-9xl">
+    <main className="flex min-h-dvh flex-col items-center justify-center gap-4 bg-background px-4 text-center text-foreground">
+      <h1 className="font-mono text-7xl font-semibold tracking-widest text-white sm:text-9xl">
         404
       </h1>
       <Button
         type="button"
         variant="link"
         size={null}
-        className="mt-2"
         onClick={() => {
           if (window.history.length > 1) router.back();
           else router.push("/");

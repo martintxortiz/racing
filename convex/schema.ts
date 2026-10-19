@@ -17,4 +17,9 @@ export default defineSchema({
     .index("email", ["email"])
     .index("phone", ["phone"])
     .index("by_username", ["username"]),
+  googleLinkRequests: defineTable({
+    userId: v.id("users"),
+    sessionId: v.id("authSessions"),
+    requestedAt: v.number(),
+  }).index("by_session", ["sessionId"]),
 });
