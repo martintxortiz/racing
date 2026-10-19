@@ -2,7 +2,9 @@
 
 import { ChevronLeft, ChevronRight } from "@carbon/icons-react";
 import {
+  useEffect,
   useMemo,
+  useRef,
   useState,
   type KeyboardEvent,
   type PointerEvent,
@@ -49,6 +51,11 @@ export default function DataTable<T>({
   const [sort, setSort] = useState(defaultSort ?? null);
   const [page, setPage] = useState(0);
   const [widths, setWidths] = useState<Record<string, number>>({});
+  const viewportRef = useRef<HTMLDivElement>(null);
+  const totalWidth = columns.reduce(
+    (sum, column) => sum + (column.width ?? 0),
+    0,
+  );
   const sortColumn = columns.find((column) => column.id === sort?.columnId);
   const sortedRows = useMemo(
     () =>
@@ -78,6 +85,10 @@ export default function DataTable<T>({
     selected.has(getRowId(row)),
   ).length;
   const allSelected = pageRows.length > 0 && selectedOnPage === pageRows.length;
+
+  useEffect(() => {
+    viewportRef.current?.scrollTo({ top: 0 });
+  }, [currentPage]);
 
   const toggleSort = (columnId: string) => {
     setPage(0);
@@ -172,7 +183,7 @@ export default function DataTable<T>({
           </div>
         </div>
       </div>
-      <ScrollArea className="min-h-0 flex-1">
+      <ScrollArea viewportRef={viewportRef} className="min-h-0 flex-1">
         <Table className="min-w-[720px] table-fixed" style={{ width: "100%" }}>
           <colgroup>
             <col style={{ width: 40 }} />
@@ -182,16 +193,16 @@ export default function DataTable<T>({
                 style={
                   widths[column.id]
                     ? { width: widths[column.id] }
-                    : column.width
-                      ? { width: column.width }
+                    : column.width && totalWidth
+                      ? { width: `${(column.width / totalWidth) * 100}%` }
                       : undefined
                 }
               />
             ))}
           </colgroup>
-          <TableHeader className="sticky top-0 z-10 bg-muted">
+          <TableHeader className="sticky top-0 z-20 bg-muted">
             <TableRow className="h-7">
-              <TableHead className="sticky start-0 z-20 h-7 w-10 min-w-10 max-w-10 bg-muted">
+              <TableHead className="sticky start-0 top-0 z-30 h-7 w-10 min-w-10 max-w-10 bg-muted">
                 <span className="sr-only">Select</span>
               </TableHead>
               {columns.map((column) => (

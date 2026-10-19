@@ -12,7 +12,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { api } from "@/convex/_generated/api";
 import { normalizeUsername, usernamePattern } from "@/lib/auth-validation";
 import { getAuthErrorMessage } from "@/lib/auth-error";
-import { CheckmarkFilled, Close, CloseFilled } from "@carbon/icons-react";
+import { CheckmarkFilled, CloseFilled } from "@carbon/icons-react";
 
 const SignUpPage = () => {
   const { signIn } = useAuthActions();

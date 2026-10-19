@@ -1,3 +1,4 @@
+// eslint-disable-next-line @typescript-eslint/no-unused-vars -- kept for the commented-out topbar
 import PageTopbar from "@/components/dashboard/page-topbar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
