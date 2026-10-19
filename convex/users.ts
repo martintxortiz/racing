@@ -1,7 +1,13 @@
-import { getAuthUserId } from "@convex-dev/auth/server";
+import {
+  createAccount,
+  getAuthUserId,
+  modifyAccountCredentials,
+} from "@convex-dev/auth/server";
 import { ConvexError, v } from "convex/values";
 
-import { mutation, query } from "./_generated/server";
+import { internal } from "./_generated/api";
+import { action, internalQuery, mutation, query } from "./_generated/server";
+import { validatePasswordRequirements } from "./auth";
 import { normalizeUsername, usernamePattern } from "../lib/auth-validation";
 
 export const me = query({
@@ -77,5 +83,78 @@ export const updateAvatar = mutation({
     }
 
     await ctx.db.patch(userId, { image });
+  },
+});
+
+export const passwordState = internalQuery({
+  args: { userId: v.id("users") },
+  handler: async (ctx, { userId }) => {
+    const user = await ctx.db.get(userId);
+    if (!user) throw new ConvexError("User not found.");
+
+    const accounts = await ctx.db
+      .query("authAccounts")
+      .withIndex("userIdAndProvider", (q) => q.eq("userId", userId))
+      .collect();
+
+    return {
+      email: user.email ?? null,
+      providerAccountId:
+        accounts.find((account) => account.provider === "password")
+          ?.providerAccountId ?? null,
+    };
+  },
+});
+
+export const setPassword = action({
+  args: { password: v.string() },
+  handler: async (ctx, { password }) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new ConvexError("You must be signed in.");
+
+    validatePasswordRequirements(password);
+
+    const { email, providerAccountId } = await ctx.runQuery(
+      internal.users.passwordState,
+      { userId },
+    );
+    if (!email) throw new ConvexError("Your account has no email address.");
+
+    if (providerAccountId) {
+      await modifyAccountCredentials(ctx, {
+        provider: "password",
+        account: { id: providerAccountId, secret: password },
+      });
+      return;
+    }
+
+    const { user } = await createAccount(ctx, {
+      provider: "password",
+      account: { id: email, secret: password },
+      profile: { email },
+    });
+    if (user._id !== userId) {
+      throw new ConvexError("Could not link the password to your account.");
+    }
+  },
+});
+
+export const unlinkGoogle = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new ConvexError("You must be signed in.");
+
+    const accounts = await ctx.db
+      .query("authAccounts")
+      .withIndex("userIdAndProvider", (q) => q.eq("userId", userId))
+      .collect();
+    const google = accounts.find((account) => account.provider === "google");
+    if (!google) throw new ConvexError("Google is not connected.");
+    if (accounts.length < 2) {
+      throw new ConvexError("Set a password before disconnecting Google.");
+    }
+
+    await ctx.db.delete(google._id);
   },
 });

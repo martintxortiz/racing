@@ -38,7 +38,7 @@ export default function SettingsRow({
           className={
             variant
               ? "shrink-0 px-3"
-              : "shrink-0 bg-foreground/10 px-3 text-foreground hover:bg-foreground/15"
+              : "shrink-0 bg-foreground/5 hover:bg-foreground/10 px-3 text-foreground"
           }
         >
           {action}

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import schema from "../convex/schema";
 import * as users from "../convex/users";
+import * as authFunctions from "../convex/auth";
 import {
   createOrUpdateUser,
   googleProfile,
@@ -13,7 +14,10 @@ import {
 import type { MutationCtx } from "../convex/_generated/server";
 import { generatedAvatarUrl } from "../lib/avatar";
 
-const { api, createTest } = defineTestApp({ schema }).defineModules({ users });
+const { api, createTest } = defineTestApp({ schema }).defineModules({
+  users,
+  auth: authFunctions,
+});
 
 const provision = (
   t: ReturnType<typeof createTest>,
@@ -74,6 +78,49 @@ describe("createOrUpdateUser", () => {
     expect(user?.emailVerificationTime).toBeGreaterThan(0);
     expect(await t.run((ctx) => ctx.db.query("users").collect())).toHaveLength(
       1,
+    );
+  });
+
+  it("links a credentials account created while signed in to the session user", async () => {
+    const t = createTest();
+    const id = await seedUser(t, {
+      email: "rider@example.com",
+      username: "rider",
+      emailVerificationTime: 1,
+    });
+
+    const linkedId = await t.withIdentity({ subject: id }).run((ctx) =>
+      createOrUpdateUser(ctx as unknown as MutationCtx, {
+        existingUserId: null,
+        type: "credentials",
+        profile: { email: "rider@example.com", username: "rider" },
+      }),
+    );
+
+    expect(linkedId).toBe(id);
+    expect(await t.run((ctx) => ctx.db.query("users").collect())).toHaveLength(
+      1,
+    );
+  });
+
+  it("does not link a credentials account when the session email differs", async () => {
+    const t = createTest();
+    const id = await seedUser(t, {
+      email: "rider@example.com",
+      username: "rider",
+    });
+
+    const newId = await t.withIdentity({ subject: id }).run((ctx) =>
+      createOrUpdateUser(ctx as unknown as MutationCtx, {
+        existingUserId: null,
+        type: "credentials",
+        profile: { email: "other@example.com", username: "other" },
+      }),
+    );
+
+    expect(newId).not.toBe(id);
+    expect(await t.run((ctx) => ctx.db.query("users").collect())).toHaveLength(
+      2,
     );
   });
 
@@ -324,5 +371,138 @@ describe("updateUsername", () => {
     await expect(
       t.mutation(api.users.updateUsername, { username: "fresh" }),
     ).rejects.toMatchObject({ data: "You must be signed in." });
+  });
+});
+
+describe("setPassword", () => {
+  it("enables a password for a signed-in user and links it to their account", async () => {
+    const t = createTest();
+    const id = await seedUser(t, {
+      email: "rider@example.com",
+      username: "rider",
+      emailVerificationTime: 1,
+    });
+
+    await t
+      .withIdentity({ subject: id })
+      .action(api.users.setPassword, { password: "Passw0rd!" });
+
+    const accounts = await t.run((ctx) =>
+      ctx.db.query("authAccounts").collect(),
+    );
+    expect(accounts).toHaveLength(1);
+    expect(accounts[0]).toMatchObject({
+      userId: id,
+      provider: "password",
+      providerAccountId: "rider@example.com",
+    });
+    expect(accounts[0].secret).not.toBe("Passw0rd!");
+    expect(await t.run((ctx) => ctx.db.query("users").collect())).toHaveLength(
+      1,
+    );
+
+    const me = await t.withIdentity({ subject: id }).query(api.users.me, {});
+    expect(me?.hasPassword).toBe(true);
+  });
+
+  it("resets an existing password without creating a new account", async () => {
+    const t = createTest();
+    const id = await seedUser(t, {
+      email: "rider@example.com",
+      username: "rider",
+    });
+    await t.run((ctx) =>
+      ctx.db.insert("authAccounts", {
+        userId: id,
+        provider: "password",
+        providerAccountId: "rider@example.com",
+        secret: "old-secret",
+      }),
+    );
+
+    await t
+      .withIdentity({ subject: id })
+      .action(api.users.setPassword, { password: "Passw0rd!" });
+
+    const accounts = await t.run((ctx) =>
+      ctx.db.query("authAccounts").collect(),
+    );
+    expect(accounts).toHaveLength(1);
+    expect(accounts[0].secret).not.toBe("old-secret");
+  });
+
+  it("rejects weak passwords and anonymous callers", async () => {
+    const t = createTest();
+    const id = await seedUser(t, {
+      email: "rider@example.com",
+      username: "rider",
+    });
+
+    await expect(
+      t
+        .withIdentity({ subject: id })
+        .action(api.users.setPassword, { password: "short" }),
+    ).rejects.toMatchObject({ data: "Invalid password." });
+
+    await expect(
+      t.action(api.users.setPassword, { password: "Passw0rd!" }),
+    ).rejects.toMatchObject({ data: "You must be signed in." });
+  });
+});
+
+describe("unlinkGoogle", () => {
+  it("removes the Google account when a password exists", async () => {
+    const t = createTest();
+    const id = await seedUser(t, {
+      email: "rider@example.com",
+      username: "rider",
+    });
+    await t.run(async (ctx) => {
+      await ctx.db.insert("authAccounts", {
+        userId: id,
+        provider: "password",
+        providerAccountId: "rider@example.com",
+      });
+      await ctx.db.insert("authAccounts", {
+        userId: id,
+        provider: "google",
+        providerAccountId: "g1",
+      });
+    });
+
+    await t.withIdentity({ subject: id }).mutation(api.users.unlinkGoogle, {});
+
+    const me = await t.withIdentity({ subject: id }).query(api.users.me, {});
+    expect(me?.hasGoogle).toBe(false);
+    expect(me?.hasPassword).toBe(true);
+  });
+
+  it("refuses to remove Google when it is the only sign-in method", async () => {
+    const t = createTest();
+    const id = await seedUser(t, {
+      email: "rider@example.com",
+      username: "rider",
+    });
+    await t.run((ctx) =>
+      ctx.db.insert("authAccounts", {
+        userId: id,
+        provider: "google",
+        providerAccountId: "g1",
+      }),
+    );
+
+    await expect(
+      t.withIdentity({ subject: id }).mutation(api.users.unlinkGoogle, {}),
+    ).rejects.toMatchObject({
+      data: "Set a password before disconnecting Google.",
+    });
+  });
+
+  it("rejects anonymous callers", async () => {
+    const t = createTest();
+
+    await expect(t.mutation(api.users.unlinkGoogle, {})).rejects.toMatchObject({
+      data: "You must be signed in.",
+    });
   });
 });

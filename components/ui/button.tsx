@@ -11,7 +11,7 @@ const buttonVariants = cva(
       variant: {
         primary:
           "bg-brand text-white/90 hover:bg-[#2a74fe] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-        secondary: "bg-secondary text-secondary-foreground hover:bg-accent",
+        secondary: "bg-secondary/50 text-secondary-foreground hover:bg-accent",
         card: "bg-foreground/10 text-foreground hover:bg-foreground/15",
         danger:
           "bg-destructive/90 text-white hover:bg-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",

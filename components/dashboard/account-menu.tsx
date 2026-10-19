@@ -42,12 +42,15 @@ const AccountMenu = () => {
       <DropdownMenuPortal>
         <DropdownMenuPositioner side="right" align="end" sideOffset={8}>
           <DropdownMenuContent>
-            <DropdownMenuItem render={<Link href="/auth/sign-out" />}>
-              <div className="flex flex-col opacity-80 hover:opacity-100 transition-opacity duration-75 cursor-pointer group">
+            <DropdownMenuItem
+              render={<Link href="/auth/sign-out" />}
+              className={"hover:!bg-transparent"}
+            >
+              <div className="flex min-w-0 flex-col opacity-80 hover:opacity-100 transition-opacity duration-75 cursor-pointer group">
                 <span className="text-foreground text-sm ">
                   {me?.username ?? "—"}
                 </span>
-                <span className="text-muted-foreground text-sm">
+                <span className="text-muted-foreground text-sm truncate">
                   {me?.email ?? "—"}
                 </span>
               </div>

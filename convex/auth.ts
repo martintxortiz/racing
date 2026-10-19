@@ -1,6 +1,6 @@
 import Google from "@auth/core/providers/google";
 import { Password } from "@convex-dev/auth/providers/Password";
-import { convexAuth } from "@convex-dev/auth/server";
+import { convexAuth, getAuthUserId } from "@convex-dev/auth/server";
 import { ConvexError, type Value } from "convex/values";
 
 import {
@@ -129,9 +129,20 @@ export async function createOrUpdateUser(
         .withIndex("email", (q) => q.eq("email", email))
         .first()
     : null;
+  const sessionUserId =
+    type === "credentials" && existingUserId === null
+      ? await getAuthUserId(ctx)
+      : null;
+  const sessionUser =
+    sessionUserId === null ? null : await ctx.db.get(sessionUserId);
+
   const linkedUserId =
     existingUserId ??
-    (type === "oauth" ? (existingEmailUser?._id ?? null) : null);
+    (type === "oauth"
+      ? (existingEmailUser?._id ?? null)
+      : sessionUser && email !== undefined && sessionUser.email === email
+        ? sessionUser._id
+        : null);
   if (existingEmailUser && existingEmailUser._id !== linkedUserId) {
     throw new ConvexError("An account with this email already exists.");
   }
@@ -145,7 +156,7 @@ export async function createOrUpdateUser(
       .query("users")
       .withIndex("by_username", (q) => q.eq("username", username))
       .first();
-    if (existing && existing._id !== existingUserId) {
+    if (existing && existing._id !== linkedUserId) {
       throw new ConvexError("That username is already taken.");
     }
   } else if (!currentUser?.username) {

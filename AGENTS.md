@@ -29,4 +29,38 @@ Before the final response, run one reporting pass. If candidates remain, from th
 
 <!-- END:nextjs-agent-feedback -->
 
-DO NOT USE SHADOWS IN STYLING UNDER ANY CIRCUMSTANCE
+## Context discipline
+
+- Read only the files the task touches.
+- Docs before code. Need an endpoint's behavior? Read the API docs. Open the implementation only if docs are missing or behavior contradicts them. http://(api-url)/docs or /docs from the root.
+- Trace the flow your change touches, end to end. Nothing more.
+- Debugging: follow the symptom to the root cause. Fix it once, where all callers route through.
+
+## Simplicity
+
+Use the first option that works, in this order:
+
+1. Doesn't need to exist → skip it, say so in one line (YAGNI).
+2. Already in the codebase → reuse it.
+3. Stdlib → use it.
+4. Native platform feature (HTML, CSS, DB constraint) → use it.
+5. Installed dependency → use it. Never add one for what a few lines can do.
+6. One line → one line.
+7. Otherwise: minimum code that works.
+
+## Rules
+
+- No abstractions with one implementation. No boilerplate "for later".
+- Delete and reuse before adding. Boring over clever.
+- Fewest files, shortest working diff.
+- Complex request? Ship the simple version, note what fuller would add, move on.
+- Deliberate simplification with a known ceiling: mark it, e.g. `# simplification: global lock, per-account locks if throughput matters`.
+- Never rewrite unrelated or in-progress code. Preserve working behavior.
+
+## Never simplify away
+
+- Input validation at trust boundaries.
+- Error handling that prevents data loss.
+- Security measures.
+- Accessibility basics.
+- Anything explicitly requested. User insists on full version → build it.
