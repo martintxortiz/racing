@@ -7,6 +7,11 @@ import { useRef, useState } from "react";
 
 import AccountAvatar from "@/components/dashboard/account-avatar";
 import { Button } from "@/components/ui/button";
+import {
+  DialogBackdrop,
+  DialogHeader,
+  DialogPopup,
+} from "@/components/ui/dialog";
 import { api } from "@/convex/_generated/api";
 import {
   maxOffset,
@@ -125,16 +130,12 @@ export default function AvatarEditor({
         onOpenChange={(open) => !open && reset()}
       >
         <Dialog.Portal>
-          <Dialog.Backdrop className="fixed inset-0 min-h-dvh bg-black/40 data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0" />
-          <Dialog.Popup className="fixed top-1/2 left-1/2 flex w-96 max-w-[calc(100vw-3rem)] -translate-x-1/2 -translate-y-1/2 flex-col gap-5 rounded-[2px] bg-popover p-4 text-popover-foreground outline-none data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95">
-            <div className="flex flex-col gap-1">
-              <Dialog.Title className="text-base font-medium">
-                Change Avatar
-              </Dialog.Title>
-              <Dialog.Description className="text-sm text-muted-foreground">
-                Drag to reposition and use the slider to zoom.
-              </Dialog.Description>
-            </div>
+          <DialogBackdrop />
+          <DialogPopup>
+            <DialogHeader
+              title="Change Avatar"
+              description="Drag to reposition and use the slider to zoom."
+            />
 
             <div
               className={cn(
@@ -223,7 +224,7 @@ export default function AvatarEditor({
                 Save
               </Button>
             </div>
-          </Dialog.Popup>
+          </DialogPopup>
         </Dialog.Portal>
       </Dialog.Root>
     </>

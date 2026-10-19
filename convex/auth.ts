@@ -211,22 +211,24 @@ export async function createOrUpdateUser(
       Doc<"users">,
       "email" | "username" | "name" | "image" | "emailVerificationTime"
     >
-  > = {
-    ...(currentUser?.email ? {} : email ? { email } : {}),
-    ...(type === "oauth" && (!currentUser?.email || currentUser.email === email)
-      ? { emailVerificationTime: Date.now() }
-      : {}),
-    ...(username ? { username } : {}),
-    ...(!currentUser?.name && typeof profile.name === "string"
-      ? { name: profile.name }
-      : {}),
-    ...(!currentUser?.image && typeof profile.image === "string"
-      ? { image: profile.image }
-      : {}),
-    ...(!currentUser?.image && !profile.image && username
-      ? { image: generatedAvatarUrl(username) }
-      : {}),
-  };
+  > = {};
+  if (!currentUser?.email && email) userProfile.email = email;
+  if (
+    type === "oauth" &&
+    (!currentUser?.email || currentUser.email === email)
+  ) {
+    userProfile.emailVerificationTime = Date.now();
+  }
+  if (username) userProfile.username = username;
+  if (!currentUser?.name && typeof profile.name === "string") {
+    userProfile.name = profile.name;
+  }
+  if (!currentUser?.image && typeof profile.image === "string") {
+    userProfile.image = profile.image;
+  }
+  if (!currentUser?.image && !profile.image && username) {
+    userProfile.image = generatedAvatarUrl(username);
+  }
 
   if (linkedUserId) {
     await ctx.db.patch(linkedUserId, userProfile);

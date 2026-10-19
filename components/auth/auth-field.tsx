@@ -42,8 +42,8 @@ const AuthField = ({
           type={isPassword && visible ? "text" : type}
           aria-invalid={Boolean(error)}
           className={cn(
-            "text-base sm:text-sm",
-            isPassword ? "w-full pr-9" : "w-full",
+            "w-full text-base sm:text-sm",
+            isPassword && "pr-9",
             error &&
               "!ring-1 !ring-danger-strong !focus-visible:ring-1 !focus-visible:ring-danger-strong",
             className,

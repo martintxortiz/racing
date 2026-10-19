@@ -20,7 +20,7 @@ function AvatarImage({
   return (
     <AvatarPrimitive.Image
       data-slot="avatar-image"
-      className={cn(className)}
+      className={className}
       {...props}
     />
   );
@@ -33,7 +33,7 @@ function AvatarFallback({
   return (
     <AvatarPrimitive.Fallback
       data-slot="avatar-fallback"
-      className={cn(className)}
+      className={className}
       {...props}
     />
   );

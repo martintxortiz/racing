@@ -22,6 +22,7 @@ import { Download, Help, Logout, Rocket, Settings } from "@carbon/icons-react";
 const AccountMenu = () => {
   const { theme, setTheme } = useTheme();
   const me = useQuery(api.users.me);
+  const currentTheme = theme ?? "system";
 
   return (
     <DropdownMenu>
@@ -44,7 +45,7 @@ const AccountMenu = () => {
           <DropdownMenuContent>
             <DropdownMenuItem
               render={<Link href="/auth/sign-out" />}
-              className={"hover:!bg-transparent"}
+              className="hover:!bg-transparent"
             >
               <div className="flex min-w-0 flex-col opacity-80 hover:opacity-100 transition-opacity duration-75 cursor-pointer group">
                 <span className="text-foreground text-sm ">
@@ -75,39 +76,34 @@ const AccountMenu = () => {
 
             <DropdownMenuSeparator />
             <DropdownMenuRadioGroup
-              value={theme ?? "system"}
+              value={currentTheme}
               onValueChange={setTheme}
             >
-              <DropdownMenuRadioItem value="light" closeOnClick={false}>
-                <span aria-hidden className="flex size-4 shrink-0 items-center">
+              {(["light", "dark", "system"] as const).map((value) => (
+                <DropdownMenuRadioItem
+                  key={value}
+                  value={value}
+                  closeOnClick={false}
+                >
                   <span
-                    className={`size-2 rounded-full bg-current ${theme === "light" ? "visible" : "invisible"}`}
-                  />
-                </span>
-                Light
-              </DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="dark" closeOnClick={false}>
-                <span aria-hidden className="flex size-4 shrink-0 items-center">
-                  <span
-                    className={`size-2 rounded-full bg-current ${theme === "dark" ? "visible" : "invisible"}`}
-                  />
-                </span>
-                Dark
-              </DropdownMenuRadioItem>
-              <DropdownMenuRadioItem value="system" closeOnClick={false}>
-                <span aria-hidden className="flex size-4 shrink-0 items-center">
-                  <span
-                    className={`size-2 rounded-full bg-current ${!theme || theme === "system" ? "visible" : "invisible"}`}
-                  />
-                </span>
-                System
-              </DropdownMenuRadioItem>
+                    aria-hidden
+                    className="flex size-4 shrink-0 items-center"
+                  >
+                    <span
+                      className={`size-2 rounded-full bg-current ${
+                        currentTheme === value ? "visible" : "invisible"
+                      }`}
+                    />
+                  </span>
+                  {value[0].toUpperCase() + value.slice(1)}
+                </DropdownMenuRadioItem>
+              ))}
             </DropdownMenuRadioGroup>
 
             <DropdownMenuSeparator />
             <DropdownMenuItem
               render={<Link href="/auth/sign-out" />}
-              className={"hover:!text-danger-strong hover:!bg-danger-strong/15"}
+              className="hover:!text-danger-strong hover:!bg-danger-strong/15"
             >
               <Logout className="size-4" />
               <span>Log out</span>

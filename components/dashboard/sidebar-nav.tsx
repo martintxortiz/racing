@@ -27,15 +27,13 @@ const SidebarNav = ({
   className?: string;
 }) => {
   const pathname = usePathname();
-  const activeHref = items
-    .flatMap((item) => {
-      if (!item.href) return [];
-      const href = strip(item.href);
-      const matches =
-        pathname === href || (!item.exact && pathname.startsWith(`${href}/`));
-      return matches ? [href] : [];
-    })
-    .sort((a, b) => b.length - a.length)[0];
+  const activeHref = items.reduce<string | undefined>((best, item) => {
+    if (!item.href) return best;
+    const href = strip(item.href);
+    const matches =
+      pathname === href || (!item.exact && pathname.startsWith(`${href}/`));
+    return matches && (!best || href.length > best.length) ? href : best;
+  }, undefined);
 
   return (
     <div className={cn("flex flex-col gap-px", className)}>

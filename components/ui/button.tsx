@@ -46,15 +46,13 @@ function Button({
   ...props
 }: ButtonPrimitive.Props &
   VariantProps<typeof buttonVariants> & { loading?: boolean }) {
-  const isPrimary = !variant || variant === "primary";
-
   return (
     <ButtonPrimitive
       data-slot="button"
       className={cn(
         buttonVariants({ variant, size }),
         (disabled || loading) && "cursor-not-allowed",
-        loading && isPrimary && "bg-[#0b4ecb] hover:bg-[#0b4ecb]",
+        loading && variant === "primary" && "bg-[#0b4ecb] hover:bg-[#0b4ecb]",
         className,
       )}
       aria-busy={loading || undefined}

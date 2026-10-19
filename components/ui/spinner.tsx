@@ -7,6 +7,17 @@ interface SpinnerProps {
   className?: string;
 }
 
+const DOTS: Array<[cx: number, cy: number]> = [
+  [8, 1.5],
+  [12.5962, 3.4038],
+  [14.5, 8],
+  [12.5962, 12.5962],
+  [8, 14.5],
+  [3.4038, 12.5962],
+  [1.5, 8],
+  [3.4038, 3.4038],
+];
+
 const Spinner = ({ size = 16, className }: SpinnerProps) => {
   return (
     <svg
@@ -17,62 +28,16 @@ const Spinner = ({ size = 16, className }: SpinnerProps) => {
       role="presentation"
       viewBox="0 0 16 16"
     >
-      <circle
-        className="ld-circular-dots-dot"
-        cx="8"
-        cy="1.5"
-        r="1.5"
-        style={{ "--ld-step": 0 } as React.CSSProperties}
-      />
-      <circle
-        className="ld-circular-dots-dot"
-        cx="12.5962"
-        cy="3.4038"
-        r="1.5"
-        style={{ "--ld-step": 1 } as React.CSSProperties}
-      />
-      <circle
-        className="ld-circular-dots-dot"
-        cx="14.5"
-        cy="8"
-        r="1.5"
-        style={{ "--ld-step": 2 } as React.CSSProperties}
-      />
-      <circle
-        className="ld-circular-dots-dot"
-        cx="12.5962"
-        cy="12.5962"
-        r="1.5"
-        style={{ "--ld-step": 3 } as React.CSSProperties}
-      />
-      <circle
-        className="ld-circular-dots-dot"
-        cx="8"
-        cy="14.5"
-        r="1.5"
-        style={{ "--ld-step": 4 } as React.CSSProperties}
-      />
-      <circle
-        className="ld-circular-dots-dot"
-        cx="3.4038"
-        cy="12.5962"
-        r="1.5"
-        style={{ "--ld-step": 5 } as React.CSSProperties}
-      />
-      <circle
-        className="ld-circular-dots-dot"
-        cx="1.5"
-        cy="8"
-        r="1.5"
-        style={{ "--ld-step": 6 } as React.CSSProperties}
-      />
-      <circle
-        className="ld-circular-dots-dot"
-        cx="3.4038"
-        cy="3.4038"
-        r="1.5"
-        style={{ "--ld-step": 7 } as React.CSSProperties}
-      />
+      {DOTS.map(([cx, cy], step) => (
+        <circle
+          key={step}
+          className="ld-circular-dots-dot"
+          cx={cx}
+          cy={cy}
+          r="1.5"
+          style={{ "--ld-step": step } as React.CSSProperties}
+        />
+      ))}
     </svg>
   );
 };

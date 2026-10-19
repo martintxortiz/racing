@@ -49,13 +49,9 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
-function isOpenF1Session(value: unknown): value is OpenF1Session {
+function hasMeetingFields(value: Record<string, unknown>) {
   return (
-    isRecord(value) &&
-    typeof value.session_key === "number" &&
     typeof value.meeting_key === "number" &&
-    typeof value.session_name === "string" &&
-    typeof value.session_type === "string" &&
     typeof value.date_start === "string" &&
     Number.isFinite(Date.parse(value.date_start)) &&
     typeof value.date_end === "string" &&
@@ -65,17 +61,21 @@ function isOpenF1Session(value: unknown): value is OpenF1Session {
   );
 }
 
+function isOpenF1Session(value: unknown): value is OpenF1Session {
+  return (
+    isRecord(value) &&
+    typeof value.session_key === "number" &&
+    typeof value.session_name === "string" &&
+    typeof value.session_type === "string" &&
+    hasMeetingFields(value)
+  );
+}
+
 function isOpenF1Meeting(value: unknown): value is OpenF1Meeting {
   return (
     isRecord(value) &&
-    typeof value.meeting_key === "number" &&
     typeof value.meeting_name === "string" &&
-    typeof value.date_start === "string" &&
-    Number.isFinite(Date.parse(value.date_start)) &&
-    typeof value.date_end === "string" &&
-    Number.isFinite(Date.parse(value.date_end)) &&
-    typeof value.is_cancelled === "boolean" &&
-    typeof value.circuit_short_name === "string"
+    hasMeetingFields(value)
   );
 }
 

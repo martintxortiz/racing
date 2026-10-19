@@ -52,6 +52,11 @@ export default function DataTable<T>({
   const [page, setPage] = useState(0);
   const [widths, setWidths] = useState<Record<string, number>>({});
   const viewportRef = useRef<HTMLDivElement>(null);
+  const resizeRef = useRef<{
+    columnId: string;
+    startX: number;
+    startWidth: number;
+  } | null>(null);
   const totalWidth = columns.reduce(
     (sum, column) => sum + (column.width ?? 0),
     0,
@@ -108,15 +113,9 @@ export default function DataTable<T>({
     }));
 
   const handleResizeMove = (event: PointerEvent<HTMLDivElement>) => {
-    const handle = event.currentTarget;
-    const startX = Number(handle.dataset.startX);
-    const startWidth = Number(handle.dataset.startWidth);
-    if (handle.hasPointerCapture(event.pointerId)) {
-      resizeColumn(
-        handle.dataset.columnId!,
-        startWidth + event.clientX - startX,
-      );
-    }
+    const drag = resizeRef.current;
+    if (!drag) return;
+    resizeColumn(drag.columnId, drag.startWidth + event.clientX - drag.startX);
   };
 
   const handleResizeKeyDown = (
@@ -232,19 +231,24 @@ export default function DataTable<T>({
                     aria-valuemin={minimumColumnWidth}
                     aria-valuenow={widths[column.id]}
                     tabIndex={0}
-                    data-column-id={column.id}
                     className="absolute inset-y-0 right-0 z-10 w-3 touch-none cursor-col-resize after:absolute after:inset-y-1 after:left-1/2 after:w-px after:-translate-x-1/2 after:bg-border after:opacity-0 group-hover:after:opacity-100 hover:after:bg-brand focus-visible:outline-none focus-visible:after:bg-brand focus-visible:after:opacity-100"
                     onPointerDown={(event) => {
-                      event.currentTarget.dataset.startX = String(
-                        event.clientX,
-                      );
-                      event.currentTarget.dataset.startWidth = String(
-                        event.currentTarget.parentElement?.getBoundingClientRect()
-                          .width ?? minimumColumnWidth,
-                      );
+                      resizeRef.current = {
+                        columnId: column.id,
+                        startX: event.clientX,
+                        startWidth:
+                          event.currentTarget.parentElement?.getBoundingClientRect()
+                            .width ?? minimumColumnWidth,
+                      };
                       event.currentTarget.setPointerCapture(event.pointerId);
                     }}
                     onPointerMove={handleResizeMove}
+                    onPointerUp={() => {
+                      resizeRef.current = null;
+                    }}
+                    onPointerCancel={() => {
+                      resizeRef.current = null;
+                    }}
                     onKeyDown={(event) => handleResizeKeyDown(event, column.id)}
                   />
                 </TableHead>

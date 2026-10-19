@@ -11,81 +11,89 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
+import { DialogBackdrop } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Spinner } from "@/components/ui/spinner";
+
+const accountIcon = (
+  <User className="size-4 text-muted-foreground" aria-hidden="true" />
+);
+const appearanceIcon = (
+  <Fade className="size-4 text-muted-foreground" aria-hidden="true" />
+);
 
 const settingsItems = [
   {
     label: "Account",
     keywords: "profile username email",
     href: "/dashboard/settings",
-    icon: <User className="size-4 text-muted-foreground" aria-hidden="true" />,
+    icon: accountIcon,
   },
   {
     label: "Username",
     keywords: "account profile",
     href: "/dashboard/settings",
-    icon: <User className="size-4 text-muted-foreground" aria-hidden="true" />,
+    icon: accountIcon,
   },
   {
     label: "Email",
     keywords: "account profile",
     href: "/dashboard/settings",
-    icon: <User className="size-4 text-muted-foreground" aria-hidden="true" />,
+    icon: accountIcon,
   },
   {
     label: "Subscription",
     keywords: "billing upgrade account",
     href: "/dashboard/settings",
-    icon: <User className="size-4 text-muted-foreground" aria-hidden="true" />,
+    icon: accountIcon,
   },
   {
     label: "Profile visibility",
     keywords: "account privacy",
     href: "/dashboard/settings",
-    icon: <User className="size-4 text-muted-foreground" aria-hidden="true" />,
+    icon: accountIcon,
   },
   {
     label: "Security",
     keywords: "password google multi-factor",
     href: "/dashboard/settings",
-    icon: <User className="size-4 text-muted-foreground" aria-hidden="true" />,
+    icon: accountIcon,
   },
   {
     label: "Password Sign In",
     keywords: "security reset enable",
     href: "/dashboard/settings",
-    icon: <User className="size-4 text-muted-foreground" aria-hidden="true" />,
+    icon: accountIcon,
   },
   {
     label: "Google Sign in",
     keywords: "security account",
     href: "/dashboard/settings",
-    icon: <User className="size-4 text-muted-foreground" aria-hidden="true" />,
+    icon: accountIcon,
   },
   {
     label: "Multi-factor authentication",
     keywords: "security mfa",
     href: "/dashboard/settings",
-    icon: <User className="size-4 text-muted-foreground" aria-hidden="true" />,
+    icon: accountIcon,
   },
   {
     label: "Delete Account",
     keywords: "danger remove",
     href: "/dashboard/settings",
-    icon: <User className="size-4 text-muted-foreground" aria-hidden="true" />,
+    icon: accountIcon,
   },
   {
     label: "Appearance",
     keywords: "display theme",
     href: "/dashboard/settings/appearance",
-    icon: <Fade className="size-4 text-muted-foreground" aria-hidden="true" />,
+    icon: appearanceIcon,
   },
   {
     label: "Theme",
     keywords: "appearance display light dark dark mode system",
     href: "/dashboard/settings/appearance",
-    icon: <Fade className="size-4 text-muted-foreground" aria-hidden="true" />,
+    icon: appearanceIcon,
   },
 ];
 
@@ -127,7 +135,7 @@ export default function SearchDialog({
       }}
     >
       <Dialog.Portal>
-        <Dialog.Backdrop className="fixed inset-0 min-h-dvh bg-black/40 data-open:animate-in data-open:fade-in-0 data-closed:animate-out data-closed:fade-out-0" />
+        <DialogBackdrop />
         <Dialog.Popup className="fixed top-[20%] left-1/2 flex w-[min(36rem,calc(100vw-3rem))] -translate-x-1/2 flex-col overflow-hidden rounded-[2px] bg-popover text-popover-foreground outline-none data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95">
           <Dialog.Title className="sr-only">Search</Dialog.Title>
           <Command

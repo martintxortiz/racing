@@ -91,7 +91,7 @@ const AccountSettingsPage = () => {
           label="Subscription"
           value="Free"
           action="Upgrade"
-          variant={"white"}
+          variant="white"
         />
         <SettingsRow
           label="Profile visibility"
@@ -137,15 +137,7 @@ const AccountSettingsPage = () => {
           label="Google Sign in"
           value={me?.googleEmail ?? "No Google account connected"}
           variant={loading || me?.hasGoogle ? undefined : "white"}
-          action={
-            loading
-              ? "Enable"
-              : me
-                ? me.hasGoogle
-                  ? "Disable"
-                  : "Enable"
-                : undefined
-          }
+          action={loading ? "Enable" : me?.hasGoogle ? "Disable" : "Enable"}
           disabled={Boolean(me?.hasGoogle && !me.hasPassword)}
           loading={loading || googlePending}
           onAction={handleGoogleAction}

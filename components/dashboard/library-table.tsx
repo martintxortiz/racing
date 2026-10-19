@@ -16,19 +16,19 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { LibraryEvent, LibrarySession } from "@/lib/openf1";
 
-const formatName = (value: string) =>
-  value.trim().toLowerCase().replace(/\s+/g, "_");
+const slug = (...parts: string[]) =>
+  parts.join("_").trim().toLowerCase().replace(/\s+/g, "_");
+
+const startStamp = (row: { startDate: string }) =>
+  row.startDate.replaceAll("-", "");
 
 const sessionName = (row: LibrarySession) =>
-  formatName(
-    `${row.eventName}_${row.type}_${row.startDate.replaceAll("-", "")}`,
-  );
+  slug(row.eventName, row.type, startStamp(row));
 
-const eventName = (row: LibraryEvent) =>
-  formatName(`${row.name}_${row.startDate.replaceAll("-", "")}`);
+const eventName = (row: LibraryEvent) => slug(row.name, startStamp(row));
 
 const sessionEventName = (row: LibrarySession) =>
-  formatName(`${row.eventName}_${row.startDate.replaceAll("-", "")}`);
+  slug(row.eventName, startStamp(row));
 
 const nameCell = (name: string, detail: string) => (
   <>

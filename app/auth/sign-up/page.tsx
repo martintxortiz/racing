@@ -14,6 +14,8 @@ import { normalizeUsername, usernamePattern } from "@/lib/auth-validation";
 import { getAuthErrorMessage } from "@/lib/auth-error";
 import { CheckmarkFilled, CloseFilled } from "@carbon/icons-react";
 
+const USERNAME_TAKEN = "That username is already taken.";
+
 const SignUpPage = () => {
   const { signIn } = useAuthActions();
   const router = useRouter();
@@ -58,43 +60,56 @@ const SignUpPage = () => {
   const canSubmitUsername =
     validUsername && !checkingUsername && usernameAvailable === true;
 
-  const usernameStatus =
-    !loading &&
-    !accountCreated &&
-    username.length > 0 &&
-    (checkingUsername ? (
-      <span
-        role="status"
-        aria-live="polite"
-        className="flex items-center gap-1.5 text-xs text-muted-foreground"
-      >
-        <Spinner size={12} /> Checking…
-      </span>
-    ) : usernameTaken || error === "That username is already taken." ? (
-      <span
-        role="status"
-        aria-live="polite"
-        className="flex items-center gap-1.5 text-xs text-destructive"
-      >
-        <CloseFilled size={12} /> Username taken
-      </span>
-    ) : usernameAvailable === true ? (
-      <span
-        role="status"
-        aria-live="polite"
-        className="flex items-center gap-1.5 text-xs text-[color:var(--success)]"
-      >
-        <CheckmarkFilled size={12} /> Available
-      </span>
-    ) : usernameTouched && !validUsername ? (
-      <span
-        role="status"
-        aria-live="polite"
-        className="text-xs text-destructive"
-      >
-        Use 3–20 letters, numbers, or underscores
-      </span>
-    ) : null);
+  const usernameTakenError = error === USERNAME_TAKEN;
+
+  const renderUsernameStatus = () => {
+    if (loading || accountCreated || !username) return null;
+    if (checkingUsername) {
+      return (
+        <span
+          role="status"
+          aria-live="polite"
+          className="flex items-center gap-1.5 text-xs text-muted-foreground"
+        >
+          <Spinner size={12} /> Checking…
+        </span>
+      );
+    }
+    if (usernameTaken || usernameTakenError) {
+      return (
+        <span
+          role="status"
+          aria-live="polite"
+          className="flex items-center gap-1.5 text-xs text-destructive"
+        >
+          <CloseFilled size={12} /> Username taken
+        </span>
+      );
+    }
+    if (usernameAvailable === true) {
+      return (
+        <span
+          role="status"
+          aria-live="polite"
+          className="flex items-center gap-1.5 text-xs text-[color:var(--success)]"
+        >
+          <CheckmarkFilled size={12} /> Available
+        </span>
+      );
+    }
+    if (usernameTouched && !validUsername) {
+      return (
+        <span
+          role="status"
+          aria-live="polite"
+          className="text-xs text-destructive"
+        >
+          Use 3–20 letters, numbers, or underscores
+        </span>
+      );
+    }
+    return null;
+  };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -138,14 +153,14 @@ const SignUpPage = () => {
         minLength={3}
         maxLength={20}
         value={username}
-        labelExtra={usernameStatus}
+        labelExtra={renderUsernameStatus()}
         onBlur={() => setUsernameTouched(true)}
         onChange={(e) => {
           setUsername(e.target.value);
           setUsernameTouched(false);
           setError(null);
         }}
-        error={usernameTaken || error === "That username is already taken."}
+        error={usernameTaken || usernameTakenError}
       />
 
       <AuthField

@@ -17,10 +17,9 @@ export default function NotFound() {
         type="button"
         variant="link"
         size={null}
-        onClick={() => {
-          if (window.history.length > 1) router.back();
-          else router.push("/");
-        }}
+        onClick={() =>
+          window.history.length > 1 ? router.back() : router.push("/")
+        }
       >
         <ArrowLeft size={16} />
         Go back
