@@ -1,7 +1,3 @@
-import React from "react";
-
-const LibraryPage = () => {
-  return <div>LibraryPage</div>;
-};
+import LibraryPage from "@/components/dashboard/library-page";
 
 export default LibraryPage;

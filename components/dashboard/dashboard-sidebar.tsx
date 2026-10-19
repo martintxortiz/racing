@@ -11,11 +11,13 @@ import {
   Template,
   Tools,
 } from "@carbon/icons-react";
+import { useState } from "react";
 
+import Logo from "../logo";
 import { Button } from "../ui/button";
 import AccountMenu from "./account-menu";
+import SearchDialog from "./search-dialog";
 import SidebarNav from "./sidebar-nav";
-import Logo from "../logo";
 
 const sidebarLinks = [
   {
@@ -25,7 +27,6 @@ const sidebarLinks = [
     exact: true,
   },
   {
-    href: "/dashboard/search",
     icon: <Search className="size-4.5" />,
     label: "Search",
   },
@@ -62,6 +63,7 @@ const sidebarLinks = [
 ];
 
 const DashboardSidebar = () => {
+  const [searchOpen, setSearchOpen] = useState(false);
   return (
     <div className="h-full w-11 shrink-0 border-r flex flex-col items-center">
       <div className="flex w-full flex-1 flex-col justify-between p-1">
@@ -74,7 +76,14 @@ const DashboardSidebar = () => {
           >
             <Logo className="size-8" />
           </Button>
-          <SidebarNav items={sidebarLinks} iconOnly />
+          <SidebarNav
+            items={sidebarLinks.map((item) =>
+              item.label === "Search"
+                ? { ...item, onClick: () => setSearchOpen(true) }
+                : item,
+            )}
+            iconOnly
+          />
         </div>
         <div className="flex flex-col gap-px">
           <Button
@@ -88,6 +97,7 @@ const DashboardSidebar = () => {
           <AccountMenu />
         </div>
       </div>
+      <SearchDialog open={searchOpen} onOpenChange={setSearchOpen} />
     </div>
   );
 };
