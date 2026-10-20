@@ -14,6 +14,7 @@ import { useMemo, useState } from "react";
 
 import DataTable, { type DataTableColumn } from "@/components/ui/data-table";
 import { Button } from "@/components/ui/button";
+import StartTimeFilter from "@/components/dashboard/start-time-filter";
 import {
   DropdownMenu,
   DropdownMenuClear,
@@ -34,6 +35,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { formatRange, matchesRange, type DateRange } from "@/lib/date-range";
 import type { LibraryEvent, LibrarySession } from "@/lib/openf1";
 
 const slug = (...parts: string[]) =>
@@ -232,6 +234,9 @@ export default function LibraryTable({
   const [tab, setTab] = useState("sessions");
   const [search, setSearch] = useState("");
   const [filters, setFilters] = useState<ActiveFilter[]>([]);
+  const [startTime, setStartTime] = useState<DateRange | null>(null);
+  const [addOpen, setAddOpen] = useState(false);
+  const [startTimeOpen, setStartTimeOpen] = useState(false);
   const isSessions = tab === "sessions";
   const ActionIcon = isSessions ? Upload : Add;
   const filterFields = useMemo<FilterField[]>(
@@ -265,13 +270,14 @@ export default function LibraryTable({
           ],
     [events, isSessions, sessions],
   );
-  const hasFilters = filters.length > 0;
+  const hasFilters = filters.length > 0 || startTime !== null;
   const filteredSessions = useMemo(
     () =>
       sessions.filter(
         (row) =>
           matchesFilters(filters, "type", row.type) &&
           matchesFilters(filters, "event", String(row.eventId)) &&
+          matchesRange(startTime, row.dateStart) &&
           matchesSearch(
             [
               row.name,
@@ -285,19 +291,20 @@ export default function LibraryTable({
             search,
           ),
       ),
-    [filters, search, sessions],
+    [filters, search, sessions, startTime],
   );
   const filteredEvents = useMemo(
     () =>
       events.filter(
         (row) =>
           matchesFilters(filters, "track", row.track) &&
+          matchesRange(startTime, row.dateStart) &&
           matchesSearch(
             [row.name, row.id, row.startDate, row.startTime, row.track],
             search,
           ),
       ),
-    [events, filters, search],
+    [events, filters, search, startTime],
   );
 
   const addFilter = (field: FilterFieldId, value: string) =>
@@ -316,6 +323,11 @@ export default function LibraryTable({
           : filter,
       ),
     );
+  const applyStartTime = (range: DateRange | null) => {
+    setStartTime(range);
+    setAddOpen(false);
+    setStartTimeOpen(false);
+  };
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[2px] border border-border/60 bg-card">
@@ -325,6 +337,7 @@ export default function LibraryTable({
         onValueChange={(value) => {
           setTab(value);
           setFilters([]);
+          setStartTime(null);
         }}
       >
         <Tabs.List
@@ -456,7 +469,45 @@ export default function LibraryTable({
               </DropdownMenuFilter>
             );
           })}
-          <DropdownMenu>
+          {startTime && (
+            <DropdownMenu
+              open={startTimeOpen}
+              onOpenChange={setStartTimeOpen}
+              modal={false}
+            >
+              <div className="flex h-8 max-w-64 items-center rounded-[2px] bg-foreground/10 text-sm transition-colors hover:bg-foreground/15 focus-within:ring-2 focus-within:ring-ring">
+                <DropdownMenuTrigger
+                  aria-label={`Change start time filter, current value ${formatRange(startTime)}`}
+                  className="flex h-full min-w-0 items-center gap-1.5 pl-2.5 outline-none focus-visible:ring-0"
+                >
+                  <span className="shrink-0 text-muted-foreground">
+                    Start time:
+                  </span>
+                  <span className="truncate">{formatRange(startTime)}</span>
+                </DropdownMenuTrigger>
+                <button
+                  type="button"
+                  aria-label="Remove start time filter"
+                  onClick={() => setStartTime(null)}
+                  className="flex h-full w-7 shrink-0 cursor-pointer items-center justify-center text-muted-foreground outline-none transition-colors hover:text-foreground"
+                >
+                  <Close aria-hidden="true" size={14} />
+                </button>
+              </div>
+              <DropdownMenuPortal>
+                <DropdownMenuPositioner align="start" sideOffset={4}>
+                  <DropdownMenuContent className="w-auto min-w-0 overflow-hidden">
+                    <StartTimeFilter
+                      range={startTime}
+                      onApply={applyStartTime}
+                      onCancel={() => setStartTimeOpen(false)}
+                    />
+                  </DropdownMenuContent>
+                </DropdownMenuPositioner>
+              </DropdownMenuPortal>
+            </DropdownMenu>
+          )}
+          <DropdownMenu open={addOpen} onOpenChange={setAddOpen}>
             <DropdownMenuTrigger
               aria-label="Add filter"
               className={`flex h-8 items-center gap-2 rounded-[2px] bg-foreground/10 text-sm font-medium text-muted-foreground transition-colors hover:bg-foreground/15 hover:text-foreground ${
@@ -526,6 +577,27 @@ export default function LibraryTable({
                       </DropdownMenuFilter>
                     );
                   })}
+                  <DropdownMenuSubmenu>
+                    <DropdownMenuSubmenuTrigger className="min-h-8">
+                      <span className="flex-1">Start time</span>
+                      <ChevronRight aria-hidden="true" size={14} />
+                    </DropdownMenuSubmenuTrigger>
+                    <DropdownMenuPortal>
+                      <DropdownMenuPositioner
+                        side="right"
+                        align="start"
+                        sideOffset={8}
+                      >
+                        <DropdownMenuContent className="w-auto min-w-0 overflow-hidden">
+                          <StartTimeFilter
+                            range={startTime}
+                            onApply={applyStartTime}
+                            onCancel={() => setAddOpen(false)}
+                          />
+                        </DropdownMenuContent>
+                      </DropdownMenuPositioner>
+                    </DropdownMenuPortal>
+                  </DropdownMenuSubmenu>
                 </DropdownMenuContent>
               </DropdownMenuPositioner>
             </DropdownMenuPortal>
