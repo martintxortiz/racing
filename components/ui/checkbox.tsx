@@ -11,7 +11,7 @@ function Checkbox({
   return (
     <CheckboxPrimitive.Root
       className={cn(
-        "group inline-flex size-6 shrink-0 items-center justify-center rounded-[2px] outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        "group flex size-6 shrink-0 items-center justify-center rounded-[2px] outline-none focus-visible:ring-2 focus-visible:ring-ring",
         className,
       )}
       indeterminate={indeterminate}

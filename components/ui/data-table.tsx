@@ -40,6 +40,7 @@ export default function DataTable<T>({
   columns,
   getRowId,
   defaultSort,
+  onRowClick,
 }: {
   rows: T[];
   columns: DataTableColumn<T>[];
@@ -48,6 +49,7 @@ export default function DataTable<T>({
     columnId: string;
     direction: "descending" | "ascending";
   };
+  onRowClick?: (row: T) => void;
 }) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [sort, setSort] = useState(defaultSort ?? null);
@@ -264,9 +266,13 @@ export default function DataTable<T>({
             {pageRows.map((row) => (
               <TableRow
                 key={getRowId(row)}
-                className="group h-10 hover:bg-muted/50"
+                className={`group h-10 hover:bg-muted/50 ${onRowClick ? "cursor-pointer" : ""}`}
+                onClick={onRowClick ? () => onRowClick(row) : undefined}
               >
-                <TableCell className="sticky start-0 z-10 w-10 min-w-10 max-w-10 bg-card group-hover:bg-muted/50">
+                <TableCell
+                  className="sticky start-0 z-10 w-10 min-w-10 max-w-10 bg-card group-hover:bg-muted/50"
+                  onClick={(event) => event.stopPropagation()}
+                >
                   <Checkbox
                     aria-label={`Select ${getRowId(row)}`}
                     checked={selected.has(getRowId(row))}

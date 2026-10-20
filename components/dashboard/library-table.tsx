@@ -10,6 +10,8 @@ import {
   Upload,
 } from "@carbon/icons-react";
 import { Tabs } from "@base-ui/react/tabs";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 
 import DataTable, { type DataTableColumn } from "@/components/ui/data-table";
@@ -52,15 +54,27 @@ const eventName = (row: LibraryEvent) => slug(row.name, startStamp(row));
 const sessionEventName = (row: LibrarySession) =>
   slug(row.eventName, startStamp(row));
 
-const nameCell = (name: string, detail: string) => (
+const nameCell = (href: string, name: string, detail: string) => (
   <>
-    <div className="block truncate font-medium text-brand">{name}</div>
+    <Link
+      href={href}
+      onClick={(event) => event.stopPropagation()}
+      className="block truncate font-medium text-brand outline-none hover:underline focus-visible:underline focus-visible:ring-2 focus-visible:ring-ring"
+    >
+      {name}
+    </Link>
     <div className="truncate text-xs text-muted-foreground">{detail}</div>
   </>
 );
 
-const brandCell = (value: string) => (
-  <span className="block truncate text-brand">{value}</span>
+const linkCell = (href: string, value: string) => (
+  <Link
+    href={href}
+    onClick={(event) => event.stopPropagation()}
+    className="block truncate text-brand underline-offset-4 outline-none group-hover:underline focus-visible:underline focus-visible:ring-2 focus-visible:ring-ring"
+  >
+    {value}
+  </Link>
 );
 
 type StartTimeRow = {
@@ -102,7 +116,12 @@ const sessionColumns: DataTableColumn<LibrarySession>[] = [
     header: "Name",
     width: 360,
     value: sessionName,
-    cell: (row) => nameCell(sessionName(row), `${row.id} · 245.2 KB`),
+    cell: (row) =>
+      nameCell(
+        `/dashboard/library/session/${row.id}`,
+        sessionName(row),
+        `${row.id} · 245.2 KB`,
+      ),
   },
   startTimeColumn,
   {
@@ -124,7 +143,11 @@ const sessionColumns: DataTableColumn<LibrarySession>[] = [
     header: "Event",
     width: 240,
     value: sessionEventName,
-    cell: (row) => brandCell(sessionEventName(row)),
+    cell: (row) =>
+      linkCell(
+        `/dashboard/library/event/${row.eventId}`,
+        sessionEventName(row),
+      ),
   },
   actionsColumn,
 ];
@@ -135,7 +158,8 @@ const eventColumns: DataTableColumn<LibraryEvent>[] = [
     header: "Name",
     width: 240,
     value: eventName,
-    cell: (row) => nameCell(eventName(row), row.id),
+    cell: (row) =>
+      nameCell(`/dashboard/library/event/${row.id}`, eventName(row), row.id),
   },
   startTimeColumn,
   {
@@ -150,7 +174,11 @@ const eventColumns: DataTableColumn<LibraryEvent>[] = [
     header: "Track",
     width: 200,
     value: (row) => row.track,
-    cell: (row) => brandCell(row.track),
+    cell: (row) =>
+      linkCell(
+        `/dashboard/library/track/${encodeURIComponent(row.track)}`,
+        row.track,
+      ),
   },
   actionsColumn,
 ];
@@ -231,6 +259,7 @@ export default function LibraryTable({
   sessions: LibrarySession[];
   events: LibraryEvent[];
 }) {
+  const router = useRouter();
   const [tab, setTab] = useState("sessions");
   const [search, setSearch] = useState("");
   const [filters, setFilters] = useState<ActiveFilter[]>([]);
@@ -613,6 +642,9 @@ export default function LibraryTable({
             columns={sessionColumns}
             getRowId={getRowId}
             defaultSort={defaultSort}
+            onRowClick={(row) =>
+              router.push(`/dashboard/library/session/${row.id}`)
+            }
           />
         </Tabs.Panel>
         <Tabs.Panel value="events" keepMounted className={panelClassName}>
@@ -621,6 +653,9 @@ export default function LibraryTable({
             columns={eventColumns}
             getRowId={getRowId}
             defaultSort={defaultSort}
+            onRowClick={(row) =>
+              router.push(`/dashboard/library/event/${row.id}`)
+            }
           />
         </Tabs.Panel>
       </Tabs.Root>
