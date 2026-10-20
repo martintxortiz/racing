@@ -5,11 +5,12 @@ export default convexAuthNextjsMiddleware(
   async (request, { convexAuth }) => {
     const pathname = request.nextUrl.pathname;
     const authenticated = await convexAuth.isAuthenticated();
+    const isDashboard =
+      pathname === "/dashboard" || pathname.startsWith("/dashboard/");
+    const isAuth = pathname === "/auth" || pathname.startsWith("/auth/");
     const allowed = authenticated
-      ? pathname === "/auth/sign-out" ||
-        pathname === "/dashboard" ||
-        pathname.startsWith("/dashboard/")
-      : pathname === "/auth" || pathname.startsWith("/auth/");
+      ? pathname === "/auth/sign-out" || isDashboard
+      : isAuth;
 
     return allowed
       ? NextResponse.next()

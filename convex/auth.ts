@@ -135,16 +135,18 @@ export async function createOrUpdateUser(
     : null;
   let requestedGoogleUserId: Id<"users"> | null = null;
   if (type === "oauth" && provider.id === "google") {
+    const now = Date.now();
+    const linkWindowStart = now - 5 * 60_000;
     const requests = await ctx.db.query("googleLinkRequests").collect();
     const pendingRequest = requests.find(
-      (request) => request.requestedAt > Date.now() - 5 * 60_000,
+      (request) => request.requestedAt > linkWindowStart,
     );
     const expiredRequest = requests.find(
-      (request) => request.requestedAt <= Date.now() - 5 * 60_000,
+      (request) => request.requestedAt <= linkWindowStart,
     );
     const verifiers = (await ctx.db.query("authVerifiers").collect()).filter(
       (verifier) =>
-        verifier.sessionId && verifier._creationTime > Date.now() - 5 * 60_000,
+        verifier.sessionId && verifier._creationTime > linkWindowStart,
     );
     if (
       expiredRequest &&
@@ -164,7 +166,7 @@ export async function createOrUpdateUser(
         );
       }
       const session = await ctx.db.get(pendingRequest.sessionId);
-      if (!session || session.expirationTime <= Date.now()) {
+      if (!session || session.expirationTime <= now) {
         throw new ConvexError("Google connection expired. Please try again.");
       }
       requestedGoogleUserId = pendingRequest.userId;

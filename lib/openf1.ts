@@ -49,13 +49,14 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
+const isDateString = (value: unknown): value is string =>
+  typeof value === "string" && Number.isFinite(Date.parse(value));
+
 function hasMeetingFields(value: Record<string, unknown>) {
   return (
     typeof value.meeting_key === "number" &&
-    typeof value.date_start === "string" &&
-    Number.isFinite(Date.parse(value.date_start)) &&
-    typeof value.date_end === "string" &&
-    Number.isFinite(Date.parse(value.date_end)) &&
+    isDateString(value.date_start) &&
+    isDateString(value.date_end) &&
     typeof value.is_cancelled === "boolean" &&
     typeof value.circuit_short_name === "string"
   );
@@ -155,8 +156,8 @@ export async function getOpenF1LibraryData() {
         id: String(meeting.meeting_key),
         name: meeting.meeting_name,
         dateStart,
-        startDate: eventSessions[0]?.startDate ?? dateTime.date,
-        startTime: eventSessions[0]?.startTime ?? dateTime.time,
+        startDate: dateTime.date,
+        startTime: dateTime.time,
         track: meeting.circuit_short_name,
         sessions: eventSessions.map((session) => session.name),
       };

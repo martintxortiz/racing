@@ -32,6 +32,8 @@ export type DataTableColumn<T> = {
 
 const pageSize = 25;
 const minimumColumnWidth = 56;
+const pagerButtonClassName =
+  "flex size-8 items-center justify-center rounded-[2px] text-muted-foreground hover:bg-foreground/10 hover:text-foreground disabled:opacity-35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
 
 export default function DataTable<T>({
   rows,
@@ -95,6 +97,16 @@ export default function DataTable<T>({
     viewportRef.current?.scrollTo({ top: 0 });
   }, [currentPage]);
 
+  const setRowsSelected = (ids: string[], checked: boolean) =>
+    setSelected((current) => {
+      const next = new Set(current);
+      for (const id of ids) {
+        if (checked) next.add(id);
+        else next.delete(id);
+      }
+      return next;
+    });
+
   const toggleSort = (columnId: string) => {
     setPage(0);
     setSort((current) =>
@@ -141,14 +153,7 @@ export default function DataTable<T>({
             checked={allSelected}
             indeterminate={selectedOnPage > 0 && !allSelected}
             onCheckedChange={(checked) =>
-              setSelected((current) => {
-                const next = new Set(current);
-                pageRows.forEach((row) => {
-                  if (checked) next.add(getRowId(row));
-                  else next.delete(getRowId(row));
-                });
-                return next;
-              })
+              setRowsSelected(pageRows.map(getRowId), checked)
             }
           />
           <span>{selected.size} selected</span>
@@ -166,7 +171,7 @@ export default function DataTable<T>({
               aria-label="Previous page"
               disabled={currentPage === 0}
               onClick={() => setPage(currentPage - 1)}
-              className="flex size-8 items-center justify-center rounded-[2px] text-muted-foreground hover:bg-foreground/10 hover:text-foreground disabled:opacity-35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className={pagerButtonClassName}
             >
               <ChevronLeft aria-hidden="true" size={16} />
             </button>
@@ -175,7 +180,7 @@ export default function DataTable<T>({
               aria-label="Next page"
               disabled={currentPage >= pageCount - 1}
               onClick={() => setPage(currentPage + 1)}
-              className="flex size-8 items-center justify-center rounded-[2px] text-muted-foreground hover:bg-foreground/10 hover:text-foreground disabled:opacity-35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className={pagerButtonClassName}
             >
               <ChevronRight aria-hidden="true" size={16} />
             </button>
@@ -266,12 +271,7 @@ export default function DataTable<T>({
                     aria-label={`Select ${getRowId(row)}`}
                     checked={selected.has(getRowId(row))}
                     onCheckedChange={(checked) =>
-                      setSelected((current) => {
-                        const next = new Set(current);
-                        if (checked) next.add(getRowId(row));
-                        else next.delete(getRowId(row));
-                        return next;
-                      })
+                      setRowsSelected([getRowId(row)], checked)
                     }
                   />
                 </TableCell>

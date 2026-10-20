@@ -28,7 +28,7 @@ function ScrollArea({
       </ScrollAreaPrimitive.Viewport>
       <ScrollAreaPrimitive.Scrollbar
         data-slot="scroll-area-scrollbar"
-        className=" flex w-1 justify-center opacity-0 transition-opacity pointer-events-none data-hovering:pointer-events-auto data-hovering:opacity-100 data-scrolling:pointer-events-auto data-scrolling:opacity-100 data-scrolling:duration-0"
+        className="flex w-1 justify-center opacity-0 transition-opacity pointer-events-none data-hovering:pointer-events-auto data-hovering:opacity-100 data-scrolling:pointer-events-auto data-scrolling:opacity-100 data-scrolling:duration-0"
       >
         <ScrollAreaPrimitive.Thumb
           data-slot="scroll-area-thumb"

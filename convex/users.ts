@@ -21,7 +21,6 @@ export const me = query({
       .query("authAccounts")
       .withIndex("userIdAndProvider", (q) => q.eq("userId", userId))
       .collect();
-    const providers = new Set(accounts.map((account) => account.provider));
     const googleAccount = accounts.find(
       (account) => account.provider === "google",
     );
@@ -29,8 +28,8 @@ export const me = query({
       username: user.username ?? null,
       email: user.email ?? null,
       image: user.image ?? null,
-      hasPassword: providers.has("password"),
-      hasGoogle: providers.has("google"),
+      hasPassword: accounts.some((account) => account.provider === "password"),
+      hasGoogle: Boolean(googleAccount),
       googleEmail: googleAccount?.emailVerified ?? null,
     };
   },
