@@ -6,10 +6,12 @@ import { cn } from "@/lib/utils";
 function ScrollArea({
   className,
   viewportRef,
+  viewportClassName,
   children,
   ...props
 }: ComponentProps<typeof ScrollAreaPrimitive.Root> & {
   viewportRef?: Ref<HTMLDivElement>;
+  viewportClassName?: string;
 }) {
   return (
     <ScrollAreaPrimitive.Root
@@ -20,13 +22,13 @@ function ScrollArea({
       <ScrollAreaPrimitive.Viewport
         ref={viewportRef}
         data-slot="scroll-area-viewport"
-        className="size-full outline-none"
+        className={cn("size-full outline-none", viewportClassName)}
       >
         {children}
       </ScrollAreaPrimitive.Viewport>
       <ScrollAreaPrimitive.Scrollbar
         data-slot="scroll-area-scrollbar"
-        className="m-px flex w-2 justify-center opacity-0 transition-opacity pointer-events-none data-hovering:pointer-events-auto data-hovering:opacity-100 data-scrolling:pointer-events-auto data-scrolling:opacity-100 data-scrolling:duration-0"
+        className=" flex w-1 justify-center opacity-0 transition-opacity pointer-events-none data-hovering:pointer-events-auto data-hovering:opacity-100 data-scrolling:pointer-events-auto data-scrolling:opacity-100 data-scrolling:duration-0"
       >
         <ScrollAreaPrimitive.Thumb
           data-slot="scroll-area-thumb"

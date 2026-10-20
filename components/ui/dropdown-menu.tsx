@@ -5,7 +5,9 @@ import type { ComponentProps } from "react";
 import { cn } from "@/lib/utils";
 
 const DropdownMenu = MenuPrimitive.Root;
+const DropdownMenuSubmenu = MenuPrimitive.SubmenuRoot;
 const DropdownMenuPortal = MenuPrimitive.Portal;
+const DropdownMenuFilter = MenuPrimitive.FilterProvider;
 const dropdownItemStyles =
   "flex cursor-pointer items-center gap-2 rounded-[3px] px-2 text-sm text-muted-foreground outline-none transition-colors duration-75 hover:bg-primary/15 hover:text-foreground data-highlighted:bg-primary/15 data-highlighted:text-foreground data-disabled:pointer-events-none data-disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-primary";
 
@@ -68,6 +70,82 @@ function DropdownMenuItem({
   );
 }
 
+function DropdownMenuSubmenuTrigger({
+  className,
+  ...props
+}: ComponentProps<typeof MenuPrimitive.SubmenuTrigger>) {
+  return (
+    <MenuPrimitive.SubmenuTrigger
+      data-slot="dropdown-menu-submenu-trigger"
+      className={cn(
+        dropdownItemStyles,
+        "min-h-9 data-popup-open:bg-primary/15 data-popup-open:text-foreground",
+        className,
+      )}
+      {...props}
+    />
+  );
+}
+
+function DropdownMenuInput({
+  className,
+  ...props
+}: ComponentProps<typeof MenuPrimitive.Input>) {
+  return (
+    <MenuPrimitive.Input
+      data-slot="dropdown-menu-input"
+      className={cn(
+        "h-8 w-full min-w-0 rounded-[2px] bg-foreground/10 px-2.5 text-sm outline-none transition-colors placeholder:text-muted-foreground hover:bg-foreground/15 data-highlighted:ring-2 data-highlighted:ring-ring",
+        className,
+      )}
+      {...props}
+    />
+  );
+}
+
+function DropdownMenuClear({
+  className,
+  ...props
+}: ComponentProps<typeof MenuPrimitive.Clear>) {
+  return (
+    <MenuPrimitive.Clear
+      type="button"
+      data-slot="dropdown-menu-clear"
+      className={cn(
+        "flex size-6 items-center justify-center rounded-[2px] text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring",
+        className,
+      )}
+      {...props}
+    />
+  );
+}
+
+function DropdownMenuList({
+  className,
+  ...props
+}: ComponentProps<typeof MenuPrimitive.List>) {
+  return (
+    <MenuPrimitive.List
+      data-slot="dropdown-menu-list"
+      className={cn("outline-none", className)}
+      {...props}
+    />
+  );
+}
+
+function DropdownMenuEmpty({
+  className,
+  ...props
+}: ComponentProps<typeof MenuPrimitive.Empty>) {
+  return (
+    <MenuPrimitive.Empty
+      data-slot="dropdown-menu-empty"
+      className={cn("px-2.5 py-2 text-sm text-muted-foreground", className)}
+      {...props}
+    />
+  );
+}
+
 function DropdownMenuRadioGroup({
   className,
   ...props
@@ -109,12 +187,19 @@ function DropdownMenuSeparator({
 
 export {
   DropdownMenu,
+  DropdownMenuClear,
   DropdownMenuContent,
+  DropdownMenuEmpty,
+  DropdownMenuFilter,
+  DropdownMenuInput,
   DropdownMenuItem,
+  DropdownMenuList,
   DropdownMenuPortal,
   DropdownMenuPositioner,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuSeparator,
+  DropdownMenuSubmenu,
+  DropdownMenuSubmenuTrigger,
   DropdownMenuTrigger,
 };
