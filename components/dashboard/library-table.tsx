@@ -15,6 +15,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 
+import CreateEventDialog from "@/components/dashboard/create-event-dialog";
 import LibraryLoading from "@/components/dashboard/library-loading";
 import StartTimeFilter from "@/components/dashboard/start-time-filter";
 import DataTable, { type DataTableColumn } from "@/components/ui/data-table";
@@ -278,6 +279,7 @@ export default function LibraryTable() {
   const [startTime, setStartTime] = useState<DateRange | null>(null);
   const [addOpen, setAddOpen] = useState(false);
   const [startTimeOpen, setStartTimeOpen] = useState(false);
+  const [createEventOpen, setCreateEventOpen] = useState(false);
   const isSessions = tab === "sessions";
   const ActionIcon = isSessions ? Upload : Add;
   const filterFields = useMemo<FilterField[]>(
@@ -638,11 +640,24 @@ export default function LibraryTable() {
               </DropdownMenuPositioner>
             </DropdownMenuPortal>
           </DropdownMenu>
-          <Button type="button" className="ml-auto h-8 px-3 text-sm">
+          <Button
+            type="button"
+            className="ml-auto h-8 px-3 text-sm"
+            onClick={() => {
+              if (!isSessions) setCreateEventOpen(true);
+            }}
+          >
             <ActionIcon aria-hidden="true" size={16} />
             {isSessions ? "Import" : "New Event"}
           </Button>
         </div>
+        <CreateEventDialog
+          open={createEventOpen}
+          onOpenChange={setCreateEventOpen}
+          onCreated={(id) => {
+            router.push(`/dashboard/library/event/${id}`);
+          }}
+        />
         <Tabs.Panel value="sessions" keepMounted className={panelClassName}>
           <DataTable
             rows={filteredSessions}

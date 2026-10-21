@@ -11,6 +11,44 @@ const { api, createTest } = defineTestApp({ schema }).defineModules({
 });
 
 describe("events", () => {
+  it("create requires auth and a name", async () => {
+    const t = createTest();
+    await expect(t.mutation(api.events.create, { name: "Test GP" })).rejects.toThrow(
+      /signed in/i,
+    );
+
+    const userId = await t.run((ctx) =>
+      ctx.db.insert("users", { email: "a@b.com" }),
+    );
+    const asUser = t.withIdentity({ subject: userId });
+    await expect(asUser.mutation(api.events.create, { name: "  " })).rejects.toThrow(
+      /event name/i,
+    );
+
+    const id = await asUser.mutation(api.events.create, { name: "  Test GP  " });
+    const doc = await t.run((ctx) => ctx.db.get(id));
+    expect(doc).toMatchObject({ name: "Test GP" });
+    expect(doc?.dateStart).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+  });
+
+  it("create uses provided dateStart when set", async () => {
+    const t = createTest();
+    const userId = await t.run((ctx) =>
+      ctx.db.insert("users", { email: "a@b.com" }),
+    );
+    const id = await t
+      .withIdentity({ subject: userId })
+      .mutation(api.events.create, {
+        name: "Test GP",
+        dateStart: "2026-03-15T14:00:00Z",
+      });
+    const doc = await t.run((ctx) => ctx.db.get(id));
+    expect(doc).toMatchObject({
+      name: "Test GP",
+      dateStart: "2026-03-15T14:00:00Z",
+    });
+  });
+
   it("list returns empty when signed out", async () => {
     const t = createTest();
     await t.run((ctx) =>

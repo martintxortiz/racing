@@ -6,16 +6,19 @@ import "./logo-prism.css";
 const PATH =
   "M 128 28 C 140 112 171 175 236 220 C 160 190 96 190 20 220 C 85 175 116 112 128 28 Z";
 
-// Seamless spectral wheel: first and last stop match so the repeated gradient tiles.
+// F1 team palette, in the order supplied.
 const PRISM_STOPS = [
-  "hsl(275 92% 66%)",
-  "hsl(230 90% 64%)",
-  "hsl(190 90% 52%)",
-  "hsl(140 82% 50%)",
-  "hsl(58 90% 56%)",
-  "hsl(26 95% 58%)",
-  "hsl(354 88% 62%)",
-  "hsl(275 92% 66%)",
+  "#3671C6",
+  "#27F4D2",
+  "#E80020",
+  "#FF8000",
+  "#00665E",
+  "#0090FF",
+  "#64C4FF",
+  "#6692FF",
+  "#E6002B",
+  "#C00000",
+  "#C8102E",
 ];
 
 // Crystal gloss: lit top-left, a facet glint, then a shaded base for depth.
@@ -50,11 +53,10 @@ export default function PrismLogo({
         <linearGradient
           id={gradientId}
           gradientUnits="userSpaceOnUse"
-          x1="0"
+          x1="20"
           y1="128"
-          x2="256"
+          x2="236"
           y2="128"
-          spreadMethod="repeat"
         >
           {PRISM_STOPS.map((color, i) => (
             <stop
@@ -103,10 +105,10 @@ export default function PrismLogo({
       <g className="logo-prism__scale">
         <g clipPath={`url(#${clipId})`}>
           <rect
-            className="logo-prism__sweep"
-            x="-512"
+            className="logo-prism__color"
+            x="0"
             y="0"
-            width="1024"
+            width="256"
             height="256"
             fill={`url(#${gradientId})`}
           />

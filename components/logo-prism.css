@@ -3,6 +3,10 @@
   transition: stop-color 480ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
+.logo-prism__color {
+  filter: blur(16px);
+}
+
 .logo-prism:hover .logo-prism__stop {
   stop-color: var(--prism-stop, currentColor);
 }
@@ -35,19 +39,6 @@
   transform: scale(1.07);
 }
 
-.logo-prism:hover .logo-prism__sweep {
-  animation: logo-prism-flow 3200ms linear infinite;
-}
-
-@keyframes logo-prism-flow {
-  from {
-    transform: translateX(0);
-  }
-  to {
-    transform: translateX(-256px);
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
   .logo-prism__stop,
   .logo-prism__facet-stop,
@@ -58,9 +49,5 @@
 
   .logo-prism:hover .logo-prism__scale {
     transform: none;
-  }
-
-  .logo-prism:hover .logo-prism__sweep {
-    animation: none;
   }
 }

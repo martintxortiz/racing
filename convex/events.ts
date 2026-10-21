@@ -1,8 +1,8 @@
 import { getAuthUserId } from "@convex-dev/auth/server";
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
 
 import type { Doc } from "./_generated/dataModel";
-import { query } from "./_generated/server";
+import { mutation, query } from "./_generated/server";
 
 function splitDateTime(value: string) {
   const offset = value.match(/(?:Z|[+-]\d{2}:\d{2})$/)?.[0];
@@ -23,6 +23,25 @@ function toLibraryEvent(doc: Doc<"events">) {
     sessions: [] as const,
   };
 }
+
+export const create = mutation({
+  args: {
+    name: v.string(),
+    dateStart: v.optional(v.string()),
+  },
+  handler: async (ctx, { name, dateStart }) => {
+    const userId = await getAuthUserId(ctx);
+    if (!userId) throw new ConvexError("You must be signed in.");
+
+    const trimmed = name.trim();
+    if (!trimmed) throw new ConvexError("Enter an event name.");
+
+    return await ctx.db.insert("events", {
+      name: trimmed,
+      dateStart: dateStart?.trim() || new Date().toISOString(),
+    });
+  },
+});
 
 export const list = query({
   args: {},
