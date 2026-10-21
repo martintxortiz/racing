@@ -1,43 +1,30 @@
-import Link from "next/link";
+"use client";
+
+import { useQuery } from "convex/react";
 import { notFound } from "next/navigation";
+import { use } from "react";
 
 import PageShell from "@/components/dashboard/page-shell";
-import { getOpenF1LibraryData } from "@/lib/openf1";
+import { api } from "@/convex/_generated/api";
 
-const linkClassName = "text-brand underline underline-offset-4";
-
-export default async function EventPage({
+export default function EventPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { id } = await params;
-  const data = await getOpenF1LibraryData().catch(() => null);
-  if (!data) {
+  const { id } = use(params);
+  const event = useQuery(api.events.get, { id });
+
+  if (event === undefined) {
     return (
       <PageShell>
-        <p role="alert" className="text-sm text-muted-foreground">
-          F1 data is unavailable right now. Please try again later.
-        </p>
+        <p className="text-sm text-muted-foreground">Loading event…</p>
       </PageShell>
     );
   }
-
-  const event = data.events.find((row) => row.id === id);
   if (!event) notFound();
 
   const rows = [
-    {
-      label: "Track",
-      value: (
-        <Link
-          href={`/dashboard/library/track/${encodeURIComponent(event.track)}`}
-          className={linkClassName}
-        >
-          {event.track}
-        </Link>
-      ),
-    },
     { label: "Sessions", value: event.sessions.length },
     { label: "Start time", value: `${event.startDate} ${event.startTime}` },
   ];

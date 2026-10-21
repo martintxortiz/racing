@@ -10,13 +10,15 @@ import {
   Upload,
 } from "@carbon/icons-react";
 import { Tabs } from "@base-ui/react/tabs";
+import { useQuery } from "convex/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 
+import LibraryLoading from "@/components/dashboard/library-loading";
+import StartTimeFilter from "@/components/dashboard/start-time-filter";
 import DataTable, { type DataTableColumn } from "@/components/ui/data-table";
 import { Button } from "@/components/ui/button";
-import StartTimeFilter from "@/components/dashboard/start-time-filter";
 import {
   DropdownMenu,
   DropdownMenuClear,
@@ -37,8 +39,29 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { api } from "@/convex/_generated/api";
 import { formatRange, matchesRange, type DateRange } from "@/lib/date-range";
-import type { LibraryEvent, LibrarySession } from "@/lib/openf1";
+
+type LibrarySession = {
+  id: string;
+  name: string;
+  type: string;
+  dateStart: string;
+  startDate: string;
+  startTime: string;
+  importedAt: string;
+  eventId: string;
+  eventName: string;
+};
+
+type LibraryEvent = {
+  id: string;
+  name: string;
+  dateStart: string;
+  startDate: string;
+  startTime: string;
+  sessions: readonly string[];
+};
 
 const slug = (...parts: string[]) =>
   parts.join("_").trim().toLowerCase().replace(/\s+/g, "_");
@@ -100,13 +123,17 @@ const startTimeColumn = {
 
 const actionsColumn = {
   id: "actions",
-  header: "",
+  header: "Actions",
   width: 56,
+  fixed: true,
+  align: "end",
   value: () => "",
   cell: () => (
-    <span className="flex size-8 items-center justify-center text-muted-foreground">
-      <OverflowMenuVertical aria-hidden="true" size={16} />
-    </span>
+    <OverflowMenuVertical
+      aria-hidden="true"
+      className="text-muted-foreground"
+      size={16}
+    />
   ),
 } satisfies DataTableColumn<unknown>;
 
@@ -131,8 +158,8 @@ const sessionColumns: DataTableColumn<LibrarySession>[] = [
     value: (row) => row.importedAt,
     cell: (row) => (
       <>
-        <div>{row.importedAt.slice(0, 10)}</div>
-        <div className="text-xs text-muted-foreground">
+        <div className="truncate">{row.importedAt.slice(0, 10)}</div>
+        <div className="truncate text-xs text-muted-foreground">
           {row.importedAt.slice(11, 19)} UTC
         </div>
       </>
@@ -169,17 +196,6 @@ const eventColumns: DataTableColumn<LibraryEvent>[] = [
     value: (row) => row.sessions.length,
     cell: (row) => row.sessions.length,
   },
-  {
-    id: "track",
-    header: "Track",
-    width: 200,
-    value: (row) => row.track,
-    cell: (row) =>
-      linkCell(
-        `/dashboard/library/track/${encodeURIComponent(row.track)}`,
-        row.track,
-      ),
-  },
   actionsColumn,
 ];
 
@@ -198,7 +214,7 @@ const matchesSearch = (values: string[], search: string) => {
   return !query || values.some((value) => value.toLowerCase().includes(query));
 };
 
-type FilterFieldId = "type" | "event" | "track";
+type FilterFieldId = "type" | "event";
 
 type FilterOption = {
   value: string;
@@ -252,14 +268,10 @@ const filterSearch = (label: string) => (
   </div>
 );
 
-export default function LibraryTable({
-  sessions,
-  events,
-}: {
-  sessions: LibrarySession[];
-  events: LibraryEvent[];
-}) {
+export default function LibraryTable() {
   const router = useRouter();
+  const events = useQuery(api.events.list);
+  const sessions: LibrarySession[] = [];
   const [tab, setTab] = useState("sessions");
   const [search, setSearch] = useState("");
   const [filters, setFilters] = useState<ActiveFilter[]>([]);
@@ -290,14 +302,8 @@ export default function LibraryTable({
                 .sort((a, b) => a.label.localeCompare(b.label)),
             },
           ]
-        : [
-            {
-              id: "track",
-              label: "Track",
-              options: toOptions(events.map((row) => row.track)),
-            },
-          ],
-    [events, isSessions, sessions],
+        : [],
+    [isSessions, sessions],
   );
   const hasFilters = filters.length > 0 || startTime !== null;
   const filteredSessions = useMemo(
@@ -324,16 +330,15 @@ export default function LibraryTable({
   );
   const filteredEvents = useMemo(
     () =>
-      events.filter(
+      (events ?? []).filter(
         (row) =>
-          matchesFilters(filters, "track", row.track) &&
           matchesRange(startTime, row.dateStart) &&
           matchesSearch(
-            [row.name, row.id, row.startDate, row.startTime, row.track],
+            [row.name, row.id, row.startDate, row.startTime],
             search,
           ),
       ),
-    [events, filters, search, startTime],
+    [events, search, startTime],
   );
 
   const addFilter = (field: FilterFieldId, value: string) =>
@@ -357,6 +362,8 @@ export default function LibraryTable({
     setAddOpen(false);
     setStartTimeOpen(false);
   };
+
+  if (events === undefined) return <LibraryLoading />;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[2px] border border-border/60 bg-card">

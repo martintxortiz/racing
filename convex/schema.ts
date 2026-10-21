@@ -22,4 +22,8 @@ export default defineSchema({
     sessionId: v.id("authSessions"),
     requestedAt: v.number(),
   }).index("by_session", ["sessionId"]),
+  events: defineTable({
+    name: v.string(),
+    dateStart: v.string(),
+  }),
 });
