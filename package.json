@@ -1,0 +1,36 @@
+{
+  "name": "racing",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Racing Workbench: a telemetry and timing workbench for recorded .mcap sessions",
+  "scripts": {
+    "dev": "next dev -p 3313",
+    "build": "next build",
+    "start": "next start -p 3313",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "smoke": "node scripts/smoke.mjs"
+  },
+  "dependencies": {
+    "@fontsource/ibm-plex-mono": "^5.3.0",
+    "@fontsource/ibm-plex-sans": "^5.3.0",
+    "@mcap/core": "^2.3.0",
+    "echarts": "^6.1.0",
+    "next": "^16.4.3",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "zstddec": "^0.3.4",
+    "zustand": "^5.0.16"
+  },
+  "devDependencies": {
+    "@types/node": "^22",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "^16.4.3",
+    "puppeteer-core": "^25.16.0",
+    "typescript": "^5.9",
+    "vitest": "^3.2"
+  }
+}
