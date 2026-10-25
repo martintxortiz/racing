@@ -66,6 +66,10 @@ interface WB {
   menu: MenuState | null;
   picker: PickerTarget | null;
   theme: "light" | "dark";
+  /** One transient message (errors, confirmations); the shell shows it as a toast. */
+  notice: { kind: "info" | "error"; text: string } | null;
+  /** Small text prompt (Save as…). */
+  prompt: { title: string; value: string; onSubmit: (v: string) => void } | null;
 }
 
 export const useWB = create<WB>(() => ({
@@ -93,6 +97,8 @@ export const useWB = create<WB>(() => ({
   menu: null,
   picker: null,
   theme: "light",
+  notice: null,
+  prompt: null,
 }));
 
 const set = useWB.setState;
@@ -284,3 +290,5 @@ export function moveTab(id: string, toIndex: number) {
 
 export const setActiveTab = (id: string) => set({ activeTab: id, maximized: null });
 export const toggleMaximize = (id: string | null) => set((s) => ({ maximized: s.maximized === id ? null : id }));
+
+export const notify = (text: string, kind: "info" | "error" = "info") => set({ notice: { kind, text } });
