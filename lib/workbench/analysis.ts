@@ -358,3 +358,140 @@ export function orderAt(
     return kb.n - ka.n || ka.at - kb.at || ka.best - kb.best || idx.get(a)! - idx.get(b)!;
   });
 }
+
+// ---------- lap history grid ----------
+
+/** What a lap grid cell shows: the lap time, one sector, or one speed trap (`*_kph`). */
+export type GridMetric = { kind: "lap" } | { kind: "sector"; i: number } | { kind: "speed"; key: string };
+
+export interface GridCell {
+  value: number | null;
+  /** purple = field best so far, green = the entity's best so far (both among clean laps). */
+  flag: "purple" | "green" | null;
+  kind: "out" | "in" | "deleted" | null;
+  lap: Lap;
+}
+
+export function metricValue(l: Lap, m: GridMetric): number | null {
+  if (m.kind === "lap") return l.time;
+  if (m.kind === "sector") return l.sectors[m.i] ?? null;
+  return l.speeds?.[m.key] ?? null;
+}
+
+/**
+ * Lap-by-lap grid for the entities: rows are lap numbers, cells hold the metric for that
+ * entity's lap. Bests ignore deleted laps and out laps; for speeds higher is better.
+ * Only laps finished by t are included.
+ */
+export function lapGrid(laps: Map<EntityId, Lap[]>, ids: EntityId[], metric: GridMetric, t = Infinity) {
+  const higher = metric.kind === "speed";
+  const better = (a: number, b: number) => (higher ? a > b : a < b);
+  const cells = new Map<EntityId, Map<number, GridCell>>();
+  let field: number | null = null;
+  const own = new Map<EntityId, number>();
+  let maxN = 0;
+  for (const e of ids) {
+    const m = new Map<number, GridCell>();
+    for (const l of laps.get(e) ?? []) {
+      if (l.t1 === null || l.t1 > t) continue;
+      const v = metricValue(l, metric);
+      const kind = l.deleted ? "deleted" : l.outLap ? "out" : l.inLap ? "in" : null;
+      m.set(l.n, { value: v, flag: null, kind, lap: l });
+      maxN = Math.max(maxN, l.n);
+      const clean = v !== null && !l.deleted && !l.outLap && (metric.kind !== "lap" || l.timed);
+      if (clean) {
+        if (field === null || better(v, field)) field = v;
+        const o = own.get(e);
+        if (o === undefined || better(v, o)) own.set(e, v);
+      }
+    }
+    cells.set(e, m);
+  }
+  for (const [e, m] of cells)
+    for (const c of m.values()) {
+      if (c.value === null || c.kind === "deleted" || c.kind === "out") continue;
+      c.flag = c.value === field ? "purple" : c.value === own.get(e) ? "green" : null;
+    }
+  return { cells, laps: maxN, field };
+}
+
+/** Metrics the laps carry: lap time, each sector, and each speed field. */
+export function gridMetrics(laps: Iterable<Lap>): { value: string; label: string; metric: GridMetric }[] {
+  let sectors = 0;
+  const speeds = new Set<string>();
+  for (const l of laps) {
+    sectors = Math.max(sectors, l.sectors.length);
+    for (const k of Object.keys(l.speeds ?? {})) speeds.add(k);
+  }
+  const out: { value: string; label: string; metric: GridMetric }[] = [{ value: "lap", label: "Lap time", metric: { kind: "lap" } }];
+  for (let i = 0; i < sectors; i++) out.push({ value: `s${i + 1}`, label: `Sector ${i + 1}`, metric: { kind: "sector", i } });
+  for (const k of [...speeds].sort()) out.push({ value: k, label: fieldMeta(k).label, metric: { kind: "speed", key: k } });
+  return out;
+}
+
+// ---------- lap distribution ----------
+
+/**
+ * Laps that represent pace: timed, not deleted, not out or in laps, and within `cutoff`
+ * of the entity's own best (1.07 drops safety-car and traffic laps). cutoff ≤ 0 keeps all.
+ */
+export function representativeLaps(ls: Lap[], cutoff = 1.07, t = Infinity): Lap[] {
+  const ok = ls.filter((l) => l.timed && !l.deleted && !l.outLap && !l.inLap && l.time !== null && l.t1 !== null && l.t1 <= t);
+  if (!(cutoff > 0) || !ok.length) return ok;
+  const best = Math.min(...ok.map((l) => l.time!));
+  return ok.filter((l) => l.time! <= best * cutoff);
+}
+
+// ---------- pedal behaviour ----------
+
+export interface PedalShare {
+  /** Shares of lap time, 0–1: full throttle, partial throttle, coasting, braking. */
+  full: number;
+  partial: number;
+  coast: number;
+  brake: number;
+  /** Seconds with throttle and brake both applied. */
+  overlap: number;
+  /** Separate brake applications. */
+  brakes: number;
+  /** Gear changes. */
+  shifts: number | null;
+  time: number;
+}
+
+/**
+ * Time-weighted pedal use over one lap. Throttle is 0–100; brake may be 0–100 or 0/1.
+ * Full = throttle ≥ fullAt; braking wins over throttle; coasting = neither pedal.
+ */
+export function pedalShare(
+  tau: ArrayLike<number>,
+  throttle: ArrayLike<number>,
+  brake: ArrayLike<number> | undefined,
+  gear?: ArrayLike<number>,
+  fullAt = 98,
+): PedalShare | null {
+  const n = tau.length;
+  if (n < 2) return null;
+  let maxB = 0;
+  if (brake) for (let i = 0; i < n; i++) maxB = Math.max(maxB, brake[i] || 0);
+  const bOn = maxB <= 1 ? 0.5 : 5;
+  let full = 0, partial = 0, coast = 0, brk = 0, overlap = 0, brakes = 0, shifts = 0;
+  let was = false;
+  for (let i = 0; i < n - 1; i++) {
+    const dt = tau[i + 1] - tau[i];
+    if (!(dt > 0)) continue;
+    const th = throttle[i] || 0;
+    const b = brake ? (brake[i] || 0) >= bOn : false;
+    if (b) brk += dt;
+    else if (th >= fullAt) full += dt;
+    else if (th >= 5) partial += dt;
+    else coast += dt;
+    if (b && th >= 10) overlap += dt;
+    if (b && !was) brakes++;
+    was = b;
+    if (gear && gear[i + 1] !== gear[i] && gear[i + 1] > 0 && gear[i] > 0) shifts++;
+  }
+  const time = full + partial + coast + brk;
+  if (!(time > 0)) return null;
+  return { full: full / time, partial: partial / time, coast: coast / time, brake: brk / time, overlap, brakes, shifts: gear ? shifts : null, time };
+}

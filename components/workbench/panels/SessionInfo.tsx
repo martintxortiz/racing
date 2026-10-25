@@ -28,9 +28,9 @@ const KIND: Record<string, string> = { practice: "Practice", qualifying: "Qualif
 export function flagColour(flag: string, flags: Record<string, string>, fallback: string): string {
   const f = flag.toUpperCase();
   if (flags[f]) return flags[f];
-  if (/SC|VSC|FCY|SAFETY|YELLOW|SLOW/.test(f)) return flags.YELLOW || fallback;
-  if (/RED/.test(f)) return flags.RED || fallback;
-  if (/GREEN|CLEAR/.test(f)) return flags.GREEN || fallback;
+  if (/\b(SC|VSC|FCY|SAFETY|YELLOW|SLOW)\b/.test(f)) return flags.YELLOW || fallback;
+  if (/\bRED\b/.test(f)) return flags.RED || fallback;
+  if (/\b(GREEN|CLEAR)\b/.test(f)) return flags.GREEN || fallback;
   return flags[f.split(" ")[0]] || fallback;
 }
 

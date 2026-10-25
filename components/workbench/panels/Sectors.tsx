@@ -5,7 +5,7 @@ import { useMemo } from "react";
 import { sectorSummary, type SectorSummary } from "@/lib/workbench/analysis";
 import { fmtLap, fmtSector, fmtSigned } from "@/lib/workbench/format";
 import { slotOf } from "@/lib/workbench/selection";
-import { usePalette } from "../colors";
+import { teamCell } from "../colors";
 import { cfg, entityMenuItems, openPanelMenu, patch, radio } from "../menus";
 import { focusEntity, toggleCompare, useWB, type MenuItem } from "../state";
 import { Empty, Readout, Skeleton, useThrottledT, usePanelEntities, useTopicState, type PanelDef, type PanelProps } from "./common";
@@ -18,7 +18,6 @@ export function sortSummary(rows: SectorSummary[], key: SortKey): SectorSummary[
 }
 
 function Sectors({ id, panel }: PanelProps) {
-  const p = usePalette();
   const derived = useWB((s) => s.derived);
   const sel = useWB((s) => s.sel);
   const shown = usePanelEntities(panel.config, "field");
@@ -35,9 +34,10 @@ function Sectors({ id, panel }: PanelProps) {
   const fieldIdeal = sum.field.every((v) => v !== null) ? sum.field.reduce<number>((a, v) => a + v!, 0) : null;
   const cell = (v: number | null, best: number | null) => {
     if (v === null) return <span className="pw-faint">—</span>;
-    if (relative && best !== null) return v === best ? <span className="pw-sector--purple">{fmtSector(v)}</span> : fmtSigned(v - best);
-    return <span className={best !== null && v === best ? "pw-sector--purple" : undefined}>{fmtSector(v)}</span>;
+    if (relative && best !== null && v !== best) return fmtSigned(v - best);
+    return fmtSector(v);
   };
+  const isBest = (v: number | null, best: number | null) => v !== null && best !== null && v === best;
 
   return (
     <>
@@ -55,7 +55,7 @@ function Sectors({ id, panel }: PanelProps) {
             ))}
             <th className="is-num">Ideal</th>
             <th className="is-num">Best</th>
-            <th className="is-num">Gain</th>
+            <th className="is-num" title="Best lap minus the ideal lap">To ideal</th>
           </tr>
         </thead>
         <tbody>
@@ -72,21 +72,19 @@ function Sectors({ id, panel }: PanelProps) {
                   openPanelMenu(id, ev.clientX, ev.clientY, () => entityMenuItems(r.entity, { lapNumber: r.best?.n }));
                 }}
               >
-                <td>
-                  <span className="wb-driver">
-                    <i className="wb-dot" style={{ background: slot >= 0 ? p.series[slot % p.series.length] : "transparent" }} />
-                    <i className="pw-team" style={{ ["--c" as string]: e?.colour }} />
-                    <span>{e?.code ?? r.entity}</span>
-                  </span>
+                <td {...teamCell(e?.colour)} title={e?.name}>
+                  {e?.code ?? r.entity}
                 </td>
                 {r.sectors.map((v, i) => (
-                  <td key={i} className="is-num">
+                  <td key={i} className={`is-num${isBest(v, sum.field[i]) ? " wb-fill--purple" : ""}`}>
                     {cell(v, sum.field[i])}
                   </td>
                 ))}
                 <td className="is-num">{relative && fieldIdeal !== null && r.ideal !== null ? fmtSigned(r.ideal - fieldIdeal) : fmtLap(r.ideal)}</td>
                 <td className="is-num">{fmtLap(r.best?.time)}</td>
-                <td className="is-num pw-faint">{r.gain === null ? "—" : fmtSigned(-r.gain)}</td>
+                <td className={`is-num${r.gain !== null && r.gain > 0.05 ? " wb-fill--yellow" : " pw-faint"}`} title="Best lap minus ideal lap: time left in the sectors">
+                  {r.gain === null ? "—" : r.gain < 0.0005 ? "0" : fmtSigned(r.gain)}
+                </td>
               </tr>
             );
           })}

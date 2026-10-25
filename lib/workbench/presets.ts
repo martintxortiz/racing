@@ -33,6 +33,9 @@ export const WIDGETS = {
   gaps: (mode = "auto") => p("gap-chart", { laps: "/timing/laps", order: "/timing/classification" }, { mode, drivers: "field" }),
   stints: () => p("stints", { stints: "/timing/stints", laps: "/timing/laps", pits: "/timing/pit" }, { drivers: "field" }),
   sectors: (drivers: "field" | "selection" = "field") => p("sectors", { laps: "/timing/laps" }, { drivers }),
+  history: (metric = "lap") => p("lap-grid", { laps: "/timing/laps" }, { drivers: "field", metric }),
+  distribution: () => p("lap-distribution", { laps: "/timing/laps" }, { drivers: "field" }),
+  pedal: () => p("pedal", { telemetry: "/vehicle/*/telemetry", laps: "/timing/laps" }, { drivers: "selection" }),
 };
 
 export const PANEL_TYPES = [
@@ -41,8 +44,11 @@ export const PANEL_TYPES = [
   "track-map",
   "lap-chart",
   "gap-chart",
+  "lap-grid",
+  "lap-distribution",
   "stints",
   "sectors",
+  "pedal",
   "event-log",
   "session-info",
   "weather",
@@ -75,11 +81,12 @@ export const PRESETS: Record<string, Preset> = {
   },
   telemetry: {
     name: "Telemetry",
-    description: "Compared drivers' laps by distance, with sectors, track map and their lap times.",
+    description: "Compared cars' laps by distance with corner markers, pedal use, sectors, track map and their lap times.",
     build: () => ({
-      root: row(64, "trace", col(42, "map", col(48, "sectors", "laps"))),
+      root: row(64, col(80, "trace", "pedal"), col(42, "map", col(48, "sectors", "laps"))),
       panels: {
         trace: WIDGETS.telemetry(),
+        pedal: WIDGETS.pedal(),
         map: WIDGETS.map(),
         sectors: WIDGETS.sectors("selection"),
         laps: WIDGETS.laps("selection"),
@@ -100,6 +107,14 @@ export const PRESETS: Record<string, Preset> = {
       },
     }),
   },
+  laps: {
+    name: "Laps",
+    description: "Every lap of every car, pace distribution and the ideal lap from best sectors.",
+    build: () => ({
+      root: row(58, "history", col(55, "distribution", "sectors")),
+      panels: { history: WIDGETS.history(), distribution: WIDGETS.distribution(), sectors: WIDGETS.sectors("field") },
+    }),
+  },
   conditions: {
     name: "Session",
     description: "Session clock and status, weather over time and race control.",
@@ -110,7 +125,7 @@ export const PRESETS: Record<string, Preset> = {
   },
 };
 
-export const DEFAULT_TABS = ["timing", "telemetry", "strategy"];
+export const DEFAULT_TABS = ["timing", "telemetry", "strategy", "laps"];
 
 /** Instantiate a preset as a new tab with fresh panel ids that do not clash with `layout`. */
 export function presetTab(key: string, layout: Pick<Layout, "tabs" | "panels">): { tab: Tab; panels: Record<string, PanelState> } {
@@ -132,7 +147,7 @@ export function presetTab(key: string, layout: Pick<Layout, "tabs" | "panels">):
   return { tab: { id: tabId, name: preset.name, root: remap(root) }, panels: out };
 }
 
-/** The default workspace: Timing, Telemetry and Strategy tabs. */
+/** The default workspace: Timing, Telemetry, Strategy and Laps tabs. */
 export function defaultLayout(): Layout {
   let l: Layout = {
     version: 1,

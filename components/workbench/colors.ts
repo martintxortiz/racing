@@ -156,3 +156,9 @@ export function colourOf(
 export function onColour(hex: string): string {
   return lum(hexToRgb(hex)) > 0.36 ? "#161616" : "#ffffff";
 }
+
+/** Props for a table cell filled with a team colour. */
+export function teamCell(colour: string | undefined): { className: string; style: React.CSSProperties } {
+  const c = colour ?? "#8d8d8d";
+  return { className: "wb-team-cell", style: { ["--c" as string]: c, ["--fg" as string]: onColour(c) } };
+}
