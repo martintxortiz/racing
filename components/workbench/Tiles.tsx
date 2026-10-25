@@ -55,6 +55,7 @@ function PanelFrame({ id, tab }: { id: string; tab: string }) {
       ref={frame}
       className={`pw-panel wb-panel${focused ? " is-focused" : ""}`}
       data-panel={id}
+      data-type={panel.type}
       onPointerDownCapture={() => useWB.getState().focused !== id && useWB.setState({ focused: id })}
       onContextMenu={(e) => {
         // Panels open richer menus for what was clicked and call preventDefault themselves.

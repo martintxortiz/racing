@@ -24,7 +24,12 @@ function Picker({ target }: { target: PickerTarget }) {
     const re = new RegExp(`^${need.replace(/[.+?^${}()|[\]\\]/g, "\\$&").replace(/\*/g, "[^/]+")}$`);
     return topics.some((t) => re.test(t.name));
   };
-  const list = PANELS.filter((d) => `${d.title} ${d.description}`.toLowerCase().includes(q.toLowerCase()));
+  // Title matches first, then description matches.
+  const needle = q.trim().toLowerCase();
+  const list = [
+    ...PANELS.filter((d) => d.title.toLowerCase().includes(needle)),
+    ...PANELS.filter((d) => !d.title.toLowerCase().includes(needle) && d.description.toLowerCase().includes(needle)),
+  ];
   const pick = (i: number) => {
     const d = list[i];
     if (!d) return;
@@ -69,7 +74,7 @@ function Picker({ target }: { target: PickerTarget }) {
               <li
                 key={d.type}
                 className={`wb-picker__item${i === sel ? " is-active" : ""}${missing.length ? " is-unavailable" : ""}`}
-                onPointerEnter={() => setSel(i)}
+                onPointerMove={() => i !== sel && setSel(i)}
                 onClick={() => pick(i)}
                 title={missing.length ? `This recording has no ${missing.join(", ")}` : undefined}
               >
