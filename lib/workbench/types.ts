@@ -50,6 +50,8 @@ export interface Segment {
   id: string;
   t0: Sec;
   t1: Sec | null;
+  /** Entities that go through to the next part (knockout formats), when the data shows it. */
+  advance?: number;
 }
 
 export interface Lap {
@@ -67,6 +69,10 @@ export interface Lap {
   deletedReason?: string;
   segment: string | null;
   timed: boolean;
+  /** Lap that ends in the pit lane (the next lap is an out lap). */
+  inLap?: boolean;
+  /** Speed traps and intermediates the feed publishes per lap (`*_kph` fields). */
+  speeds?: Record<string, number>;
 }
 
 export type LapRef = "best" | "last" | "cursor" | { n: number };

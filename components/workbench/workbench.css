@@ -136,8 +136,6 @@
 .wb-timing th:last-child, .wb-timing td:last-child { padding-right: 8px; }
 .wb-timing thead th { position: sticky; top: 0; z-index: 1; background: var(--pw-bg); }
 .wb-timing tbody tr { cursor: pointer; }
-.wb-timing tr.is-selected td { background: color-mix(in srgb, var(--pw-fill) 70%, transparent); }
-.wb-timing tr.is-focus td { background: var(--pw-fill); }
 .wb-timing tr.is-hidden td { color: var(--pw-text-3); }
 .wb-timing thead th { cursor: pointer; user-select: none; }
 .wb-timing thead th.is-sorted { color: var(--pw-text-1); }
@@ -220,3 +218,29 @@
 }
 .wb-stint:not([class*="wb-stint--"]) { color: var(--pw-text-2); }
 .wb-stint--hard { box-shadow: inset 0 0 0 1px var(--pw-split); }
+
+/* ---------- Data tables: zebra, cell fills, row states ---------- */
+.wb .pw-table { --wb-zebra: color-mix(in srgb, var(--pw-fill) 55%, transparent); }
+.wb .pw-table tbody tr:where(:nth-child(even of :not(.wb-timing__group))) td { background: var(--wb-zebra); }
+.wb .pw-table td { border-bottom-color: transparent; }
+.wb .pw-table tbody tr.is-selected td { background: var(--pw-selected); }
+.wb .pw-table tbody tr.is-focus td { background: color-mix(in srgb, var(--pw-selected) 70%, var(--pw-fill)); }
+.wb .pw-table tbody tr:hover td { background: var(--pw-fill); }
+/* Semantic fills beat zebra and selection. */
+.wb .pw-table tbody tr td.wb-fill--purple { background: color-mix(in srgb, var(--pw-sector-purple) 30%, var(--pw-bg)); color: var(--pw-text-1); font-weight: 600; }
+.wb .pw-table tbody tr td.wb-fill--green { background: color-mix(in srgb, var(--pw-sector-green) 24%, var(--pw-bg)); color: var(--pw-text-1); }
+.wb .pw-table tbody tr td.wb-fill--red { background: color-mix(in srgb, var(--pw-error) 14%, var(--pw-bg)); color: var(--pw-text-1); }
+.wb .pw-table tbody tr td.wb-fill--yellow { background: color-mix(in srgb, #f1c21b 40%, var(--pw-bg)); color: var(--pw-text-1); }
+.wb .pw-table tbody tr td.wb-fill--deleted { color: var(--pw-text-3); }
+/* Team colour fills the driver cell. */
+.wb .pw-table tbody tr td.wb-team-cell { background: var(--c); color: var(--fg); font-weight: 600; letter-spacing: 0.01em; box-shadow: inset 0 -1px 0 var(--pw-bg); }
+/* Comparison colour on the position cell. */
+.wb .pw-table tbody tr td.wb-slot { box-shadow: inset 3px 0 0 var(--c); font-weight: 600; }
+.wb-status-cell { font-size: 10px; font-weight: 600; color: var(--pw-text-2); }
+.wb-status-cell.is-pit, .wb-status-cell.is-in { color: var(--pw-info); }
+.wb-status-cell.is-stopped { color: var(--pw-error); }
+.wb-timing tr.is-pit td:not(.wb-team-cell), .wb-timing tr.is-in td:not(.wb-team-cell), .wb-timing tr.is-out td:not(.wb-team-cell) { color: var(--pw-text-2); }
+.wb-timing tr.is-stopped td { opacity: 0.5; }
+.wb-timing tr.is-cut td { box-shadow: inset 0 -2px 0 var(--pw-error); }
+.wb-timing tr.is-cut td.wb-team-cell { box-shadow: inset 0 -2px 0 var(--pw-error); }
+.wb-timing tr.is-elim td:not(.wb-team-cell) { color: var(--pw-text-3); }

@@ -29,6 +29,28 @@ export function sectorsOf(r: Row): (number | null)[] {
   return Array.from(out, (v) => v ?? null);
 }
 
+/** Per-lap speeds: every numeric `*_kph` field (speed trap, intermediates …). */
+export function speedsOf(r: Row): Record<string, number> | undefined {
+  let out: Record<string, number> | undefined;
+  for (const [k, v] of Object.entries(r)) {
+    if (!/_kph$/.test(k) || typeof v !== "number" || !Number.isFinite(v)) continue;
+    (out ??= {})[k] = v;
+  }
+  return out;
+}
+
+/**
+ * Knockout parts: when fewer entities run in the next part than in this one, the difference
+ * was eliminated, so `advance` = entities seen in the next part. Nothing is assumed per series.
+ */
+export function withAdvance(segments: Segment[], laps: Lap[]): Segment[] {
+  const seen = segments.map((s) => new Set(laps.filter((l) => l.segment === s.id).map((l) => l.entity)));
+  return segments.map((s, i) => {
+    const next = seen[i + 1];
+    return next && next.size > 0 && next.size < seen[i].size ? { ...s, advance: next.size } : s;
+  });
+}
+
 const str = (v: unknown): string | undefined => (typeof v === "string" && v ? v : undefined);
 
 /** Lap index from canonical `/timing/laps` rows (stamped at lap start). */
@@ -60,7 +82,16 @@ export function buildLaps(
     };
     const driver = str(r.driver) ?? str(r.driver_name);
     if (driver) lap.driver = driver;
+    const speeds = speedsOf(r);
+    if (speeds) lap.speeds = speeds;
     out.push(lap);
+  }
+  // In laps: the lap before an out lap.
+  const prevOf = new Map<string, Lap>();
+  for (const l of out) {
+    const prev = prevOf.get(l.entity);
+    if (prev && l.outLap && prev.n === l.n - 1) prev.inLap = true;
+    prevOf.set(l.entity, l);
   }
   // Deletions: exact lap time first, then the lap the offence happened on, then the lap number.
   for (const f of flags) {
@@ -159,6 +190,14 @@ export interface TimingRow {
   pits: number;
   /** Driver currently in the car, when the feed names one. */
   driver: string | null;
+  /** Interval now minus one lap earlier (race mode). Negative = closing on the car ahead. */
+  intervalTrend: number | null;
+  /** What the car is doing, when it is not simply on a lap. */
+  status: "pit" | "out" | "in" | "stopped" | null;
+  /** Speed trap of the last lap, flagged against the field and the entity's own best. */
+  trap: { value: number; flag: CellFlag } | null;
+  /** Knockout parts: no time in this part; best time in the furthest part reached. */
+  prior?: { segment: string | null; time: number } | null;
 }
 
 export interface TimingInput {
@@ -168,8 +207,11 @@ export interface TimingInput {
   classification?: TopicData;
   stints?: Row[];
   pits?: TopicData;
-  /** Which laps count for bests and colours: the whole session or the current part. */
-  scope?: "session" | "part";
+  /** Which laps count for bests and colours: the whole session, the current part, or the
+   * part when it is a knockout part (`advance` known). */
+  scope?: "session" | "part" | "auto";
+  /** Which `*_kph` lap field the trap column shows. Default: speed_trap_kph, else the first. */
+  trapKey?: string;
   /** Gaps by best lap (practice, qualifying) or by elapsed time at equal laps (race). */
   gapMode?: "best" | "race";
   /** What gaps are measured to. "auto" = class leader in multi-class sessions, else leader. */
@@ -198,21 +240,45 @@ export function timingAt(inp: TimingInput, t: Sec): TimingRow[] {
   const classes = classesOf(inp.entities);
   const multi = classes.length > 0;
   const clsOf = new Map(inp.entities.map((e) => [e.id, multi ? (e.class ?? null) : null]));
-  const cur = inp.scope === "part" ? segmentAt(inp.segments, t) : null;
+  const seg = segmentAt(inp.segments, t);
+  const knockout = inp.segments.some((g) => g.advance);
+  const cur = inp.scope === "part" || (inp.scope === "auto" && knockout) ? seg : null;
   const inScope = (l: Lap) => !cur || l.segment === cur.id;
   const gapMode = inp.gapMode ?? "best";
 
   // Latest classification position per entity at or before t.
   const pos = new Map<EntityId, number>();
+  const out = new Set<EntityId>();
   const cl = inp.classification;
   if (cl) {
     const end = indexAt(cl.t, cl.length, t);
     for (let i = 0; i <= end; i++) {
       const r = cl.rows[i];
+      const e = String(r.entity ?? r.driver_number);
       const p = num(r.position);
-      if (p !== null) pos.set(String(r.entity ?? r.driver_number), p);
+      if (p !== null) pos.set(e, p);
+      if (typeof r.status === "string" && /retir|dnf|dns|dsq|stopp|out/i.test(r.status)) out.add(e);
     }
   }
+  // Speed trap: the configured field, else speed_trap_kph, else the first *_kph field.
+  let trapKey = inp.trapKey;
+  if (!trapKey) {
+    const keys = new Set<string>();
+    for (const ls of inp.laps.values()) for (const l of ls) if (l.speeds) for (const k of Object.keys(l.speeds)) keys.add(k);
+    trapKey = keys.has("speed_trap_kph") ? "speed_trap_kph" : [...keys].sort()[0];
+  }
+  let fieldTrap = -Infinity;
+  let fieldBestLap = Infinity;
+  let leaderLastStart = -Infinity;
+  for (const ls of inp.laps.values())
+    for (const l of ls) {
+      if (l.t0 > t) continue;
+      leaderLastStart = Math.max(leaderLastStart, l.t0);
+      if (l.t1 === null || l.t1 > t) continue;
+      if (l.timed && l.time! < fieldBestLap) fieldBestLap = l.time!;
+      const v = trapKey ? l.speeds?.[trapKey] : undefined;
+      if (v !== undefined && v > fieldTrap) fieldTrap = v;
+    }
 
   // Overall bests (purple) up to t, per class.
   const fresh = () => ({ lap: Infinity, s: new Array<number>(nSec).fill(Infinity) });
@@ -231,15 +297,33 @@ export function timingAt(inp: TimingInput, t: Sec): TimingRow[] {
   }
 
   const pitRows = new Map<EntityId, number>();
+  const inPit = new Set<EntityId>();
   if (inp.pits) {
     const end = indexAt(inp.pits.t, inp.pits.length, t);
     for (let i = 0; i <= end; i++) {
-      const e = String(inp.pits.rows[i].entity ?? inp.pits.rows[i].driver_number);
+      const r = inp.pits.rows[i];
+      const e = String(r.entity ?? r.driver_number);
       pitRows.set(e, (pitRows.get(e) ?? 0) + 1);
+      const dur = num(r.lane_duration_s) ?? num(r.pit_duration_s) ?? num(r.pit_duration) ?? num(r.duration_s);
+      if (dur !== null && t - inp.pits.t[i] <= dur) inPit.add(e);
     }
   }
 
-  const rows: (TimingRow & { _end: number })[] = inp.entities.map(({ id: e }) => {
+  // Knockout parts: entities without a time in this part rank by the furthest part they set a time in.
+  const segIdx = new Map(inp.segments.map((g, i) => [g.id, i]));
+  const reachOf = (ls: Lap[]): [number, number] => {
+    if (!cur) return [0, Infinity];
+    let idx = -1;
+    let bestT = Infinity;
+    for (const l of ls) {
+      if (!l.timed || l.deleted || l.t1 === null || l.t1 > t) continue;
+      const i = segIdx.get(l.segment ?? "") ?? -1;
+      if (i > idx) [idx, bestT] = [i, l.time!];
+      else if (i === idx && l.time! < bestT) bestT = l.time!;
+    }
+    return [idx, bestT];
+  };
+  const rows: (TimingRow & { _end: number; _reach: [number, number] })[] = inp.entities.map(({ id: e }) => {
     const ls = inp.laps.get(e) ?? [];
     const best = bestLap(ls.filter(inScope), { t });
     const done = ls.filter((l, i) => (l.t1 ?? ls[i + 1]?.t0 ?? Infinity) <= t);
@@ -275,6 +359,28 @@ export function timingAt(inp: TimingInput, t: Sec): TimingRow[] {
       }
     }
     const lastDone = [...done].reverse().find((l) => l.t1 !== null) ?? null;
+    // Trap: last completed lap's value; purple = field best so far, green = own best.
+    let trap: TimingRow["trap"] = null;
+    if (trapKey) {
+      const v = [...done].reverse().find((l) => l.speeds?.[trapKey!] !== undefined)?.speeds?.[trapKey];
+      if (v !== undefined) {
+        const own = Math.max(...done.map((l) => l.speeds?.[trapKey!] ?? -Infinity));
+        trap = { value: v, flag: v >= fieldTrap ? "purple" : v >= own ? "green" : null };
+      }
+    }
+    const reach = reachOf(ls);
+    const lapDur = Number.isFinite(fieldBestLap) ? fieldBestLap : 120;
+    const status: TimingRow["status"] = out.has(e)
+      ? "stopped"
+      : inPit.has(e)
+        ? "pit"
+        : curLap && curLap.t1 !== null && curLap.t1 > t && curLap.outLap
+          ? "out"
+          : curLap && curLap.t1 !== null && curLap.t1 > t && curLap.inLap
+            ? "in"
+            : gapMode === "race" && curLap && leaderLastStart - curLap.t0 > 3 * lapDur && (curLap.t1 === null || curLap.t1 <= t)
+              ? "stopped"
+              : null;
     return {
       entity: e,
       cls: clsOf.get(e) ?? null,
@@ -288,12 +394,17 @@ export function timingAt(inp: TimingInput, t: Sec): TimingRow[] {
       sectors,
       sectorFlags: sectors.map((s, i) => flag(s, ov.s[i], pb.s[i])),
       last,
-      lastFlag: last && !last.deleted && last.timed ? flag(last.time, ov.lap, pb.lap) : null,
+      lastFlag: last && !last.deleted && last.timed && inScope(last) ? flag(last.time, ov.lap, pb.lap) : null,
       laps: lastDone ? lastDone.n : done.length,
       tyre,
       pits: pitRows.get(e) ?? Math.max(0, stintsStarted - 1),
       driver,
+      intervalTrend: null,
+      status,
+      trap,
       _end: lastDone?.t1 ?? Infinity,
+      _reach: reach,
+      prior: cur && !best && reach[0] >= 0 ? { segment: inp.segments[reach[0]]?.id ?? null, time: reach[1] } : null,
     };
   });
 
@@ -307,6 +418,7 @@ export function timingAt(inp: TimingInput, t: Sec): TimingRow[] {
     if (byRace) return b.laps - a.laps || a._end - b._end || tie(a, b);
     const ta = a.best?.time ?? Infinity;
     const tb = b.best?.time ?? Infinity;
+    if (cur && ta === Infinity && tb === Infinity) return b._reach[0] - a._reach[0] || a._reach[1] - b._reach[1] || tie(a, b);
     return ta - tb || tie(a, b);
   });
 
@@ -338,6 +450,12 @@ export function timingAt(inp: TimingInput, t: Sec): TimingRow[] {
       r.gap = r === base ? 0 : g(base);
       r.lapsDown = Math.max(0, base.laps - r.laps);
       r.interval = ahead ? g(ahead) : null;
+      if (ahead && r.interval !== null && r.laps > 1 && ahead.laps >= r.laps) {
+        const n = r.laps - 1;
+        const a = endOf(r.entity, n);
+        const b = endOf(ahead.entity, n);
+        if (a !== null && b !== null) r.intervalTrend = r.interval - (a - b);
+      }
     } else {
       const bt = base.best?.time;
       r.gap = r.best && bt != null ? r.best.time! - bt : null;

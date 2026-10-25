@@ -1,5 +1,5 @@
 import { getAdapter } from "./adapters";
-import { buildLaps, lapsByEntity } from "./derive";
+import { buildLaps, lapsByEntity, withAdvance } from "./derive";
 import { Store } from "./store";
 import type { Entity, EntityId, Lap, Segment, SessionMeta, WorkerMessage } from "./types";
 
@@ -17,10 +17,11 @@ export interface Derived {
 export function derive(store: Store, session: SessionMeta): Derived {
   const adapter = getAdapter(session.adapter);
   const entities = adapter.entities(store);
-  const segments = adapter.segments?.(store) ?? [];
+  const parts = adapter.segments?.(store) ?? [];
   const flags = adapter.lapFlags?.(store) ?? [];
   const cls = new Map(entities.map((e) => [e.id, e.class]));
-  const laps = buildLaps(store.get("/timing/laps"), segments, flags, (e) => cls.get(e));
+  const laps = buildLaps(store.get("/timing/laps"), parts, flags, (e) => cls.get(e));
+  const segments = withAdvance(parts, laps);
   const outline = store.latest<{ distance_m?: number[] }>("/track/outline");
   const lapLength = outline?.distance_m?.length ? Math.max(...outline.distance_m) : null;
   return {

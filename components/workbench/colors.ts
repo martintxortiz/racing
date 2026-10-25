@@ -151,3 +151,8 @@ export function colourOf(
   }
   return { colour: st?.colour ?? p.text3, dashed: by === "team" && !!st?.second };
 }
+
+/** Black or white text, whichever reads better on a filled cell of this colour. */
+export function onColour(hex: string): string {
+  return lum(hexToRgb(hex)) > 0.36 ? "#161616" : "#ffffff";
+}

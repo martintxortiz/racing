@@ -93,7 +93,7 @@ export const PRESETS: Record<string, Preset> = {
       root: col(55, row(64, "gaps", "timing"), row(64, "stints", col(50, "weather", "log"))),
       panels: {
         gaps: WIDGETS.gaps(),
-        timing: WIDGETS.timing(["pos", "driver", "gap", "int", "tyre", "laps", "pits"]),
+        timing: WIDGETS.timing(["pos", "driver", "status", "gap", "int", "tyre", "age", "last", "laps", "pits"]),
         stints: WIDGETS.stints(),
         weather: WIDGETS.weather(),
         log: WIDGETS.log(),

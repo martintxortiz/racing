@@ -3,18 +3,18 @@
 import { useMemo } from "react";
 
 import { nextSort, moveColumn, sortBy, toggleColumn, type SortState } from "@/lib/workbench/columns";
-import { classesOf, sectorCount, timingAt, type CellFlag, type TimingInput, type TimingRow } from "@/lib/workbench/derive";
+import { classesOf, sectorCount, segmentAt, timingAt, type CellFlag, type TimingInput, type TimingRow } from "@/lib/workbench/derive";
 import { fmtLap, fmtSector, fmtSigned } from "@/lib/workbench/format";
 import { slotOf } from "@/lib/workbench/selection";
 import type { Entity } from "@/lib/workbench/types";
-import { usePalette } from "../colors";
+import { onColour, usePalette } from "../colors";
 import { cfg, check, entityMenuItems, openPanelMenu, patch, radio } from "../menus";
 import { focusEntity, toggleCompare, useWB, type MenuItem } from "../state";
 import { Empty, Readout, Skeleton, useThrottledT, useTopicState, type PanelDef, type PanelProps } from "./common";
 
 /** Every column the table knows. "sectors" expands to as many sector columns as the feed has. */
-export const TIMING_COLUMNS = ["pos", "num", "driver", "name", "team", "cls", "crew", "tyre", "best", "gap", "int", "sectors", "last", "laps", "pits"] as const;
-export const DEFAULT_COLUMNS = ["pos", "driver", "tyre", "best", "gap", "int", "sectors", "last", "laps"];
+export const TIMING_COLUMNS = ["pos", "num", "driver", "name", "team", "cls", "crew", "status", "tyre", "age", "best", "gap", "int", "sectors", "last", "trap", "laps", "pits"] as const;
+export const DEFAULT_COLUMNS = ["pos", "driver", "status", "tyre", "age", "best", "gap", "int", "sectors", "last", "trap", "laps"];
 
 const META: Record<string, { label: string; title: string; num?: boolean; width: number }> = {
   pos: { label: "Pos", title: "Position", num: true, width: 30 },
@@ -24,7 +24,10 @@ const META: Record<string, { label: string; title: string; num?: boolean; width:
   team: { label: "Team", title: "Team", width: 110 },
   cls: { label: "Class", title: "Class / category", width: 54 },
   crew: { label: "In car", title: "Driver in the car (driver swaps)", width: 90 },
-  tyre: { label: "Tyre", title: "Compound and age", width: 44 },
+  status: { label: "", title: "Pit, out lap, in lap or stopped", width: 36 },
+  tyre: { label: "Tyre", title: "Compound", width: 34 },
+  age: { label: "Age", title: "Tyre age in laps", num: true, width: 32 },
+  trap: { label: "Trap", title: "Speed trap, last lap (km/h)", num: true, width: 40 },
   best: { label: "Best", title: "Best lap", num: true, width: 64 },
   gap: { label: "Gap", title: "Gap", num: true, width: 64 },
   int: { label: "Int", title: "Interval to the car ahead", num: true, width: 60 },
@@ -34,7 +37,9 @@ const META: Record<string, { label: string; title: string; num?: boolean; width:
   pits: { label: "Pits", title: "Pit stops", num: true, width: 32 },
 };
 
-const flagClass = (f: CellFlag) => (f === "purple" ? "pw-c-purple" : f === "green" ? "pw-c-pb" : undefined);
+/** Cell fill for a best: purple = field best, green = personal best. */
+const fillOf = (f: CellFlag) => (f === "purple" ? "wb-fill--purple" : f === "green" ? "wb-fill--green" : undefined);
+const STATUS: Record<NonNullable<TimingRow["status"]>, string> = { pit: "PIT", out: "OUT", in: "IN", stopped: "STOP" };
 
 export function tyreClass(compound: string) {
   const c = compound.toUpperCase();
@@ -66,7 +71,13 @@ function sortValue(r: TimingRow, c: Col, ent: Entity | undefined): number | stri
     case "crew":
       return r.driver;
     case "tyre":
+      return r.tyre?.compound ?? null;
+    case "age":
       return r.tyre?.age ?? null;
+    case "status":
+      return r.status;
+    case "trap":
+      return r.trap?.value ?? null;
     case "best":
       return r.best?.time ?? null;
     case "gap":
@@ -111,7 +122,7 @@ function TimingTable({ id, panel }: PanelProps) {
       classification: panel.bindings.order ? store.get(panel.bindings.order) : undefined,
       stints: panel.bindings.stints ? store.get(panel.bindings.stints)?.rows : undefined,
       pits: panel.bindings.pits ? store.get(panel.bindings.pits) : undefined,
-      scope: (c.scope as "session" | "part") ?? "session",
+      scope: (c.scope as "session" | "part" | "auto") ?? "auto",
       gapMode: c.gapMode === "race" || c.gapMode === "best" ? c.gapMode : auto,
       gapTo: c.gapTo === "leader" || c.gapTo === "class" ? c.gapTo : c.gapTo === "reference" && sel.reference ? { entity: sel.reference } : "auto",
     };
@@ -127,6 +138,8 @@ function TimingTable({ id, panel }: PanelProps) {
   const has = useMemo(
     () => ({
       tyre: rows.some((r) => r.tyre),
+      age: rows.some((r) => r.tyre),
+      trap: rows.some((r) => r.trap),
       pits: rows.some((r) => r.pits > 0) || !!input?.pits?.length,
       crew: rows.some((r) => r.driver),
       cls: classes.length > 0,
@@ -150,64 +163,82 @@ function TimingTable({ id, panel }: PanelProps) {
   const grouped = classes.length > 0 && group !== "none" && !sortCol;
   if (grouped) ordered = classes.flatMap((k) => ordered.filter((r) => r.cls === k)).concat(ordered.filter((r) => !r.cls || !classes.includes(r.cls)));
   const race = input?.gapMode === "race";
+  // Knockout cut line: only when the data shows how many go through and the table ranks the part.
+  const part = segmentAt(derived.segments, t);
+  const knockout = derived.segments.some((g) => g.advance);
+  const partScope = c.scope === "part" || ((c.scope ?? "auto") === "auto" && knockout);
+  const cutAfter = !race && !sortCol && partScope && part?.advance && part.advance < ordered.length && ordered.some((r) => r.best) ? part.advance : null;
 
-  const cell = (r: TimingRow, col: Col) => {
+  /** Cell content and its semantic fill. */
+  const cell = (r: TimingRow, col: Col): [React.ReactNode, string | undefined, React.CSSProperties | undefined] => {
     const e = derived.entityById.get(r.entity);
     switch (col.base) {
-      case "pos":
-        return grouped ? r.rank : (r.pos ?? r.rank);
-      case "num":
-        return e?.number ?? "";
-      case "driver": {
+      case "pos": {
         const k = slotOf(sel, r.entity);
-        return (
-          <span className="wb-driver" title={`${e?.name ?? ""}${e?.number != null ? ` #${e.number}` : ""}${e?.team ? ` · ${e.team}` : ""}`}>
-            <i className="wb-dot" style={{ background: k >= 0 ? p.series[k % p.series.length] : "transparent" }} />
-            <i className="pw-team" style={{ ["--c" as string]: e?.colour }} />
-            <span className={r.entity === sel.focus ? "pw-strong" : undefined}>{e?.code ?? r.entity}</span>
-          </span>
-        );
+        // The comparison colour sits on the position cell; the driver cell carries the team.
+        return [grouped ? r.rank : (r.pos ?? r.rank), k >= 0 ? "wb-slot" : undefined, k >= 0 ? { ["--c" as string]: p.series[k % p.series.length] } : undefined];
       }
+      case "num":
+        return [e?.number ?? "", undefined, undefined];
+      case "driver":
+        return [
+          <span key="d" title={`${e?.name ?? ""}${e?.number != null ? ` #${e.number}` : ""}${e?.team ? ` · ${e.team}` : ""}`}>{e?.code ?? r.entity}</span>,
+          "wb-team-cell",
+          { ["--c" as string]: e?.colour ?? "#8d8d8d", ["--fg" as string]: onColour(e?.colour ?? "#8d8d8d") },
+        ];
       case "name":
-        return <span className="wb-ellipsis">{e?.name ?? ""}</span>;
+        return [<span key="n" className="wb-ellipsis">{e?.name ?? ""}</span>, undefined, undefined];
       case "team":
-        return <span className="wb-ellipsis pw-faint">{e?.team ?? ""}</span>;
+        return [<span key="t" className="wb-ellipsis pw-faint">{e?.team ?? ""}</span>, undefined, undefined];
       case "cls":
-        return r.cls ?? "";
+        return [r.cls ?? "", undefined, undefined];
       case "crew":
-        return <span className="wb-ellipsis">{r.driver ?? ""}</span>;
+        return [<span key="c" className="wb-ellipsis">{r.driver ?? ""}</span>, undefined, undefined];
+      case "status":
+        return [r.status ? STATUS[r.status] : "", r.status ? `wb-status-cell is-${r.status}` : undefined, undefined];
       case "tyre":
-        return r.tyre ? (
-          <span className="wb-tyre" title={`${r.tyre.compound}, ${r.tyre.age} laps`}>
-            <span className={`pw-tyre pw-tyre--${tyreClass(r.tyre.compound)}`}>{r.tyre.compound[0]}</span>
-            <span className="pw-tyre-age">{r.tyre.age}</span>
-          </span>
-        ) : (
-          <span className="pw-faint">—</span>
-        );
+        return [
+          r.tyre ? <span key="y" className={`pw-tyre pw-tyre--${tyreClass(r.tyre.compound)}`} title={r.tyre.compound}>{r.tyre.compound[0]}</span> : <span key="y" className="pw-faint">—</span>,
+          undefined,
+          undefined,
+        ];
+      case "age":
+        return [r.tyre ? r.tyre.age : "", undefined, undefined];
       case "best":
-        return <span className={flagClass(r.bestFlag)}>{fmtLap(r.best?.time)}</span>;
+        if (!r.best && r.prior)
+          return [<span key="b" className="pw-faint" title={`Best in ${r.prior.segment ?? "earlier part"}`}>{fmtLap(r.prior.time)}</span>, undefined, undefined];
+        return [fmtLap(r.best?.time), fillOf(r.bestFlag), undefined];
       case "gap":
-        if (r.lapsDown > 0) return `+${r.lapsDown} L`;
-        return r.gap === null ? "" : r.gap === 0 ? <span className="pw-faint">—</span> : fmtSigned(r.gap);
-      case "int":
-        return r.interval === null || r.interval === 0 ? <span className="pw-faint">—</span> : fmtSigned(r.interval);
+        if (r.lapsDown > 0) return [`+${r.lapsDown} L`, undefined, undefined];
+        return [r.gap === null ? "" : r.gap === 0 ? <span key="g" className="pw-faint">—</span> : fmtSigned(r.gap), undefined, undefined];
+      case "int": {
+        if (r.interval === null || r.interval === 0) return [<span key="i" className="pw-faint">—</span>, undefined, undefined];
+        // Race: closing on the car ahead (green) or dropping back (red), by more than 0.1 s a lap.
+        const tr = r.intervalTrend;
+        const fill = tr === null ? undefined : tr < -0.1 ? "wb-fill--green" : tr > 0.1 ? "wb-fill--red" : undefined;
+        return [<span key="i" title={tr === null ? undefined : `${fmtSigned(tr)} s since last lap`}>{fmtSigned(r.interval)}</span>, fill, undefined];
+      }
       case "sectors":
-        return <span className={flagClass(r.sectorFlags[col.sector!])}>{fmtSector(r.sectors[col.sector!])}</span>;
+        return [fmtSector(r.sectors[col.sector!]), fillOf(r.sectorFlags[col.sector!]), undefined];
       case "last":
-        if (!r.last) return <span className="pw-faint">—</span>;
+        if (!r.last) return [<span key="l" className="pw-faint">—</span>, undefined, undefined];
         if (r.last.deleted)
-          return (
-            <s className="pw-faint" title={r.last.deletedReason}>
+          return [
+            <s key="l" title={r.last.deletedReason}>
               {fmtLap(r.last.time)}
-            </s>
-          );
-        return <span className={flagClass(r.lastFlag)}>{fmtLap(r.last.time)}</span>;
+            </s>,
+            "wb-fill--deleted",
+            undefined,
+          ];
+        return [fmtLap(r.last.time), fillOf(r.lastFlag), undefined];
+      case "trap":
+        return [r.trap ? Math.round(r.trap.value) : "", fillOf(r.trap?.flag ?? null), undefined];
       case "laps":
-        return r.laps;
+        return [r.laps, undefined, undefined];
       case "pits":
-        return r.pits;
+        return [r.pits, undefined, undefined];
     }
+    return ["", undefined, undefined];
   };
 
   const onKey = (e: React.KeyboardEvent) => {
@@ -239,6 +270,9 @@ function TimingTable({ id, panel }: PanelProps) {
           r.entity === sel.focus && "is-focus",
           r.entity === hover && "is-hover",
           hidden && "is-hidden",
+          r.status && `is-${r.status}`,
+          r.prior && "is-elim",
+          cutAfter !== null && r.rank === cutAfter && "is-cut",
         ]
           .filter(Boolean)
           .join(" ")}
@@ -250,11 +284,14 @@ function TimingTable({ id, panel }: PanelProps) {
         onPointerEnter={() => useWB.setState({ hoverEntity: r.entity })}
         onPointerLeave={() => useWB.setState({ hoverEntity: null })}
       >
-        {cols.map((col) => (
-          <td key={col.key} className={META[col.base].num ? "is-num" : undefined}>
-            {cell(r, col)}
-          </td>
-        ))}
+        {cols.map((col) => {
+          const [content, fill, style] = cell(r, col);
+          return (
+            <td key={col.key} className={[META[col.base].num && "is-num", fill].filter(Boolean).join(" ") || undefined} style={style}>
+              {content}
+            </td>
+          );
+        })}
       </tr>,
     );
   }
@@ -263,7 +300,8 @@ function TimingTable({ id, panel }: PanelProps) {
     <>
       <Readout>
         <span className="pw-faint">
-          {race ? "Gaps by elapsed time" : "Gaps by best lap"}
+          {race ? "Gaps by elapsed time" : partScope && part ? `Bests in ${part.id}` : "Gaps by best lap"}
+          {cutAfter ? ` · top ${cutAfter} go through` : ""}
           {sortCol ? ` · sorted by ${sortCol.key === sortCol.base ? META[sortCol.base].label : sortCol.key.toUpperCase()}` : ""}
         </span>
       </Readout>
@@ -347,7 +385,7 @@ export const timingTable: PanelDef = {
     stints: { schemas: ["rtc.stints"], required: false, default: "/timing/stints" },
     pits: { schemas: ["rtc.pit"], required: false, default: "/timing/pit" },
   },
-  defaultConfig: { columns: DEFAULT_COLUMNS, sort: null, scope: "session", gapMode: "auto", gapTo: "auto", group: "auto", showHidden: false },
+  defaultConfig: { columns: DEFAULT_COLUMNS, sort: null, scope: "auto", gapMode: "auto", gapTo: "auto", group: "auto", showHidden: false },
   menu: ({ id, panel }) => {
     const c = panel.config;
     const set = (k: string) => (v: unknown) => patch(id, { [k]: v });
@@ -372,9 +410,10 @@ export const timingTable: PanelDef = {
         { value: "reference", label: "Reference driver" },
       ], c.gapTo ?? "auto", set("gapTo")),
       radio("Bests from", [
+        { value: "auto", label: "Auto (part in knockout sessions)" },
         { value: "session", label: "Whole session" },
         { value: "part", label: "Current session part" },
-      ], c.scope ?? "session", set("scope")),
+      ], c.scope ?? "auto", set("scope")),
       ...(classes.length ? [radio("Classes", [{ value: "auto", label: "Grouped" }, { value: "none", label: "Overall" }], c.group ?? "auto", set("group"))] : []),
       check("Show hidden drivers", c.showHidden === true, set("showHidden")),
     ];

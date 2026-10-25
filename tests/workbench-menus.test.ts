@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 // Load the registry first, as the app does: panels and menus import each other.
 import { PANELS } from "../components/workbench/panels/registry";
 
-import { columnMenu } from "../components/workbench/panels/TimingTable";
+import { DEFAULT_COLUMNS, columnMenu } from "../components/workbench/panels/TimingTable";
 import { resolveMode } from "../components/workbench/panels/GapChart";
 import { stintLabel } from "../components/workbench/panels/Stints";
 import { sortSummary } from "../components/workbench/panels/Sectors";
@@ -81,9 +81,10 @@ describe("panel context menu", () => {
     const menu = () => columnMenu(id, "best", "best");
     find(menu(), "Sort descending").onSelect!();
     expect(useWB.getState().layout.panels[id].config.sort).toEqual({ key: "best", dir: "desc" });
+    const before = ((useWB.getState().layout.panels[id].config.columns as string[] | undefined) ?? DEFAULT_COLUMNS).indexOf("best");
     find(menu(), "Move left").onSelect!();
     const cols = useWB.getState().layout.panels[id].config.columns as string[];
-    expect(cols.indexOf("best")).toBeLessThan(cols.indexOf("tyre"));
+    expect(cols.indexOf("best")).toBe(before - 1);
     find(menu(), "Hide column").onSelect!();
     expect(useWB.getState().layout.panels[id].config.columns).not.toContain("best");
   });
