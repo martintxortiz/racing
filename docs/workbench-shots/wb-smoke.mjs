@@ -27,12 +27,24 @@ const panels = () => page.locator(".wb-panel").count();
 const tabs = () => page.locator(".wb-tab").count();
 
 // Top bar: tabs left, controls right, no session data.
-ok("default tabs", (await page.locator(".wb-tab").allInnerTexts()).join(",") === "Timing,Telemetry,Strategy", (await page.locator(".wb-tab").allInnerTexts()).join(","));
+ok("default tabs", (await page.locator(".wb-tab").allInnerTexts()).join(",") === "Timing,Telemetry,Strategy,Laps", (await page.locator(".wb-tab").allInnerTexts()).join(","));
 const top = await page.locator(".wb-topbar").innerText();
 ok("top bar has no session data", !/\d+:\d\d|Singapore|Qualifying|Lap \d/i.test(top), top);
 for (const l of ["New tab", "Open recording", "Toggle theme", "Settings"]) ok(`control: ${l}`, await page.locator(`.wb-topbar [aria-label="${l}"]`).isVisible());
 const n0 = await panels();
 ok("Timing preset panels", n0 === 6, n0);
+// Encodings: team-colour driver cells, semantic fills, zebra, race control table, track-status block.
+ok("timing driver cells filled with team colour", (await page.locator(".wb-timing td.wb-team-cell").count()) >= 10);
+ok("timing best/sector fills", (await page.locator(".wb-timing td.wb-fill--purple").count()) >= 1);
+const zebra = await page.evaluate(() => {
+  const r = document.querySelectorAll(".wb-timing tbody tr");
+  const bg = (i) => getComputedStyle(r[i].querySelector("td:last-child")).backgroundColor;
+  return r.length > 3 && bg(0) !== bg(1);
+});
+ok("tables are zebra striped", zebra);
+ok("race control is a table", (await page.locator('.wb-panel[data-type="event-log"] table.wb-rc tbody tr').count()) >= 1);
+ok("session info status block", await page.locator(".wb-info__flag").isVisible());
+ok("timing rows are not text-selectable", (await page.evaluate(() => getComputedStyle(document.querySelector(".wb-timing tbody")).userSelect)) === "none");
 
 // Picker
 await page.locator(".wb-main").click({ position: { x: 5, y: 5 }, force: true }).catch(() => {});
@@ -99,10 +111,23 @@ await page.waitForTimeout(300);
 ok("tab menu close", (await tabs()) === t0, tm);
 
 // Telemetry and Strategy tabs render their panels
-for (const [name, n] of [["Telemetry", 4], ["Strategy", 5]]) {
+for (const [name, n] of [["Telemetry", 5], ["Strategy", 5], ["Laps", 3]]) {
   await page.locator(".wb-tab", { hasText: name }).click();
   await page.waitForTimeout(1200);
   ok(`${name} preset panels`, (await panels()) === n, await panels());
+  if (name === "Telemetry") {
+    ok("pedal use renders bars", (await page.locator(".wb-pedal__bar").count()) >= 1, await page.locator('.wb-panel[data-type="pedal"]').innerText().catch(() => ""));
+    ok("trace corner markers", /\b1\b.*\b2\b/s.test(await page.locator('.wb-panel[data-type="trace"]').innerText().catch(() => "")) || (await page.locator('.wb-panel[data-type="trace"] canvas').count()) > 0);
+  }
+  if (name === "Laps") {
+    ok("lap history grid has laps", (await page.locator(".wb-grid tbody tr").count()) >= 5, await page.locator(".wb-grid tbody tr").count());
+    ok("lap history fills bests", (await page.locator(".wb-grid td.wb-fill--purple").count()) >= 1);
+    ok("lap distribution boxes", (await page.locator(".wb-box__iqr").count()) >= 5);
+    await page.locator(".wb-grid tbody td.is-num").nth(3).click({ button: "right" });
+    const gm = await menuText();
+    ok("lap grid cell menu", /Show/.test(gm) && /Newest lap on top/.test(gm), gm);
+    await esc();
+  }
 }
 await page.locator(".wb-tab", { hasText: "Timing" }).click();
 
