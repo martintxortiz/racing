@@ -16,9 +16,10 @@ export function usePlayback() {
   const session = useApp((s) => s.session);
   const full = useApp((s) => s.settings.fullRecording);
   const playing = useCursor((s) => s.playing);
+  const isLive = useApp((s) => !!s.live);
   useEffect(() => {
     if (!playing || !session) return;
-    const [, end] = replayRange(session, full);
+    const rangeEnd = replayRange(session, full)[1];
     let last = performance.now();
     let raf = 0;
     const step = (now: number) => {
@@ -26,9 +27,13 @@ export function usePlayback() {
       last = now;
       const c = useCursor.getState();
       const t = c.t + dt * c.speed;
+      const live = useApp.getState().live;
+      // Live: playback catches up with the newest data and then follows it.
+      const end = live ? live.head : rangeEnd;
       if (t >= end) {
-        c.setT(end);
         c.setPlaying(false);
+        if (live) useApp.getState().setFollowing(true);
+        else c.setT(end);
         return;
       }
       c.setT(t);
@@ -36,7 +41,7 @@ export function usePlayback() {
     };
     raf = requestAnimationFrame(step);
     return () => cancelAnimationFrame(raf);
-  }, [playing, session, full]);
+  }, [playing, session, full, isLive]);
 }
 
 /** Lap boundaries of the focus entity (or every lap start) for stepping. */
@@ -66,7 +71,11 @@ export function Transport() {
   const t = useCursor((s) => s.t);
   const playing = useCursor((s) => s.playing);
   const speed = useCursor((s) => s.speed);
-  const [lo, hi] = replayRange(session, full);
+  const live = useApp((s) => s.live);
+  const streamError = useApp((s) => s.streamError);
+  const [lo, hi0] = replayRange(session, full);
+  // Live: the bar always reaches the newest data.
+  const hi = live ? Math.max(hi0, live.head) : hi0;
   const ref = useRef<HTMLDivElement>(null);
   const [hover, setHover] = useState<{ x: number; t: number } | null>(null);
   const spans = useMemo(() => statusSpans(session.events, session.duration), [session]);
@@ -113,6 +122,24 @@ export function Transport() {
           {speed}×
         </button>
       </div>
+      {live && (
+        <button
+          className={css.live}
+          data-following={live.following}
+          data-testid="live-indicator"
+          onClick={() => useApp.getState().setFollowing(true)}
+          title={live.following ? "Following the live feed" : "Jump to live"}
+          aria-label={live.following ? "Live" : "Go live"}
+        >
+          <span className={css.liveDot} aria-hidden />
+          LIVE
+        </button>
+      )}
+      {streamError && (
+        <span className={css.offline} title={streamError}>
+          Offline
+        </span>
+      )}
       <div className={css.clock}>
         <span className={css.seg}>{inSeg ? seg.label : t < (session.segments[0]?.t0 ?? 0) ? "Pre-session" : "Between"}</span>
         <span className={`${css.elapsed} num`}>{inSeg ? fmtClock(t - seg.t0) : fmtClock(t - lo)}</span>
@@ -147,6 +174,7 @@ export function Transport() {
           </div>
         ))}
         <div className={css.fill} style={{ width: pct(t) }} />
+        {live && <div className={css.future} style={{ left: pct(live.head) }} />}
         {spans.map((s, i) => (
           <div key={i} className={css.span} title={s.state.toUpperCase()} style={{ left: pct(s.t0), width: `max(3px, calc(${pct(s.t1)} - ${pct(s.t0)}))`, background: SPAN_COLOUR[s.state] }} />
         ))}

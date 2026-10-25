@@ -7,6 +7,8 @@ import { ContextMenu } from "./ContextMenu";
 import { Dialogs } from "./Dialogs";
 import { EmptyState, OpeningStrip } from "./EmptyState";
 import { SAMPLE_URL } from "./files";
+import { specFromParams } from "@/data/source";
+import { SessionPicker } from "./SessionPicker";
 import { Mosaic } from "./Mosaic";
 import { Picker } from "./Picker";
 import { TopBar } from "./TopBar";
@@ -66,7 +68,7 @@ function useShortcuts() {
     const onKey = (e: KeyboardEvent) => {
       if (isTyping(e) || useMenu.getState().open) return;
       const st = useApp.getState();
-      if (st.status !== "ready" || st.picker || st.settingsOpen) return;
+      if (st.status !== "ready" || st.picker || st.settingsOpen || st.sessionPickerOpen) return;
       const c = useCursor.getState();
       const mod = e.metaKey || e.ctrlKey;
       if (e.key === " ") {
@@ -108,10 +110,10 @@ export function Workbench() {
 
   useEffect(() => {
     hydrateWorkspace();
-    const src = new URLSearchParams(window.location.search).get("src");
-    // No file named: open the sample straight away, so the first screen is the Monitor tab, not a picker.
-    if (src) useApp.getState().openSource({ url: new URL(src, window.location.href).toString(), kind: "url" });
-    else useApp.getState().openSource({ url: SAMPLE_URL, name: "Sample session", kind: "sample" });
+    // ?src=<url> opens a file, ?api=<id>[&live=1] streams from the session server. Nothing named:
+    // open the sample straight away, so the first screen is the Monitor tab, not a picker.
+    const spec = specFromParams(new URLSearchParams(window.location.search), window.location.href);
+    useApp.getState().openSource(spec ?? { url: SAMPLE_URL, name: "Sample session", kind: "sample" });
   }, []);
   useEffect(() => {
     if (hydrated) document.documentElement.dataset.theme = theme;
@@ -170,6 +172,7 @@ export function Workbench() {
       )}
       <ContextMenu />
       <Picker />
+      <SessionPicker />
       <Dialogs />
       {dropping && status === "ready" && <div className={emptyCss.dropOverlay}>Drop to open the file</div>}
     </div>

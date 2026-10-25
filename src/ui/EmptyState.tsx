@@ -65,6 +65,9 @@ export function EmptyState() {
           >
             <IconUpload size={15} /> Open .mcap
           </Button>
+          <Button size="large" onClick={() => useApp.getState().setSessionPickerOpen(true)}>
+            Browse server sessions
+          </Button>
           <Button size="large" onClick={() => open({ url: SAMPLE_URL, name: "Sample session", kind: "sample" })}>
             Load sample
           </Button>
@@ -91,7 +94,7 @@ export function EmptyState() {
           <a href={FORMAT_URL} target="_blank" rel="noreferrer">
             racing MCAP data format
           </a>
-          . Add <code>?src=&lt;url&gt;</code> to the address to open a file from a URL.
+          . Add <code>?src=&lt;url&gt;</code> to the address to open a file from a URL, or <code>?api=&lt;session id&gt;</code> to stream one from the session server.
         </div>
       </div>
     </div>

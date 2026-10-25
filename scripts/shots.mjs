@@ -1,6 +1,7 @@
 // Screenshot helper for visual review (not part of the app). Usage:
 //   node scripts/shots.mjs <outdir> <name> <url-query> [theme]
 // Optional: W=1920 H=1080 set the viewport (default 1600x1000).
+// Optional: CLICK=<selector> clicks before the capture (CLICK_WAIT ms, default 1200).
 // Optional: RCLICK=<selector> RCLICK_AT=fx,fy right-clicks before the capture; SUBMENU=<label> then opens that submenu.
 import puppeteer from "puppeteer-core";
 
@@ -23,6 +24,10 @@ await page.evaluateOnNewDocument((th) => {
 await page.goto(`${BASE}/${query}`, { waitUntil: "networkidle2" });
 if (query.includes("src=")) await page.waitForSelector("[data-testid=timing-table], [data-testid=mosaic]", { timeout: 60000 });
 await new Promise((r) => setTimeout(r, Number(process.env.WAIT ?? 2500)));
+if (process.env.CLICK) {
+  await page.click(process.env.CLICK);
+  await new Promise((r) => setTimeout(r, Number(process.env.CLICK_WAIT ?? 1200)));
+}
 if (process.env.RCLICK) {
   const el = await page.$(process.env.RCLICK);
   if (!el) throw new Error(`no element ${process.env.RCLICK}`);

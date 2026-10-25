@@ -26,3 +26,6 @@ export const IconUpload = (p: P) => <S {...p}><path d="M8 10.5V3M5 6l3-3 3 3M3 1
 export const IconCheck = (p: P) => <S {...p}><path d="M3.5 8.5l3 3 6-7" /></S>;
 export const IconSearch = (p: P) => <S {...p}><circle cx="7" cy="7" r="4" /><path d="M10 10l3.5 3.5" /></S>;
 export const IconGrip = (p: P) => <S {...p}><path d="M6 4h.01M10 4h.01M6 8h.01M10 8h.01M6 12h.01M10 12h.01" strokeWidth={2} /></S>;
+export const IconServer = (p: P) => <S {...p}><rect x="2.5" y="2.5" width="11" height="4.5" rx="1" /><rect x="2.5" y="9" width="11" height="4.5" rx="1" /><path d="M5 4.75h.01M5 11.25h.01" strokeWidth={2} /></S>;
+export const IconLive = (p: P) => <S {...p}><circle cx="8" cy="8" r="2" fill="currentColor" /><path d="M4.5 4.5a5 5 0 000 7M11.5 4.5a5 5 0 010 7" /></S>;
+export const IconDownload = (p: P) => <S {...p}><path d="M8 3v7.5M5 7.5l3 3 3-3M3 13h10" /></S>;

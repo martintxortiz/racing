@@ -6,9 +6,11 @@ map, lap comparison with delta, lap times, race gaps, sectors and ideal lap, lap
 history, stints and an event log. It is not tied to one series. Every widget
 reads its data from the topics and fields in the file.
 
-Everything runs in the browser. There is no backend and no account, and you
-do not need any environment variables. Files are decoded in a web worker, and
-the app loads only the topics that the open panels use.
+Files you open run entirely in the browser: they are decoded in a web worker,
+and the app loads only the topics that the open panels use. Optionally, the
+session server in [`server/`](server/README.md) (Python) indexes a folder of
+recordings and streams them to the app over a WebSocket, as a replay or as a
+live feed.
 
 ## Run it
 
@@ -18,6 +20,17 @@ Requires Node 20.9 or later.
 npm install
 npm run dev        # http://localhost:3313
 ```
+
+With the session server (Python 3.11+):
+
+```sh
+npm run server:setup   # once: creates server/.venv and installs the requirements
+npm run dev:all        # session server on :8000 and the app on :3313
+```
+
+`RACING_DATA_DIR` picks the folder of recordings (see
+[server/README.md](server/README.md)). The app finds the server at
+`NEXT_PUBLIC_API_URL`, default `http://localhost:8000`.
 
 Other scripts:
 
@@ -29,6 +42,9 @@ Other scripts:
 | `npm run lint`      | ESLint                                            |
 | `npm test`          | Vitest unit tests (derivation, layout model, menus) |
 | `npm run smoke`     | Headless browser smoke test against a running app (`BASE_URL`, `SMOKE_SRC`, `THEME`) |
+| `npm run server`    | The session server alone (port 8000)              |
+| `npm run test:server` | Server tests (pytest)                           |
+| `npm run smoke:server` | Starts the session server on :8799 and checks replay, playback, the session picker and live in a running app (`BASE_URL`) |
 
 ## Open a file
 
@@ -36,6 +52,16 @@ Other scripts:
   tab. To use another sample, set `NEXT_PUBLIC_SAMPLE_MCAP_URL` at build time.
 - Click **Open .mcap**, or drop a file anywhere on the window.
 - Add `?src=<url>` to load any `.mcap` URL that allows cross-origin requests.
+- **Sessions** in the top bar lists the session server's recordings, grouped by
+  event. **Replay** streams one, **Live** plays it as a simulated live feed,
+  **File** downloads the whole file into the browser as before.
+- `?api=<session id>` streams a session from the server; add `&live=1` for live
+  (`&speed=`, `&from=` set the simulation pace and start) and `&apiBase=` to
+  point at another server.
+
+In live mode the transport shows **LIVE** while the cursor follows the newest
+data. Scrubbing or stepping back stops following; click **LIVE** (or play to the
+end) to follow again.
 
 Other URL parameters:
 

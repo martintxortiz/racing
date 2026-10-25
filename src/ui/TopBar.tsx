@@ -9,7 +9,7 @@ import { useApp } from "@/state/app";
 import { useDrag } from "@/state/drag";
 import { Button } from "./controls";
 import { ask } from "./Dialogs";
-import { IconChevron, IconClose, IconFolder, IconMoon, IconPlus, IconSettings, IconSun } from "./icons";
+import { IconChevron, IconClose, IconFolder, IconMoon, IconPlus, IconServer, IconSettings, IconSun } from "./icons";
 import { pickFile } from "./files";
 import css from "./TopBar.module.css";
 
@@ -232,6 +232,9 @@ export function TopBar() {
             <span className={css.divider} />
           </>
         )}
+        <Button variant="ghost" onClick={() => st().setSessionPickerOpen(true)} title="Sessions on the server" aria-label="Sessions" data-testid="open-sessions">
+          <IconServer size={14} /> Sessions
+        </Button>
         <Button variant="ghost" icon onClick={() => st().setTheme(theme === "dark" ? "light" : "dark")} title={theme === "dark" ? "Light theme" : "Dark theme"} aria-label="Toggle theme">
           {theme === "dark" ? <IconSun /> : <IconMoon />}
         </Button>

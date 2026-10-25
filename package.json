@@ -10,7 +10,12 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "smoke": "node scripts/smoke.mjs"
+    "smoke": "node scripts/smoke.mjs",
+    "server": "node scripts/server.mjs",
+    "server:setup": "node scripts/server.mjs --setup",
+    "dev:all": "node scripts/dev-all.mjs",
+    "test:server": "node scripts/server.mjs --test",
+    "smoke:server": "node scripts/smoke-server.mjs"
   },
   "dependencies": {
     "@fontsource/ibm-plex-mono": "^5.3.0",
