@@ -78,19 +78,32 @@ because every cell is shouting. Defects below, grouped by cause. Each item is fi
 31. Timeline: label row (`Q1`, `Q2`, `Q3`) and tick row compete; tick labels 11 px text-3 overlap the lap marks.
 32. Top bar is fine (tabs left, controls right) — keep.
 
-## Fix plan (v3)
+## What v3 changed
 
-- One table system (`.wb-t`): 24 px rows, 28 px header with baseline-aligned 11.5→12 px text-3 labels and one
-  hairline, 8 px cell padding and 12 px outer padding, Plex tabular numerals right-aligned, text left-aligned,
-  2.5–3.5% zebra, no row rules.
-- Semantic tints as tokens per theme (`--wb-best-*`, `--wb-pb-*`, `--wb-worse-*`, `--wb-warn-*`): ~12–16% tint with
-  a darker/lighter text of the same hue (AA in both themes); same weight as the row.
-- Team colour: a compact 3 px × 14 px swatch-fill... rejected → **a compact solid chip around the code** (36 × 16 px,
-  2 px radius), only in the driver cell. Comparison slot shown as a small series-coloured underline-free marker:
-  a 6 px square left of the chip (no stripes).
-- Column priority + auto-fit: columns drop by priority when the panel is narrower than their sum.
-- Status as quiet sentence-case text (`Pit`, `Out`, `In`), race control messages sentence-cased for display.
-- One ECharts theme (`chartTheme(p)`): 11 px Plex labels in text-3, no y axis line, hairline grid, dashed crosshair,
-  inverse tooltip, 1.5 px lines, no symbols by default, consistent grid margins.
-- Track status as a quiet line with a 10 px flag square, not a saturated block; sector flags as text.
-- Rebalanced presets (see `lib/workbench/presets.ts`).
+- **One table system** (`.wb-t` in `workbench.css`) used by timing, sectors, lap history, lap distribution, pedal use
+  and race control: 24 px rows, 28 px sticky header with bottom-aligned 11 px text-3 labels over one hairline,
+  8 px cell padding and 12 px at the panel edge, Plex tabular numerals right-aligned, text left-aligned,
+  about 3% zebra, no row rules. Hover, compared and focused rows have one tint each.
+- **Semantic tints as per-theme tokens** (`--wb-best-*` purple, `--wb-pb-*` green, `--wb-worse-*` red,
+  `--wb-warn-*` amber): a light wash with the 70-grade text of the same hue in light theme and a dark wash with the
+  30-grade text in dark theme, both AA. Same weight as the row, except the session best (500).
+- **Team colour** is a compact solid chip around the driver code (38 × 16 px, 2 px radius) and nowhere else in a
+  table. The comparison slot is a 6 px series-coloured square after the chip. No stripes.
+- **Columns fit the panel**: each timing column has a width and a priority per session type
+  (`fitColumns` in `lib/workbench/columns.ts`, tested). The least important columns drop first and the header says
+  "N columns hidden" with the list in its tooltip. Sectors drops Best, then Ideal. Lap history scrolls sideways with
+  a sticky lap column at a width that fits a full lap time.
+- **Quiet text instead of tags**: status is sentence case (`Pit`, `In`, `Out`, `Stop`); race control messages are
+  shown in sentence case with acronyms and driver codes kept (`sentenceCase` in `lib/workbench/format.ts`, tested);
+  the flag is an 8 px square and its name; the car is a chip at the start of the message.
+- **Track status** is a tinted line with a flag square (stronger tint for yellow, SC, VSC and red), not a solid
+  block. Sector flags are text with flag squares.
+- **One chart look** (`axisStyle` and `CHART_GRID` in `EChart.tsx`): 11 px Plex labels in text-3, no ticks, no y axis
+  line, hairline grid, the same margins in every chart. Lap and gap charts turn the rest of the field grey when cars
+  are compared; lap-time axes read `1:32` not `1:32.000`; compared lines stop at the cursor; part labels sit above the
+  plot. The telemetry trace has a label strip above each channel so labels never sit on the data, and corner numbers
+  sit above the first strip. Weather ticks on round local clock times.
+- **Stints**: driver chip, lap ticks with grid lines through the rows, tyre-coloured bars at 30% with no edge stripe.
+- **Lap distribution**: boxes are neutral grey; compared cars use their series colour.
+- **Presets**: Timing tower 38% wide; Strategy puts gaps over stints on the left and the tower over weather and race
+  control on the right so every panel has room.
