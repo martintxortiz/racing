@@ -154,7 +154,7 @@ export const setA = (a: EntityId | null, lapA: LapRef = "best") =>
   set((s) => (a !== null && a === s.b ? { a, b: s.a, lapA, lapB: s.lapA } : { a, lapA }));
 export const setB = (b: EntityId | null, lapB: LapRef = "best") =>
   set((s) => (b !== null && b === s.a ? { b, a: s.b, lapB, lapA: s.lapB } : { b, lapB }));
-export const swapAB = () => set((s) => ({ a: s.b, b: s.a, lapA: s.lapB, lapB: s.lapA }));
+export const swapAB = () => set((s) => (s.a == null || s.b == null ? s : { a: s.b, b: s.a, lapA: s.lapB, lapB: s.lapA }));
 
 // ---------- menus ----------
 

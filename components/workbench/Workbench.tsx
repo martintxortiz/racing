@@ -62,17 +62,25 @@ export function Workbench({
   const { resolvedTheme, setTheme } = useTheme();
   const root = useRef<HTMLDivElement>(null);
   const [dragging, setDragging] = useState(false);
-  const shownTheme = (initial.theme ?? resolvedTheme ?? "light") === "dark" ? "dark" : "light";
+  // ?theme= wins until the user toggles; after that next-themes is the only source.
+  const [themeOverride, setThemeOverride] = useState(initial.theme);
+  const shownTheme = (themeOverride ?? resolvedTheme ?? "light") === "dark" ? "dark" : "light";
 
   // Theme: next-themes owns the app theme; ?theme= overrides once. Palette reads CSS vars after commit.
+  const themeApplied = useRef(false);
   useEffect(() => {
-    if (initial.theme) setTheme(initial.theme);
+    // setTheme's identity changes with the theme, so guard to apply ?theme= exactly once.
+    if (initial.theme && !themeApplied.current) setTheme(initial.theme);
+    themeApplied.current = true;
   }, [initial.theme, setTheme]);
   useLayoutEffect(() => {
     if (useWB.getState().theme !== shownTheme) useWB.setState({ theme: shownTheme });
   }, [shownTheme]);
   useEffect(() => {
-    const h = (e: Event) => setTheme((e as CustomEvent<string>).detail);
+    const h = (e: Event) => {
+      setThemeOverride(undefined);
+      setTheme((e as CustomEvent<string>).detail);
+    };
     window.addEventListener("wb:theme", h);
     return () => window.removeEventListener("wb:theme", h);
   }, [setTheme]);
