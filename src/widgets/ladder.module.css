@@ -1,0 +1,44 @@
+.wrap {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+}
+.svg {
+  position: absolute;
+  left: 0;
+  top: 0;
+}
+.tick {
+  fill: var(--text-3);
+  font-size: 10px;
+  font-family: var(--sans);
+}
+.ref {
+  position: absolute;
+  left: 8px;
+  top: 4px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  color: var(--text-2);
+}
+.refTime {
+  color: var(--text);
+  font-weight: 600;
+}
+.label {
+  position: absolute;
+  left: 60px;
+  right: 8px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.grow {
+  flex: 1;
+}

@@ -1,0 +1,39 @@
+.wrap {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+.corner {
+  fill: var(--text-3);
+  font-size: 9px;
+  font-family: var(--sans);
+}
+.lap {
+  fill: var(--text);
+  font-size: 18px;
+  font-weight: 600;
+  font-family: var(--sans);
+}
+.clock {
+  fill: var(--text-2);
+  font-size: 12px;
+  font-family: var(--sans);
+  font-variant-numeric: tabular-nums;
+}
+.code {
+  font-size: 9.5px;
+  font-weight: 600;
+  font-family: var(--sans);
+}
+.car {
+  cursor: pointer;
+}
+.empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-3);
+  font-size: 12px;
+}

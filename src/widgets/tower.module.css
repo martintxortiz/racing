@@ -1,0 +1,24 @@
+.tower {
+  table-layout: fixed;
+}
+.tower td,
+.tower th {
+  overflow: hidden;
+}
+.tower td:first-child,
+.tower th:first-child {
+  padding-left: 6px;
+}
+.c {
+  text-align: center !important;
+}
+.fill {
+  padding: 0 !important;
+}
+.pitCell {
+  text-align: left !important;
+}
+.spark {
+  display: block;
+  margin: 0 auto;
+}

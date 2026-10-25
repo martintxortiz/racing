@@ -1,0 +1,28 @@
+.wrap {
+  position: absolute;
+  inset: 0;
+  overflow: auto;
+}
+.play {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: var(--pill-h);
+  margin-left: 2px;
+  border: 1px solid var(--line-2);
+  border-radius: var(--pill-r);
+  background: var(--panel);
+  color: var(--text-2);
+  font-size: 8px;
+  cursor: pointer;
+  vertical-align: middle;
+}
+.play:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.note {
+  margin-left: 8px;
+  color: var(--text-3);
+}

@@ -69,6 +69,13 @@ export interface Pit {
   stop: number | null;
 }
 
+/** A team radio clip. Files carry audio only, no transcript. */
+export interface Radio {
+  t: number;
+  entity: string;
+  url: string;
+}
+
 export interface Corner {
   number: number;
   letter: string;
@@ -110,6 +117,7 @@ export interface SessionModel {
   events: RcEvent[];
   stints: Stint[];
   pits: Pit[];
+  radio: Radio[];
   order: Series | null;
   intervals: Series | null;
   weather: { t: Float64Array; values: Record<string, Float64Array> } | null;

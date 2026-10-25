@@ -1,0 +1,63 @@
+.wrap {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  font-size: 11px;
+}
+.axis {
+  position: absolute;
+  left: 0;
+}
+.tick {
+  fill: var(--text-3);
+  font-size: 10px;
+  font-family: var(--sans);
+  font-variant-numeric: tabular-nums;
+}
+.chip {
+  position: absolute;
+  box-sizing: border-box;
+  width: 30px;
+  height: var(--pill-h);
+  border-radius: var(--pill-r);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  z-index: 2;
+}
+.band {
+  position: absolute;
+  background: var(--warn-bg);
+  z-index: 0;
+}
+.rejoin {
+  position: absolute;
+  width: 0;
+  border-left: 1px dashed var(--warn-fg);
+  z-index: 1;
+}
+.self {
+  position: absolute;
+  width: 0;
+  border-left: 1px solid var(--a);
+  z-index: 1;
+}
+.rejoinLabel {
+  position: absolute;
+  color: var(--warn-fg);
+  font-weight: 500;
+  white-space: nowrap;
+  line-height: 16px;
+}
+.empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-3);
+  font-size: 12px;
+}

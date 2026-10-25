@@ -1,6 +1,6 @@
 import type { Columns, FileSummary } from "@/data/types";
 import { parseOffset } from "@/data/format";
-import type { Corner, Entity, Lap, Outline, Pit, RcEvent, Segment, Series, SessionKind, SessionModel, Stint } from "./model";
+import type { Corner, Entity, Lap, Outline, Pit, Radio, RcEvent, Segment, Series, SessionKind, SessionModel, Stint } from "./model";
 import { resolveTopics } from "./topics";
 import { buildSegments, sessionWindow } from "./segments";
 
@@ -240,6 +240,15 @@ function parseArray(v: unknown): number[] | null {
   return null;
 }
 
+export function buildRadio(c: Columns | undefined): Radio[] {
+  if (!c) return [];
+  const ent = strOf(c, ...ENTITY_KEYS) ?? [];
+  const url = strOf(c, "recording_url", "url", "audio_url") ?? [];
+  const out: Radio[] = [];
+  for (let i = 0; i < c.n; i++) if (ent[i] && url[i]) out.push({ t: c.t[i], entity: ent[i]!, url: url[i]! });
+  return out.sort((a, b) => a.t - b.t);
+}
+
 function buildOutline(c: Columns | undefined): Outline | null {
   if (!c || c.n === 0) return null;
   const x = parseArray(jsonOf(c, "x")?.[0]);
@@ -375,6 +384,7 @@ export function buildSession(summary: FileSummary, cols: ColMap): SessionModel {
     events,
     stints,
     pits,
+    radio: buildRadio(get("radio")),
     order: buildSeries(get("order"), ["position"]),
     intervals: buildSeries(get("intervals"), ["gap_to_leader_s", "interval_s", "gap_to_leader_laps", "interval_laps"]),
     weather,
