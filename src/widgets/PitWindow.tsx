@@ -25,8 +25,10 @@ export function medianPitLoss(s: SessionModel): number | null {
   return v[Math.floor(v.length / 2)];
 }
 
-const CHIP_W = 30;
+const CHIP_W = 36;
 const LANE_H = 18;
+/** Smallest spacing between labelled ticks. */
+const TICK_PX = 36;
 
 function PitWindow({ session, config, setConfig, width, height }: WidgetProps<PitWindowConfig>) {
   const t = useT(4);
@@ -43,7 +45,7 @@ function PitWindow({ session, config, setConfig, width, height }: WidgetProps<Pi
 
   const PAD = 18;
   const x = (rel: number) => PAD + ((span - rel) / (2 * span)) * (width - 2 * PAD);
-  const axisY = height - 22;
+  const axisY = height - 24;
 
   // Positions relative to the focus car: positive is ahead of it.
   const cars = running
@@ -58,9 +60,11 @@ function PitWindow({ session, config, setConfig, width, height }: WidgetProps<Pi
     lanes[lane] = px;
     return { ...c, px, lane };
   });
-  const laneCount = Math.max(1, lanes.length);
+  // As many chip lanes as fit above the axis; cars beyond them stay as dots on the axis.
+  const maxLanes = Math.max(1, Math.floor((axisY - 22) / LANE_H));
+  const laneCount = Math.max(1, Math.min(maxLanes, lanes.length));
   // Chips sit in the middle of the space above the axis.
-  const base = Math.round(Math.min(axisY - 6, Math.max(22 + laneCount * LANE_H, (22 + axisY + laneCount * LANE_H) / 2)));
+  const base = Math.round(Math.min(axisY - 2, Math.max(22 + laneCount * LANE_H, (22 + axisY + laneCount * LANE_H) / 2)));
 
   // Rejoin: the focus car after a stop, `loss` seconds further back.
   const rejoinGap = myGap != null ? myGap + loss : null;
@@ -69,6 +73,8 @@ function PitWindow({ session, config, setConfig, width, height }: WidgetProps<Pi
   const ticks: number[] = [];
   const step = span > 20 ? 5 : 2;
   for (let v = -span; v <= span; v += step) ticks.push(v);
+  const pxPerStep = (step / (2 * span)) * (width - 2 * PAD);
+  const labelEvery = [1, 2, 3, 4, 6].find((k) => k * pxPerStep >= TICK_PX) ?? 6;
 
   const menu = (e: React.MouseEvent) =>
     openMenu(
@@ -97,13 +103,23 @@ function PitWindow({ session, config, setConfig, width, height }: WidgetProps<Pi
         <>
           <div className={css.band} style={{ left: Math.min(rx, x(-loss + 1.5)), width: Math.abs(x(-loss - 1.5) - x(-loss + 1.5)), top: 22, height: axisY - 22 }} />
           <div className={css.rejoin} style={{ left: rx, top: 22, height: axisY - 22 }} />
-          <div className={css.rejoinLabel} style={{ left: rx + 4, top: 4 }}>
+          <div className={css.rejoinLabel} style={{ left: rx + 6, top: 3 }}>
             Rejoins P{rejoinPos}
           </div>
           <div className={css.self} style={{ left: x(0), top: 22, height: axisY - 22 }} />
           {placed.map((c) => {
             const fill = teamFill(c.r.entity.colour, dark);
             const isMe = c.r === me;
+            if (c.lane >= maxLanes)
+              return (
+                <div
+                  key={c.r.entity.id}
+                  className={css.dot}
+                  style={{ left: c.px - 4, top: axisY - 4, background: fill }}
+                  title={`${c.r.entity.code}: ${c.rel >= 0 ? `${c.rel.toFixed(1)} s ahead` : `${(-c.rel).toFixed(1)} s behind`}`}
+                  onClick={(e) => selectEntity(c.r.entity.id, e)}
+                />
+              );
             return (
               <div
                 key={c.r.entity.id}
@@ -120,13 +136,13 @@ function PitWindow({ session, config, setConfig, width, height }: WidgetProps<Pi
               </div>
             );
           })}
-          <svg className={css.axis} width={width} height={22} style={{ top: axisY }}>
+          <svg className={css.axis} width={width} height={24} style={{ top: axisY }}>
             <line x1={PAD} x2={width - PAD} y1={1} y2={1} stroke="var(--line-2)" />
             {ticks.map((v) => (
               <g key={v}>
                 <line x1={x(v)} x2={x(v)} y1={1} y2={5} stroke="var(--line-2)" />
-                {(v % (step * 2) === 0 || width > 600) && (
-                  <text x={x(v)} y={16} textAnchor="middle" className={css.tick}>
+                {Math.round(v / step) % labelEvery === 0 && (
+                  <text x={x(v)} y={18} textAnchor="middle" className={css.tick}>
                     {v > 0 ? `+${v}` : v < 0 ? `${MINUS}${-v}` : "0"}
                   </text>
                 )}

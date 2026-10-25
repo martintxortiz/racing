@@ -7,21 +7,21 @@
   width: 100%;
   border-collapse: separate;
   border-spacing: 0;
-  font-size: 12px;
+  font-size: var(--fs-md);
   table-layout: auto;
 }
 .table th {
   position: sticky;
   top: 0;
   z-index: 2;
-  height: 24px;
+  height: var(--row);
   /* Header text lines up with the text inside the cell pills: 3 px cell + pill padding. */
   padding: 0 calc(3px + var(--pill-px));
   background: var(--panel);
   border-bottom: 1px solid var(--line);
   color: var(--text-3);
   font-weight: 500;
-  font-size: 11.5px;
+  font-size: var(--fs-sm);
   text-align: right;
   white-space: nowrap;
   cursor: context-menu;
@@ -42,13 +42,6 @@
 }
 .table td:last-child {
   padding-right: 8px;
-}
-/* Dense tables (Monitor): one row height shared with the strips beside them. */
-.dense {
-  --row: var(--row-dense);
-}
-.dense th {
-  height: 22px;
 }
 .table td.l {
   text-align: left;
@@ -77,7 +70,7 @@
 /* No value in the feed: kept readable so it does not look like a rendering gap. */
 .missing {
   color: var(--text-2);
-  font-size: 11px;
+  font-size: var(--fs-xs);
 }
 .driver {
   padding: 0 4px 0 6px !important;
@@ -87,7 +80,7 @@
   width: 16px;
   padding: 0 0 0 6px !important;
   text-align: left !important;
-  font-size: 10.5px;
+  font-size: var(--fs-xs);
   font-weight: 600;
 }
 .selA {
@@ -97,11 +90,11 @@
   color: var(--b);
 }
 .groupRow td {
-  height: 22px;
+  height: var(--row);
   padding-top: 4px;
   background: var(--panel) !important;
   color: var(--text-3) !important;
-  font-size: 11px;
+  font-size: var(--fs-xs);
   text-align: left !important;
   border-bottom: 1px solid var(--line);
   cursor: default;
@@ -109,7 +102,7 @@
 /* Glyph and age on fixed tracks so every row lines up. */
 .tyre {
   display: inline-grid;
-  grid-template-columns: 15px 2.2ch;
+  grid-template-columns: 18px 2.2ch;
   column-gap: 4px;
   align-items: center;
   justify-items: end;
@@ -123,7 +116,7 @@
 }
 .state {
   color: var(--text-2);
-  font-size: 11px;
+  font-size: var(--fs-xs);
 }
 .empty {
   position: absolute;
@@ -132,7 +125,7 @@
   align-items: center;
   justify-content: center;
   color: var(--text-3);
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }
 .up {
   color: var(--good-fg);

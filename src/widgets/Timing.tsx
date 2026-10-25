@@ -107,7 +107,7 @@ const COLS: Col[] = [
       return {
         text: tag && r.last.time != null ? (
           <>
-            <span className={css.muted} style={{ fontSize: 10.5, marginRight: 4 }}>
+            <span className={css.muted} style={{ fontSize: "var(--fs-xs)", marginRight: 4 }}>
               {tag}
             </span>
             {r.last.deleted ? <s>{text}</s> : text}

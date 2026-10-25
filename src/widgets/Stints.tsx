@@ -12,8 +12,10 @@ import css from "./stints.module.css";
 
 /** Dark text on the light compounds, white on the saturated ones. */
 const DARK_TEXT = new Set(["MEDIUM", "HARD"]);
-const WHO = 54;
-const PAD_R = 10;
+const WHO = 50;
+const PAD_R = 12;
+/** Smallest spacing between lap labels on the axis. */
+const TICK_PX = 30;
 
 /** Pixel position of the start of lap `n` (1-based); lap boundaries fall on whole pixels. */
 export function lapX(n: number, total: number, trackW: number): number {
@@ -37,7 +39,7 @@ function Stints({ session, width }: WidgetProps) {
     }
     return m;
   }, [session]);
-  const step = trackW / total < 6 ? 10 : 5;
+  const step = [1, 2, 5, 10, 20, 25, 50].find((k) => (k * trackW) / total >= TICK_PX) ?? 50;
   const ticks: number[] = [];
   for (let n = step; n < total; n += step) ticks.push(n);
   const used = [...new Set(session.stints.map((s) => s.compound))];
@@ -99,7 +101,7 @@ function Stints({ session, width }: WidgetProps) {
                       style={{ left: x0, width: w, background: TYRE[s.compound]?.css ?? "var(--text-3)", color: DARK_TEXT.has(s.compound) ? "#161616" : "#ffffff" }}
                       title={`${s.compound.charAt(0) + s.compound.slice(1).toLowerCase()}, laps ${s.lapStart}–${s.lapEnd}${s.ageAtStart ? `, ${s.ageAtStart} laps old when fitted` : ", new set"}`}
                     >
-                      {w >= 26 ? `${TYRE[s.compound]?.short ?? s.compound[0]} ${laps}` : w >= 12 ? (TYRE[s.compound]?.short ?? "") : ""}
+                      {w >= 36 ? `${TYRE[s.compound]?.short ?? s.compound[0]} ${laps}` : w >= 15 ? (TYRE[s.compound]?.short ?? "") : ""}
                     </div>
                   );
                 })}

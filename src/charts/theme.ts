@@ -71,8 +71,11 @@ export function axisStyle(th: ChartTheme) {
   return {
     axisLine: { lineStyle: { color: th.line2 } },
     axisTick: { show: false },
-    axisLabel: { color: th.text3, fontFamily: th.mono, fontSize: 10.5 },
+    axisLabel: { color: th.text3, fontFamily: th.mono, fontSize: FS.xs },
     splitLine: { lineStyle: { color: th.line } },
-    nameTextStyle: { color: th.text3, fontFamily: th.sans, fontSize: 10.5 },
+    nameTextStyle: { color: th.text3, fontFamily: th.sans, fontSize: FS.xs },
   };
 }
+
+/** Canvas and chart text sizes, the same steps as --fs-xs, --fs-sm and --fs-md in globals.css. */
+export const FS = { xs: 10, sm: 11, md: 12 } as const;

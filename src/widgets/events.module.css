@@ -17,23 +17,11 @@
 .dense {
   table-layout: fixed;
 }
-.dense td {
-  vertical-align: top;
-  padding-top: 2px;
-  padding-bottom: 2px;
-  height: auto;
-  min-height: var(--row-dense);
-}
-.dense td.msg {
-  max-width: none;
-  line-height: 16px;
-  padding-top: 2px !important;
-}
 .wrapMsg {
   white-space: normal !important;
   line-height: 16px;
-  padding-top: 2px !important;
-  padding-bottom: 2px !important;
+  padding-top: 3px !important;
+  padding-bottom: 3px !important;
   overflow-wrap: anywhere;
 }
 .time {

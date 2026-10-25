@@ -1,0 +1,9 @@
+.end {
+  position: absolute;
+  height: 14px;
+  line-height: 14px;
+  font-size: var(--fs-xs);
+  font-family: var(--sans);
+  white-space: nowrap;
+  pointer-events: none;
+}

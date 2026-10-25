@@ -100,16 +100,25 @@
 :root {
   --sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
   --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
-  --topbar: 40px;
-  --transport: 40px;
-  --header: 28px;
-  --row: 24px;
-  /* Dense rows used by the Monitor tables; every table and strip on a tab shares one height. */
-  --row-dense: 20px;
+  /* Density at a true 1:1: 12 px body text, 22 px rows, 24 px panel headers. Every widget sizes
+     from these, so changing density is a change here, not in the widgets. */
+  --topbar: 34px;
+  --transport: 34px;
+  --header: 24px;
+  /* Design-system row height (--pw-row-h). Tables and strips never go below it. */
+  --row: 22px;
   /* One pill shape for driver chips, highlighted values, flags and message types. */
   --pill-h: 16px;
-  --pill-r: 3px;
-  --pill-px: 5px;
+  --pill-r: 2px;
+  --pill-px: 4px;
+  --glyph: 14px;
+  /* Type scale. --fs-xs is the smallest text anywhere (--pw-fs-xs). */
+  --fs-xs: 10px;
+  --fs-sm: 11px;
+  --fs-md: 12px;
+  --fs-lg: 13px;
+  --fs-xl: 15px;
+  --fs-2xl: 18px;
   --gutter: 1px;
 }
 
@@ -125,7 +134,7 @@ body {
   background: var(--bg);
   color: var(--text);
   font-family: var(--sans);
-  font-size: 13px;
+  font-size: var(--fs-md);
   line-height: 1.4;
   -webkit-font-smoothing: antialiased;
 }

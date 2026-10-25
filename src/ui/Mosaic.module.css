@@ -50,9 +50,9 @@
 }
 .empty p {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--fs-md);
 }
 .emptyHint {
   color: var(--text-3);
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }

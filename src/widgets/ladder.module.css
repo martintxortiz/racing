@@ -1,8 +1,10 @@
 .wrap {
   position: absolute;
   inset: 0;
-  overflow: hidden;
-  font-size: 11.5px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  font-size: var(--fs-sm);
   font-variant-numeric: tabular-nums;
 }
 .svg {
@@ -12,7 +14,7 @@
 }
 .tick {
   fill: var(--text-3);
-  font-size: 10px;
+  font-size: var(--fs-xs);
   font-family: var(--sans);
 }
 .ref {
@@ -30,15 +32,17 @@
 }
 .label {
   position: absolute;
-  left: 60px;
   right: 8px;
   height: 18px;
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   cursor: pointer;
   white-space: nowrap;
 }
 .grow {
   flex: 1;
+}
+.time {
+  color: var(--text-2);
 }

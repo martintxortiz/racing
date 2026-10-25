@@ -50,13 +50,13 @@ function PitStops({ session }: WidgetProps) {
       <HeaderSlot>
         <span>{shown.length ? `${shown.length} stops` : ""}</span>
       </HeaderSlot>
-      <table className={`${tcss.table} ${tcss.dense} num`}>
+      <table className={`${tcss.table} num`}>
         <colgroup>
-          <col style={{ width: 28 }} />
-          <col style={{ width: 52 }} />
-          <col style={{ width: 40 }} />
-          <col style={{ width: 76 }} />
-          <col style={{ width: 54 }} />
+          <col style={{ width: 24 }} />
+          <col style={{ width: 44 }} />
+          <col style={{ width: 34 }} />
+          <col style={{ width: 64 }} />
+          <col style={{ width: 46 }} />
           <col />
         </colgroup>
         <thead>

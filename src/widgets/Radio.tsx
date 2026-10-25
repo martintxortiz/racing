@@ -73,11 +73,11 @@ function TeamRadio({ session, config, setConfig }: WidgetProps<RadioConfig>) {
       ) : !list.length ? (
         <div className={tcss.empty}>No radio yet at this time</div>
       ) : (
-        <table className={`${tcss.table} ${tcss.dense} num`}>
+        <table className={`${tcss.table} num`}>
           <colgroup>
-            <col style={{ width: 40 }} />
-            <col style={{ width: 66 }} />
-            <col style={{ width: 52 }} />
+            <col style={{ width: 44 }} />
+            <col style={{ width: 70 }} />
+            <col style={{ width: 50 }} />
             <col />
           </colgroup>
           <tbody>
@@ -102,7 +102,9 @@ function TeamRadio({ session, config, setConfig }: WidgetProps<RadioConfig>) {
                         play(r.url);
                       }}
                     >
-                      {on ? "\u25A0" : "\u25B6"}
+                      <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden>
+                        {on ? <rect x="1.5" y="1.5" width="7" height="7" fill="currentColor" /> : <path d="M2 1 L9 5 L2 9 Z" fill="currentColor" />}
+                      </svg>
                     </button>
                     <span className={css.note}>{on ? "Playing" : "Audio clip"}</span>
                   </td>

@@ -19,9 +19,12 @@ export interface LadderConfig {
   range?: number;
 }
 
+/** Label pitch: a 20 px pill plus 2 px; labels never overlap, the panel scrolls instead. */
 const LABEL_H = 18;
-const TOP = 26;
-const BOTTOM = 12;
+const TOP = 28;
+const BOTTOM = 14;
+/** From this width each label also shows the lap time itself. */
+const WIDE = 230;
 
 /** Place labels near their targets without overlapping: push down, then pull back up from the bottom. */
 export function spread(ys: number[], gap: number, lo: number, hi: number): number[] {
@@ -38,7 +41,7 @@ interface Item {
   compound: string | null;
 }
 
-function Ladder({ session, config, setConfig, height }: WidgetProps<LadderConfig>) {
+function Ladder({ session, config, setConfig, width, height }: WidgetProps<LadderConfig>) {
   const t = useT(2);
   const timing = useTiming(session, t);
   const panel = usePanel();
@@ -61,14 +64,22 @@ function Ladder({ session, config, setConfig, height }: WidgetProps<LadderConfig
   const autoRange = items.length ? Math.min(5, Math.max(1, Math.ceil(items[Math.min(items.length - 1, Math.floor(items.length * 0.9))].delta * 2) / 2)) : 3;
   const range = config.range || autoRange;
   const h0 = TOP;
-  const h1 = Math.max(h0 + 40, height - BOTTOM);
+  // Tall enough for every label at full pitch; a short panel scrolls rather than squeezing them.
+  const h1 = Math.max(h0 + 40, height - BOTTOM, h0 + Math.max(0, items.length - 1) * LABEL_H);
   const y = (d: number) => h0 + (Math.min(d, range) / range) * (h1 - h0);
   const labelY = spread(
     items.map((x) => y(x.delta)),
-    Math.min(LABEL_H, items.length > 1 ? (h1 - h0) / (items.length - 1) : LABEL_H),
+    LABEL_H,
     h0,
     h1,
   );
+  const wide = width >= WIDE;
+  // Narrow panels drop the leader-line elbow and then the tyre, never the size of anything.
+  const narrow = width < 200;
+  const ax = narrow ? 34 : 42;
+  const left = narrow ? ax + 8 : ax + 26;
+  const digits = width < 150 ? 2 : 3;
+  const showTyre = width >= left + 44 + 6 + 58 + 6 + 18 + 12;
   const ticks: number[] = [];
   const step = range > 3 ? 1 : range > 1.5 ? 0.5 : 0.25;
   for (let v = 0; v <= range + 1e-9; v += step) ticks.push(Math.round(v * 100) / 100);
@@ -89,26 +100,28 @@ function Ladder({ session, config, setConfig, height }: WidgetProps<LadderConfig
 
   return (
     <div className={css.wrap} onContextMenu={menu} data-testid="lap-ladder">
-      <HeaderSlot>
-        <span>{basis === "best" ? "Personal best" : "Last lap"}</span>
-      </HeaderSlot>
+      {!narrow && (
+        <HeaderSlot>
+          <span>{basis === "best" ? "Personal best" : "Last lap"}</span>
+        </HeaderSlot>
+      )}
       <div className={css.ref}>
         <span className={css.refTime}>{items[0] ? fmtLap(items[0].time) : "No laps yet"}</span>
       </div>
       <svg className={css.svg} width="100%" height={h1 + BOTTOM}>
         {ticks.map((v) => (
           <g key={v}>
-            <line x1={30} x2={36} y1={y(v)} y2={y(v)} stroke="var(--line-2)" />
-            <text x={27} y={y(v) + 3.5} textAnchor="end" className={css.tick}>
-              {v === 0 ? "0" : `+${v.toFixed(step < 0.5 ? 2 : 1)}`}
+            <line x1={ax - 6} x2={ax} y1={y(v)} y2={y(v)} stroke="var(--line-2)" />
+            <text x={ax - 9} y={y(v) + 4} textAnchor="end" className={css.tick}>
+              {v === 0 ? "0" : `+${narrow ? +v.toFixed(2) : v.toFixed(step < 0.5 ? 2 : 1)}`}
             </text>
           </g>
         ))}
-        <line x1={36} x2={36} y1={h0} y2={h1} stroke="var(--line-2)" />
+        <line x1={ax} x2={ax} y1={h0} y2={h1} stroke="var(--line-2)" />
         {items.map((x, i) => (
           <g key={x.entity.id}>
-            <path d={`M36 ${y(x.delta)} H44 L54 ${labelY[i]} H60`} fill="none" stroke="var(--line-2)" />
-            <circle cx={36} cy={y(x.delta)} r={3} fill={teamFill(x.entity.colour, dark)} stroke="var(--panel)" strokeWidth={1} />
+            <path d={narrow ? `M${ax} ${y(x.delta)} L${left} ${labelY[i]}` : `M${ax} ${y(x.delta)} H${ax + 10} L${ax + 20} ${labelY[i]} H${left}`} fill="none" stroke="var(--line-2)" />
+            <circle cx={ax} cy={y(x.delta)} r={3.5} fill={teamFill(x.entity.colour, dark)} stroke="var(--panel)" strokeWidth={1} />
           </g>
         ))}
       </svg>
@@ -116,7 +129,7 @@ function Ladder({ session, config, setConfig, height }: WidgetProps<LadderConfig
         <div
           key={x.entity.id}
           className={css.label}
-          style={{ top: labelY[i] - LABEL_H / 2 }}
+          style={{ top: labelY[i] - LABEL_H / 2, left }}
           onClick={(e) => selectEntity(x.entity.id, e)}
           onContextMenu={(e) => {
             e.stopPropagation();
@@ -125,9 +138,10 @@ function Ladder({ session, config, setConfig, height }: WidgetProps<LadderConfig
           title={`${x.entity.name}: ${fmtLap(x.time)}`}
         >
           <DriverChip entity={x.entity} />
-          <Pill tone={i === 0 ? "sb" : "none"}>{i === 0 ? "0.000" : `+${x.delta.toFixed(3)}`}</Pill>
+          <Pill tone={i === 0 ? "sb" : "none"}>{i === 0 ? (0).toFixed(digits) : `+${x.delta.toFixed(digits)}`}</Pill>
+          {wide && <span className={css.time}>{fmtLap(x.time)}</span>}
           <span className={css.grow} />
-          <TyreGlyph compound={x.compound} />
+          {showTyre && <TyreGlyph compound={x.compound} />}
         </div>
       ))}
     </div>

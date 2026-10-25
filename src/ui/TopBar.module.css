@@ -15,7 +15,7 @@
   gap: 8px;
   padding: 0 16px 0 12px;
   font-weight: 600;
-  font-size: 13px;
+  font-size: var(--fs-md);
   color: var(--text);
   border-right: 1px solid var(--line);
   margin-right: 4px;
@@ -53,7 +53,7 @@
   max-width: 220px;
   padding: 0 8px 0 12px;
   color: var(--text-2);
-  font-size: 12.5px;
+  font-size: var(--fs-md);
   font-weight: 500;
   cursor: pointer;
   border: 0;
@@ -84,8 +84,8 @@
   white-space: nowrap;
 }
 .tabClose {
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -103,20 +103,20 @@
 }
 .tabInput {
   width: 140px;
-  height: 24px;
+  height: 22px;
   margin: auto 4px;
   padding: 0 6px;
   border: 1px solid var(--accent);
   border-radius: 3px;
   background: var(--panel);
-  font-size: 12.5px;
+  font-size: var(--fs-md);
   outline: none;
 }
 .addTab {
   flex: none;
   align-self: center;
-  width: 28px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -138,7 +138,7 @@
 }
 .divider {
   width: 1px;
-  height: 20px;
+  height: 16px;
   background: var(--line);
   margin: 0 4px;
 }
@@ -146,13 +146,13 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  height: 28px;
+  height: 24px;
   padding: 0 8px 0 10px;
   border: 0;
   border-radius: 4px;
   background: none;
   color: var(--text);
-  font-size: 12.5px;
+  font-size: var(--fs-md);
 }
 .layoutBtn:hover {
   background: var(--hover);

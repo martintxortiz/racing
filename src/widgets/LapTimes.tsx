@@ -1,7 +1,7 @@
 "use client";
 import { useMemo } from "react";
 import { EChart, type EChartsOption } from "@/charts/EChart";
-import { axisStyle, useChartTheme } from "@/charts/theme";
+import { axisStyle, FS, useChartTheme } from "@/charts/theme";
 import { fmtLap } from "@/data/format";
 import type { Lap } from "@/derive/model";
 import { statusSpans } from "@/derive/status";
@@ -107,9 +107,9 @@ function LapTimes({ session, config, setConfig, width, height }: WidgetProps<Lap
         areas.push([{ xAxis: lapAt(sp.t0) - 0.5, name: sp.state === "sc" ? "SC" : sp.state === "vsc" ? "VSC" : "Red", itemStyle: { color: sp.state === "red" ? th.red : th.sc } }, { xAxis: lapAt(sp.t1) + 0.5 }]);
       }
     }
-    if (best != null) marks.push({ yAxis: best, lineStyle: { color: th.sb, type: "dashed", width: 1 }, label: { show: true, position: "insideEndTop", formatter: `best ${fmtLap(best)}`, color: th.sb, fontFamily: th.mono, fontSize: 10.5 } });
+    if (best != null) marks.push({ yAxis: best, lineStyle: { color: th.sb, type: "dashed", width: 1 }, label: { show: true, position: "insideEndTop", formatter: `best ${fmtLap(best)}`, color: th.sb, fontFamily: th.mono, fontSize: FS.xs } });
     (series[0] as Record<string, unknown>).markLine = { silent: true, symbol: "none", data: marks };
-    (series[0] as Record<string, unknown>).markArea = { silent: true, label: { color: th.text3, fontSize: 10.5, fontFamily: th.sans, position: "insideTopLeft" }, data: areas };
+    (series[0] as Record<string, unknown>).markArea = { silent: true, label: { color: th.text3, fontSize: FS.xs, fontFamily: th.sans, position: "insideTopLeft" }, data: areas };
     return {
       grid: { left: 58, right: 14, top: 12, bottom: 26 },
       tooltip: {
@@ -117,7 +117,7 @@ function LapTimes({ session, config, setConfig, width, height }: WidgetProps<Lap
         backgroundColor: th.panel,
         borderColor: th.line2,
         padding: [4, 8],
-        textStyle: { color: th.text, fontSize: 11.5, fontFamily: th.sans },
+        textStyle: { color: th.text, fontSize: FS.sm, fontFamily: th.sans },
         formatter: (p: { data: { entity: string; n: number; value: number[]; deleted: boolean } }) => {
           const e = session.entityById.get(p.data.entity);
           return `<b>${e?.code ?? p.data.entity}</b> lap ${p.data.n} &nbsp;<span style="font-family:${th.mono}">${fmtLap(p.data.value[1])}</span>${p.data.deleted ? " &nbsp;deleted" : ""}`;

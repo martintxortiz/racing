@@ -7,14 +7,13 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 22px;
+  width: 28px;
   height: var(--pill-h);
-  margin-left: 2px;
+  margin-left: 3px;
   border: 1px solid var(--line-2);
   border-radius: var(--pill-r);
   background: var(--panel);
   color: var(--text-2);
-  font-size: 8px;
   cursor: pointer;
   vertical-align: middle;
 }

@@ -24,7 +24,7 @@ export interface EventsConfig {
   raw?: boolean;
   /** Wrap long messages instead of one line with an ellipsis. */
   wrap?: boolean;
-  /** Dense race control table: lap (or time outside races), type and message. */
+  /** Fixed columns: lap and/or time, type, and the message wrapping. */
   dense?: boolean;
 }
 
@@ -77,7 +77,7 @@ export function eventType(e: RcEvent): { label: string; tone: Tone } {
   return { label: "Info", tone: "neutral" };
 }
 
-function EventLog({ session, config, setConfig }: WidgetProps<EventsConfig>) {
+function EventLog({ session, config, setConfig, width }: WidgetProps<EventsConfig>) {
   const t = useT(4);
   const panel = usePanel();
   const clock = useApp((s) => s.settings.clock);
@@ -87,7 +87,8 @@ function EventLog({ session, config, setConfig }: WidgetProps<EventsConfig>) {
   const follow = config.follow !== false;
   const race = session.kind === "race";
   const dense = !!config.dense;
-  const showTime = !dense || !race;
+  // In a race the lap says when; the time of day joins it once the panel has room.
+  const showTime = !dense || !race || width >= 520;
 
   const list = useMemo(() => {
     const out = session.events.filter((e) => {
@@ -116,7 +117,7 @@ function EventLog({ session, config, setConfig }: WidgetProps<EventsConfig>) {
     { id: "follow", label: "Hide messages after the replay time", checked: follow, run: () => setConfig({ follow: !follow }) },
     { id: "wrap", label: "Wrap long messages", checked: !!config.wrap, run: () => setConfig({ wrap: !config.wrap }) },
     { id: "raw", label: "Original capitals", checked: !!config.raw, run: () => setConfig({ raw: !config.raw }) },
-    { id: "dense", label: "Dense", checked: dense, run: () => setConfig({ dense: !dense }) },
+    { id: "dense", label: "Fixed columns", checked: dense, run: () => setConfig({ dense: !dense }) },
   ];
 
   const rowMenu = (e: React.MouseEvent, ev: RcEvent) => {
@@ -144,12 +145,12 @@ function EventLog({ session, config, setConfig }: WidgetProps<EventsConfig>) {
           {hide.size ? `, ${[...hide].map((k) => KIND_LABEL[k].toLowerCase()).join(", ")} hidden` : ""}
         </span>
       </HeaderSlot>
-      <table className={`${tcss.table} ${dense ? `${tcss.dense} ${css.dense}` : ""}`} data-testid="event-log">
+      <table className={`${tcss.table} ${dense ? css.dense : ""}`} data-testid="event-log">
         {dense && (
           <colgroup>
-            {showTime && <col style={{ width: 64 }} />}
+            {showTime && <col style={{ width: 66 }} />}
             {race && <col style={{ width: 36 }} />}
-            <col style={{ width: 118 }} />
+            <col style={{ width: 112 }} />
             <col />
           </colgroup>
         )}
@@ -181,7 +182,7 @@ function EventLog({ session, config, setConfig }: WidgetProps<EventsConfig>) {
                     {ty.label}
                   </Pill>
                 </td>
-                <td className={`${tcss.l} ${css.msg} ${config.wrap || dense ? css.wrapMsg : ""}`} title={ev.message}>
+                <td className={`${tcss.l} ${css.msg} ${config.wrap ? css.wrapMsg : ""}`} title={ev.message}>
                   {config.raw ? ev.message : sentenceCase(ev.message)}
                 </td>
               </tr>

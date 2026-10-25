@@ -7,8 +7,8 @@ import { openMenu } from "@/state/menu";
 import { useApp } from "@/state/app";
 import { openEntityMenu, selectEntity } from "@/ui/actions";
 import { usePanel } from "@/ui/panelContext";
-import { onColour, teamFill } from "./colour";
-import { poseTopic, useT, useTiming, useTopics } from "./hooks";
+import { teamFill } from "./colour";
+import { poseTopic, useSelection, useT, useTiming, useTopics } from "./hooks";
 import type { WidgetDef, WidgetProps } from "./types";
 import css from "./circle.module.css";
 
@@ -28,8 +28,9 @@ export function projectToOutline(o: Outline, x: number, y: number): number {
   return o.d[k];
 }
 
-const CHIP_W = 30;
-const CHIP_H = 14;
+function overlaps(a: { x0: number; y0: number; x1: number; y1: number }, b: { x0: number; y0: number; x1: number; y1: number }) {
+  return a.x0 < b.x1 && a.x1 > b.x0 && a.y0 < b.y1 && a.y1 > b.y0;
+}
 
 /** Circle map: every car's lap distance as an angle on a ring, start line at the top, clockwise. */
 function CircleMap({ session, width, height }: WidgetProps) {
@@ -37,49 +38,74 @@ function CircleMap({ session, width, height }: WidgetProps) {
   const timing = useTiming(session, t);
   const panel = usePanel();
   const dark = useApp((s) => s.theme === "dark");
-  const focus = useApp((s) => s.focus);
-  const compare = useApp((s) => s.compare);
+  // A and B as the Track map shows them, including the implicit top two.
+  const sel = useSelection(session, t);
+  const focus = sel.a?.entity ?? null;
+  const compare = sel.b?.entity ?? null;
   const o = session.outline;
   const poseTopics = useMemo(() => session.entities.map((e) => poseTopic(e.id)).filter((x): x is string => !!x), [session]);
   const { cols } = useTopics(poseTopics);
 
   const cx = width / 2;
   const cy = height / 2;
-  const R = Math.max(30, Math.min(width, height) / 2 - 44);
+  // Leave room outside the ring for one line of labels.
+  const R = Math.max(30, Math.min(width, height) / 2 - 22);
   const ang = (d: number) => (o ? (d / o.length) * 2 * Math.PI - Math.PI / 2 : 0);
   const at = (a: number, r: number) => [cx + Math.cos(a) * r, cy + Math.sin(a) * r] as const;
 
-  const cars: { id: string; a: number }[] = [];
+  const cars: { id: string; a: number; rank: number }[] = [];
   if (o) {
-    for (const r of timing.rows) {
-      if (r.state === "retired") continue;
+    timing.rows.forEach((r, i) => {
+      if (r.state === "retired") return;
       const topic = poseTopic(r.entity.id);
       const p = topic ? poseAt(cols[topic], t) : null;
-      if (!p) continue;
-      cars.push({ id: r.entity.id, a: ang(projectToOutline(o, p.x, p.y)) });
-    }
+      if (!p) return;
+      cars.push({ id: r.entity.id, a: ang(projectToOutline(o, p.x, p.y)), rank: r.entity.id === focus || r.entity.id === compare ? -1 : i });
+    });
   }
-  // Labels outside the ring, stepped outwards (then inwards) until they clear the ones already placed.
-  const boxes: { x: number; y: number }[] = [];
-  const placedCars = cars
-    .sort((p, q) => p.a - q.a)
+  // Car labels work like the Track map's: a small code beside each dot, tried at four spots and
+  // left out when it would touch another label, a dot, a corner number or the centre text.
+  type Box = { x0: number; y0: number; x1: number; y1: number };
+  const boxes: Box[] = [{ x0: cx - 48, y0: cy - 20, x1: cx + 48, y1: cy + 22 }];
+  const cornerLabels = R > 70;
+  const labelled = new Set<string>();
+  if (cornerLabels)
+    for (const k of session.corners) {
+      const [x, y] = at(ang(k.d), R - 17);
+      const box = { x0: x - 12, y0: y - 7, x1: x + 12, y1: y + 7 };
+      if (boxes.slice(1).some((b) => overlaps(b, box))) continue;
+      labelled.add(`${k.number}${k.letter}`);
+      boxes.push(box);
+    }
+  for (const c of cars) {
+    const [x, y] = at(c.a, R);
+    boxes.push({ x0: x - 5, y0: y - 5, x1: x + 5, y1: y + 5 });
+  }
+  const placedCars = [...cars]
+    .sort((p, q) => p.rank - q.rank)
     .map((c) => {
-      const tries = [0, 1, 2, 3, -1.6, -2.6];
-      let best: { x: number; y: number; r: number } | null = null;
-      for (const lv of tries) {
-        const r = lv >= 0 ? R + 18 + lv * (CHIP_H + 3) : R + lv * (CHIP_H + 3);
-        let [x, y] = at(c.a, r);
-        x = Math.min(width - CHIP_W / 2 - 2, Math.max(CHIP_W / 2 + 2, x));
-        y = Math.min(height - CHIP_H / 2 - 2, Math.max(CHIP_H / 2 + 2, y));
-        const clear = boxes.every((b) => Math.abs(b.x - x) >= CHIP_W + 2 || Math.abs(b.y - y) >= CHIP_H + 2);
-        if (clear) {
-          best = { x, y, r };
-          break;
-        }
-        if (!best) best = { x, y, r };
+      const code = session.entityById.get(c.id)?.code ?? "";
+      const w = code.length * 7 + 2;
+      const [x, y] = at(c.a, R);
+      // Outside the ring first, on the side the dot faces.
+      const out = Math.cos(c.a) >= 0 ? 1 : -1;
+      const spots = [
+        [9 * out, -8 * (Math.sin(c.a) < 0 ? 1 : -1)],
+        [9 * out, 8 * (Math.sin(c.a) < 0 ? 1 : -1)],
+        [-9 * out, -8 * (Math.sin(c.a) < 0 ? 1 : -1)],
+        [-9 * out, 8 * (Math.sin(c.a) < 0 ? 1 : -1)],
+      ];
+      let label: { x: number; y: number; anchor: "start" | "end" } | null = null;
+      for (const [dx, dy] of spots) {
+        const x0 = dx > 0 ? x + dx : x + dx - w;
+        const box = { x0: x0 - 1, y0: y + dy - 7, x1: x0 + w + 1, y1: y + dy + 7 };
+        const outside = box.x0 < 1 || box.x1 > width - 1 || box.y0 < 1 || box.y1 > height - 1;
+        if (outside || (c.rank >= 0 && boxes.some((b) => overlaps(b, box)))) continue;
+        boxes.push(box);
+        label = { x: x + dx, y: y + dy, anchor: dx > 0 ? "start" : "end" };
+        break;
       }
-      boxes.push(best!);
-      return { ...c, lx: best!.x, ly: best!.y };
+      return { ...c, code, label };
     });
 
   const seg = session.segments.find((s) => t >= s.t0 && t <= s.t1) ?? session.segments[session.segments.length - 1];
@@ -101,7 +127,7 @@ function CircleMap({ session, width, height }: WidgetProps) {
             return (
               <g key={`${k.number}${k.letter}`}>
                 <line x1={x0} y1={y0} x2={x1} y2={y1} stroke="var(--text-3)" />
-                {R > 70 && (
+                {labelled.has(`${k.number}${k.letter}`) && (
                   <text x={tx} y={ty + 3} textAnchor="middle" className={css.corner}>
                     T{k.number}
                     {k.letter}
@@ -125,19 +151,17 @@ function CircleMap({ session, width, height }: WidgetProps) {
             const e = session.entityById.get(c.id)!;
             const fill = teamFill(e.colour, dark);
             const [dx, dy] = at(c.a, R);
-            const { lx, ly } = c;
-            // Leader line from the dot to the nearest edge of the chip.
-            const ex = Math.min(lx + CHIP_W / 2, Math.max(lx - CHIP_W / 2, dx));
-            const ey = Math.min(ly + CHIP_H / 2, Math.max(ly - CHIP_H / 2, dy));
             const ring = c.id === focus ? "var(--a)" : c.id === compare ? "var(--b)" : null;
+            const l = c.label;
             return (
               <g key={c.id} className={css.car} onClick={(ev) => selectEntity(c.id, ev)} onContextMenu={(ev) => { ev.stopPropagation(); openEntityMenu(ev, c.id); }}>
-                <line x1={dx} y1={dy} x2={ex} y2={ey} stroke={fill} strokeWidth={1} />
-                <circle cx={dx} cy={dy} r={4} fill={fill} stroke="var(--panel)" strokeWidth={1.5} />
-                <rect x={lx - CHIP_W / 2} y={ly - CHIP_H / 2} width={CHIP_W} height={CHIP_H} rx={3} fill={fill} stroke={ring ?? "none"} strokeWidth={ring ? 1.5 : 0} />
-                <text x={lx} y={ly + 3.5} textAnchor="middle" className={css.code} fill={onColour(fill)}>
-                  {e.code}
-                </text>
+                <title>{e.name}</title>
+                {l && (
+                  <text x={l.x} y={l.y + 4} textAnchor={l.anchor} className={css.code} fill={ring ?? "var(--text-2)"} style={{ fontWeight: ring ? 600 : 500 }}>
+                    {c.code}
+                  </text>
+                )}
+                <circle cx={dx} cy={dy} r={ring ? 5 : 4} fill={fill} stroke={ring ?? "var(--panel)"} strokeWidth={ring ? 2 : 1.5} />
               </g>
             );
           })}

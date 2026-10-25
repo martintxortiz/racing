@@ -1,7 +1,7 @@
 "use client";
 import { useMemo } from "react";
 import { EChart, type EChartsOption } from "@/charts/EChart";
-import { axisStyle, useChartTheme } from "@/charts/theme";
+import { axisStyle, FS, useChartTheme } from "@/charts/theme";
 import type { Columns, TopicInfo } from "@/data/types";
 import { indexAtOrAfter, indexAtOrBefore } from "@/derive/search";
 import { topicFor } from "@/derive/topics";
@@ -95,7 +95,7 @@ function SignalPlot({ session, config, setConfig, width, height }: WidgetProps<S
         trigger: "axis",
         backgroundColor: th.panel,
         borderColor: th.line2,
-        textStyle: { color: th.text, fontSize: 11, fontFamily: th.sans },
+        textStyle: { color: th.text, fontSize: FS.sm, fontFamily: th.sans },
         valueFormatter: (v: number) => (Math.abs(v) >= 100 ? v.toFixed(0) : v.toFixed(2)),
       },
       xAxis: { type: "value", min: x0, max: x1, ...ax, splitLine: { show: false }, axisLabel: { ...ax.axisLabel, hideOverlap: true, formatter: (v: number) => timeOfDay(session, v, clock, win === 0 || win > 300 ? false : true).text, customValues: ticks }, axisTick: { show: false, customValues: ticks } },

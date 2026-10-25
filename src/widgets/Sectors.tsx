@@ -27,12 +27,20 @@ function Sectors({ session, config, setConfig, width }: WidgetProps<SectorsConfi
   const seg = activeSegment(session, tk);
   const data = useMemo(() => sectorTable(session, tk, scope === "segment" ? seg : null), [session, tk, scope, seg]);
   const sb = data.bests.sectors;
-  // Column budget in px (cells carry 16px padding); leave room for a vertical scrollbar.
-  const base = 16 + 32 + 80 + 3 * 60 + 2 * 78 + 16;
-  const avail = width - 16;
-  const showLost = avail >= base + 64;
-  const showTo = avail >= base + 64 + 72;
-  const hidden = (showLost ? 0 : 1) + (showTo ? 0 : 1);
+  // Column budget in px at the DS row density; the least useful columns go first, nothing shrinks.
+  const W = { sel: 16, rank: 30, driver: 50, sector: 54, ideal: 70, best: 70, lost: 58, to: 66 };
+  let total = 12 + W.sel + W.rank + W.driver + 3 * W.sector + W.ideal + W.best + W.lost + W.to;
+  const drop = new Set<string>();
+  for (const id of ["to", "lost", "best", "rank"] as const) {
+    if (total <= width) break;
+    drop.add(id);
+    total -= W[id];
+  }
+  const showLost = !drop.has("lost");
+  const showTo = !drop.has("to");
+  const showBest = !drop.has("best");
+  const showRank = !drop.has("rank");
+  const hidden = drop.size;
   const scopeMenu = (): MenuItem[] =>
     quali
       ? [
@@ -52,19 +60,19 @@ function Sectors({ session, config, setConfig, width }: WidgetProps<SectorsConfi
             </>
           )}
         </span>
-        {hidden > 0 && <span title={`${hidden === 1 ? "Gap to the best ideal lap is" : "Time lost and gap to the best ideal lap are"} hidden to fit; widen the panel to show ${hidden === 1 ? "it" : "them"}`}>{hidden} hidden</span>}
+        {hidden > 0 && <span title="Columns hidden to fit; widen the panel to show them">{hidden} hidden</span>}
       </HeaderSlot>
       <table className={`${css.table} num`}>
         <thead>
           <tr>
             <th className={css.sel} />
-            <th title="Rank by ideal lap">#</th>
+            {showRank && <th title="Rank by ideal lap">#</th>}
             <th className={css.l}>Driver</th>
             <th title="Best sector 1">S1</th>
             <th title="Best sector 2">S2</th>
             <th title="Best sector 3">S3</th>
             <th title="Sum of best sectors">Ideal</th>
-            <th title="Best actual lap">Best</th>
+            {showBest && <th title="Best actual lap">Best</th>}
             {showLost && <th title="Best lap minus ideal lap">Lost</th>}
             {showTo && <th title="Ideal lap minus the best ideal lap">To ideal</th>}
           </tr>
@@ -75,9 +83,11 @@ function Sectors({ session, config, setConfig, width }: WidgetProps<SectorsConfi
             return (
               <tr key={r.entity.id} data-sel={sel} onClick={(e) => selectEntity(r.entity.id, e)} onContextMenu={(e) => openEntityMenu(e, r.entity.id, scopeMenu().length ? [{ kind: "sub", id: "scope", label: "Bests over", items: scopeMenu() }] : [])}>
                 <td className={`${css.sel} ${sel === "a" ? css.selA : css.selB}`}>{sel ? sel.toUpperCase() : ""}</td>
-                <td>
-                  <Pill>{i + 1}</Pill>
-                </td>
+                {showRank && (
+                  <td>
+                    <Pill>{i + 1}</Pill>
+                  </td>
+                )}
                 <td className={`${css.l} ${css.driver}`}>
                   <DriverChip entity={r.entity} />
                 </td>
@@ -91,9 +101,11 @@ function Sectors({ session, config, setConfig, width }: WidgetProps<SectorsConfi
                 <td style={{ fontWeight: 500 }}>
                   <Pill>{fmtLap(r.ideal)}</Pill>
                 </td>
-                <td>
-                  <Pill tone={r.best != null && data.bests.lap != null && r.best <= data.bests.lap + 1e-9 ? "sb" : "none"}>{fmtLap(r.best)}</Pill>
-                </td>
+                {showBest && (
+                  <td>
+                    <Pill tone={r.best != null && data.bests.lap != null && r.best <= data.bests.lap + 1e-9 ? "sb" : "none"}>{fmtLap(r.best)}</Pill>
+                  </td>
+                )}
                 {showLost && (
                   <td>
                     <Pill muted>{r.loss != null ? fmtGap(r.loss) : DASH}</Pill>

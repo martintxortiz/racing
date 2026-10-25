@@ -13,11 +13,11 @@
   top: 0;
   z-index: 3;
   display: flex;
-  height: 22px;
+  height: var(--row);
   align-items: center;
   background: var(--panel);
   border-bottom: 1px solid var(--line);
-  font-size: 11px;
+  font-size: var(--fs-sm);
   color: var(--text-3);
   font-variant-numeric: tabular-nums;
 }
@@ -25,7 +25,7 @@
   position: relative;
   display: flex;
   align-items: center;
-  height: var(--row-dense);
+  height: var(--row);
   cursor: pointer;
 }
 /* Axis and grid come first, so the second row is the fourth child. */
@@ -45,7 +45,7 @@
   flex: none;
   box-sizing: border-box;
   width: var(--who);
-  padding-left: 6px;
+  padding-left: 8px;
 }
 .track,
 .ticks {
@@ -68,7 +68,7 @@
 }
 .gridline {
   position: absolute;
-  top: 22px;
+  top: var(--row);
   bottom: 0;
   width: 1px;
   background: var(--line);
@@ -76,18 +76,18 @@
 .tick {
   position: absolute;
   top: 0;
-  line-height: 22px;
+  line-height: var(--row);
   transform: translateX(-50%);
 }
 .bar {
   position: absolute;
-  top: calc((var(--row-dense) - 12px) / 2);
-  height: 12px;
-  border-radius: 2px;
+  top: calc((var(--row) - var(--pill-h)) / 2);
+  height: var(--pill-h);
+  border-radius: var(--pill-r);
   display: flex;
   align-items: center;
-  padding: 0 4px;
-  font-size: 9.5px;
+  padding: 0 5px;
+  font-size: var(--fs-xs);
   font-weight: 600;
   line-height: 1;
   overflow: hidden;
@@ -97,7 +97,7 @@
 }
 .now {
   position: absolute;
-  top: 22px;
+  top: var(--row);
   bottom: 0;
   width: 1px;
   background: var(--text-2);

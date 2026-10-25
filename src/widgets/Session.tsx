@@ -67,43 +67,74 @@ function TrackWeather({ session, width }: WidgetProps) {
     lapText = before ? "Before start" : after && segIdx === session.segments.length - 1 ? `${seg.label} finished` : seg.label !== session.sessionName ? seg.label : null;
   }
 
+  // Each line keeps what fits at full size, dropping the least useful items first.
+  const avail = width - 2 * PAD;
+  const fullTitle = `${session.title || session.circuit} · ${session.sessionName}`;
+  const shortTitle = `${(session.title || session.circuit).replace(/ Grand Prix$/, " GP")} · ${session.sessionName}`;
+  const clockText = before ? tod.text : fmtClock(elapsed);
+  const shortLap = lapText?.replace(/ \(\d+ left\)$/, "") ?? null;
+  const pillW = textW(statusText) + 12;
+  const line1 = (title: string | null, lapT: string | null) => (title ? textW(title, 600) + GAP : 0) + textW(clockText) + GAP + (lapT ? textW(lapT) + GAP : 0) + pillW;
+  const options: [string | null, string | null][] = [
+    [fullTitle, lapText],
+    [shortTitle, lapText],
+    [shortTitle, shortLap],
+    [session.sessionName, shortLap],
+    [null, shortLap],
+  ];
+  const [title, lapShown] = options.find(([ti, la]) => line1(ti, la) <= avail) ?? options[options.length - 1];
+
+  const items = [
+    ...WX.map((x) => {
+      const v = wv(x.key);
+      return { key: x.key, label: x.label, value: Number.isFinite(v) ? x.fmt(v) : DASH };
+    }),
+    { key: "wind", label: "Wind", value: `${Number.isFinite(windS) ? `${windS.toFixed(1)} m/s` : DASH}${Number.isFinite(windD) ? ` ${compass(windD)}` : ""}` },
+  ];
+  const rainW = Number.isFinite(rain) ? textW("Wet") + 12 + GAP : 0;
+  const DROP2 = ["pressure", "humidity", "wind"];
+  let shown2 = items;
+  for (const k of DROP2) {
+    if (shown2.reduce((a, x) => a + textW(`${x.label} ${x.value}`) + GAP, 0) + rainW <= avail) break;
+    shown2 = shown2.filter((x) => x.key !== k);
+  }
+
   return (
     <div className={css.wrap} data-testid="track-weather">
       <div className={css.line}>
-        <span className={css.title} title={session.title}>
-          {session.title || session.circuit} · {session.sessionName}
-        </span>
+        {title && (
+          <span className={css.title} title={fullTitle}>
+            {title}
+          </span>
+        )}
         <span className={css.value} title={`${tod.text} ${tod.zone}`}>
-          {before ? tod.text : fmtClock(elapsed)}
+          {clockText}
         </span>
-        {lapText && <span className={css.value}>{lapText}</span>}
+        {lapShown && <span className={css.value}>{lapShown}</span>}
         <span className={css.grow} />
         <span data-track-state={status.state}>
           <Pill tone={STATUS_TONE[status.state]}>{statusText}</Pill>
         </span>
       </div>
       <div className={css.line}>
-        {WX.filter((x) => width >= 540 || x.key !== "pressure").map((x) => {
-          const v = wv(x.key);
-          return (
-            <span key={x.key} className={css.item}>
-              <span className={css.label}>{x.label}</span>
-              <span className={css.value}>{Number.isFinite(v) ? x.fmt(v) : DASH}</span>
-            </span>
-          );
-        })}
-        <span className={css.item}>
-          <span className={css.label}>Wind</span>
-          <span className={css.value}>
-            {Number.isFinite(windS) ? `${windS.toFixed(1)} m/s` : DASH}
-            {Number.isFinite(windD) ? ` ${compass(windD)}` : ""}
+        {shown2.map((x) => (
+          <span key={x.key} className={css.item}>
+            <span className={css.label}>{x.label}</span>
+            <span className={css.value}>{x.value}</span>
           </span>
-        </span>
+        ))}
         <span className={css.grow} />
         {Number.isFinite(rain) && <Pill tone={rain > 0 ? "info" : "neutral"}>{rain > 0 ? "Wet" : "Dry"}</Pill>}
       </div>
     </div>
   );
+}
+
+const PAD = 10;
+const GAP = 14;
+/** Rough width of 11 px IBM Plex Sans text; only used to decide what fits. */
+function textW(s: string, weight = 400): number {
+  return s.length * (weight >= 600 ? 6.5 : 6.1);
 }
 
 export const sessionWidget: WidgetDef = {

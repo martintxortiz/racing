@@ -17,11 +17,11 @@
   border: 0;
   outline: none;
   background: none;
-  font-size: 13px;
+  font-size: var(--fs-md);
 }
 .group {
   margin: 12px 0 4px;
-  font-size: 11.5px;
+  font-size: var(--fs-sm);
   color: var(--text-3);
 }
 .grid {
@@ -49,21 +49,21 @@
   cursor: default;
 }
 .name {
-  font-size: 13px;
+  font-size: var(--fs-md);
   font-weight: 500;
   color: var(--text);
 }
 .desc {
-  font-size: 12px;
+  font-size: var(--fs-sm);
   color: var(--text-2);
   line-height: 1.4;
 }
 .why {
-  font-size: 11.5px;
+  font-size: var(--fs-sm);
   color: var(--warn-fg);
 }
 .where {
   margin-top: 4px;
   color: var(--text-3);
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }

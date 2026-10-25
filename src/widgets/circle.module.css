@@ -5,25 +5,29 @@
 }
 .corner {
   fill: var(--text-3);
-  font-size: 9px;
+  font-size: var(--fs-xs);
   font-family: var(--sans);
 }
 .lap {
   fill: var(--text);
-  font-size: 18px;
+  font-size: var(--fs-xl);
   font-weight: 600;
   font-family: var(--sans);
 }
 .clock {
   fill: var(--text-2);
-  font-size: 12px;
+  font-size: var(--fs-sm);
   font-family: var(--sans);
   font-variant-numeric: tabular-nums;
 }
 .code {
-  font-size: 9.5px;
-  font-weight: 600;
+  font-size: var(--fs-sm);
   font-family: var(--sans);
+  /* Halo like the Track map's labels, so a code stays readable over the ring. */
+  paint-order: stroke;
+  stroke: var(--panel);
+  stroke-width: 3px;
+  stroke-linejoin: round;
 }
 .car {
   cursor: pointer;
@@ -35,5 +39,5 @@
   align-items: center;
   justify-content: center;
   color: var(--text-3);
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }

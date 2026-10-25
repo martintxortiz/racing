@@ -24,7 +24,7 @@ export interface CompareConfig {
 const LEFT = 48;
 const RIGHT = 14;
 const TOP = 8;
-const LABEL = 18;
+const LABEL = 16;
 const XAXIS = 22;
 const GAP = 6;
 
@@ -167,9 +167,9 @@ function CompareTraces({ session, config, setConfig, width, height }: WidgetProp
   const header = (
     <HeaderSlot>
       <span className={css.head}>
-        {ea && a && <span><span className={css.ka}>{ea.code}</span> L{a.lap.n} <span className="num">{fmtLap(a.lap.time)}</span></span>}
-        {eb && b && <span><span className={css.kb}>{eb.code}</span> L{b.lap.n} <span className="num">{fmtLap(b.lap.time)}</span></span>}
-        {sel.auto && <span>top two, right-click a driver to choose</span>}
+        {ea && a && <span><span className={css.ka}>{ea.code}</span> L{a.lap.n}{width >= 340 && <> <span className="num">{fmtLap(a.lap.time)}</span></>}</span>}
+        {eb && b && <span><span className={css.kb}>{eb.code}</span> L{b.lap.n}{width >= 340 && <> <span className="num">{fmtLap(b.lap.time)}</span></>}</span>}
+        {sel.auto && width >= 560 && <span title="Right-click a driver to choose">top two</span>}
       </span>
     </HeaderSlot>
   );
@@ -227,7 +227,7 @@ function CompareTraces({ session, config, setConfig, width, height }: WidgetProp
               <>
                 <b>Δ {eb?.code} to {ea?.code} (s)</b>
                 <span className="num">{dv != null ? fmtSigned(dv, 3) : `${fmtSigned(endDelta, 3)} at the line`}</span>
-                <span>above zero: {ea?.code} ahead</span>
+                {width >= 480 && <span>above zero: {ea?.code} ahead</span>}
               </>
             ) : (
               <>
