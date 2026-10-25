@@ -20,6 +20,8 @@ import tcss from "./tower.module.css";
 
 export interface TowerConfig {
   hidden?: string[];
+  /** Opt-in columns the user switched on (off by default). */
+  shown?: string[];
   /** Live speed from telemetry (loads every car's telemetry). On by default. */
   liveSpeed?: boolean;
 }
@@ -38,13 +40,15 @@ interface Col {
   width: number;
   align?: "l" | "c";
   race?: boolean;
+  /** Off unless switched on from the Columns menu. */
+  optIn?: boolean;
   cell: (r: TimingRow, x: Extra) => Cell;
 }
 
 const toneOf = (m: "sb" | "pb" | "good" | "bad" | null | undefined): Tone => m ?? "none";
 
-/** Interval history at the car's last few lap crossings, newest last. */
-function trendSeries(s: SessionModel, id: string, t: number, n = 8): number[] {
+/** Gap to the car ahead at the car's last few lap crossings, newest last. */
+function trendSeries(s: SessionModel, id: string, t: number, n = 5): number[] {
   const laps = (s.lapsByEntity.get(id) ?? []).filter((l) => l.t1 != null && l.t1 <= t);
   const out: number[] = [];
   for (const l of laps.slice(-n)) {
@@ -56,8 +60,8 @@ function trendSeries(s: SessionModel, id: string, t: number, n = 8): number[] {
 
 function Spark({ v }: { v: number[] }) {
   if (v.length < 2) return <span className={css.muted}>{DASH}</span>;
-  const W = 44;
-  const H = 12;
+  const W = 48;
+  const H = 14;
   const lo = Math.min(...v);
   const hi = Math.max(...v);
   const span = Math.max(0.2, hi - lo);
@@ -66,7 +70,7 @@ function Spark({ v }: { v: number[] }) {
   const c = d <= -0.1 ? "var(--good-fg)" : d >= 0.1 ? "var(--bad-fg)" : "var(--text-3)";
   const [lx, ly] = pts.split(" ").pop()!.split(",");
   return (
-    <svg width={W} height={H} className={tcss.spark} aria-label="Interval trend">
+    <svg width={W} height={H} className={tcss.spark} aria-label="Gap ahead over the last 5 laps">
       <polyline points={pts} fill="none" stroke="var(--text-3)" strokeWidth={1} />
       <circle cx={lx} cy={ly} r={1.8} fill={c} />
     </svg>
@@ -75,7 +79,7 @@ function Spark({ v }: { v: number[] }) {
 
 const COLS: Col[] = [
   { id: "pos", label: "P", title: "Position", width: 26, cell: (r) => ({ text: r.pos ?? DASH }) },
-  { id: "driver", label: "Driver", title: "Driver, on the team colour", width: 52, align: "l", cell: () => ({ text: null }) },
+  { id: "driver", label: "Driver", title: "Driver, on the team colour", width: 50, align: "l", cell: () => ({ text: null }) },
   {
     id: "delta",
     label: "+/\u2212",
@@ -98,7 +102,7 @@ const COLS: Col[] = [
       id: `s${i + 1}`,
       label: `S${i + 1}`,
       title: `Sector ${i + 1}: live on the lap in progress, otherwise the last lap (grey)`,
-      width: 54,
+      width: 52,
       cell: (r, x) => {
         const v = sectorCell(i)(r, x.ctx);
         return { text: v.text, tone: toneOf(v.mark), muted: v.muted || v.missing };
@@ -109,7 +113,7 @@ const COLS: Col[] = [
     id: "last",
     label: "Last lap",
     title: "Last completed lap",
-    width: 70,
+    width: 68,
     cell: (r, x) => {
       if (!r.last || r.last.time == null) return { text: r.last?.pitIn ? "In lap" : DASH, muted: true };
       const pe = x.ctx.timing.bests.byEntity.get(r.entity.id);
@@ -120,14 +124,14 @@ const COLS: Col[] = [
     id: "best",
     label: "Best lap",
     title: "Personal best lap",
-    width: 70,
+    width: 68,
     cell: (r, x) => ({ text: fmtLap(r.best), tone: r.best != null && x.ctx.timing.bests.lap != null && r.best <= x.ctx.timing.bests.lap + 1e-9 ? "sb" : "none", muted: r.best == null }),
   },
   {
     id: "dlap",
     label: "Delta",
     title: "Last lap minus personal best",
-    width: 58,
+    width: 54,
     cell: (r) => {
       if (r.last?.time == null || r.best == null || !r.last.valid) return { text: DASH, muted: true };
       const d = r.last.time - r.best;
@@ -138,7 +142,7 @@ const COLS: Col[] = [
     id: "gap",
     label: "Gap to leader",
     title: "Gap to the leader",
-    width: 88,
+    width: 84,
     cell: (r, x) => {
       if (x.ctx.kind === "race" && r.lapsDown) return { text: `+${r.lapsDown} lap${r.lapsDown > 1 ? "s" : ""}` };
       if (r.pos === 1) return { text: x.ctx.kind === "race" ? "Leader" : DASH, muted: true };
@@ -149,14 +153,14 @@ const COLS: Col[] = [
     id: "int",
     label: "Gap ahead",
     title: "Interval to the car ahead. Race: green closing, red losing over the last lap",
-    width: 72,
+    width: 70,
     cell: (r, x) => {
       if (r.pos === 1 || r.interval == null) return { text: DASH, muted: true };
       const tone: Tone = x.ctx.kind === "race" && r.trend != null ? (r.trend <= -0.25 ? "good" : r.trend >= 0.25 ? "bad" : "none") : "none";
       return { text: fmtGap(r.interval), tone };
     },
   },
-  { id: "trend", label: "Trend", title: "Gap ahead at the last 8 lap crossings", width: 56, align: "c", race: true, cell: (r, x) => ({ text: <Spark v={x.trend.get(r.entity.id) ?? []} /> }) },
+  { id: "trend", label: "Last 5 laps trend", title: "Gap to the car ahead at each of the last 5 lap crossings. The dot is green when it shrank on the last lap, red when it grew", width: 100, align: "c", race: true, optIn: true, cell: (r, x) => ({ text: <Spark v={x.trend.get(r.entity.id) ?? []} /> }) },
   {
     id: "spd",
     label: "SPD",
@@ -181,7 +185,45 @@ const COLS: Col[] = [
 ];
 
 /** Dropped first when the panel is narrow. */
-const DROP = ["trend", "dlap", "drs", "spd", "s3", "s2", "s1", "age", "pit", "delta", "best"];
+const DROP = ["trend", "dlap", "drs", "spd", "s3", "s2", "s1", "age", "pit", "delta", "best", "int"];
+/** Left and right cell padding of the table, outside the columns. */
+const EDGE = 16;
+
+/**
+ * Keep columns at their natural width and drop the lowest-priority ones until the rest fit.
+ * Cells never shrink below their width; spare width is shared out by the fixed table layout.
+ */
+export function fitColumns<C extends { id: string; width: number }>(all: C[], width: number): { cols: C[]; dropped: C[] } {
+  let cols = all;
+  const dropped: C[] = [];
+  let total = EDGE + cols.reduce((a, c) => a + c.width, 0);
+  for (const id of DROP) {
+    if (total <= width) break;
+    const c = cols.find((x) => x.id === id);
+    if (!c) continue;
+    cols = cols.filter((x) => x !== c);
+    dropped.push(c);
+    total -= c.width;
+  }
+  return { cols, dropped };
+}
+
+function columnToggles(config: TowerConfig, setConfig: (c: Partial<TowerConfig>) => void, race: boolean): MenuItem[] {
+  const hidden = new Set(config.hidden ?? []);
+  const shown = new Set(config.shown ?? []);
+  return COLS.filter((c) => c.id !== "pos" && c.id !== "driver" && (!c.race || race)).map((c) => {
+    const checked = c.optIn ? shown.has(c.id) : !hidden.has(c.id);
+    return {
+      id: `col:${c.id}`,
+      label: c.label,
+      checked,
+      run: () =>
+        c.optIn
+          ? setConfig({ shown: checked ? [...shown].filter((x) => x !== c.id) : [...shown, c.id] })
+          : setConfig({ hidden: checked ? [...hidden, c.id] : [...hidden].filter((x) => x !== c.id) }),
+    };
+  });
+}
 
 function TowerTable({ config, setConfig, session, width }: WidgetProps<TowerConfig>) {
   const t = useT(6);
@@ -215,36 +257,28 @@ function TowerTable({ config, setConfig, session, width }: WidgetProps<TowerConf
     }
   }
   const tKey = Math.floor(t);
+  const wantTrend = race && (config.shown ?? []).includes("trend");
   const trend = useMemo(() => {
     const m = new Map<string, number[]>();
-    if (race) for (const e of session.entities) m.set(e.id, trendSeries(session, e.id, tKey));
+    if (wantTrend) for (const e of session.entities) m.set(e.id, trendSeries(session, e.id, tKey));
     return m;
-  }, [session, race, tKey]);
+  }, [session, wantTrend, tKey]);
 
   const hidden = new Set(config.hidden ?? []);
-  let cols = COLS.filter((c) => (!c.race || race) && !hidden.has(c.id) && (c.id !== "drs" || hasDrs));
-  let total = 12 + cols.reduce((a, c) => a + c.width, 0);
-  for (const id of DROP) {
-    if (total <= width) break;
-    const c = cols.find((x) => x.id === id);
-    if (!c) continue;
-    cols = cols.filter((x) => x !== c);
-    total -= c.width;
-  }
+  const shown = new Set(config.shown ?? []);
+  const on = (c: Col) => (c.optIn ? shown.has(c.id) : !hidden.has(c.id));
+  const { cols, dropped } = fitColumns(
+    COLS.filter((c) => (!c.race || race) && on(c) && (c.id !== "drs" || hasDrs)),
+    width,
+  );
   const extra: Extra = { ctx: { timing, kind: session.kind, session, t, startPos }, speed, drs, trend };
 
   const columnItems = (): MenuItem[] => [
-    ...COLS.filter((c) => c.id !== "pos" && c.id !== "driver" && (!c.race || race)).map((c) => ({
-      id: `col:${c.id}`,
-      label: c.label,
-      checked: !hidden.has(c.id),
-      disabled: c.id === "drs" && !hasDrs,
-      hint: c.id === "drs" && !hasDrs ? "no data" : undefined,
-      run: () => setConfig({ hidden: hidden.has(c.id) ? [...hidden].filter((x) => x !== c.id) : [...hidden, c.id] }),
-    })),
+    ...columnToggles(config, setConfig, race).map((m) => ("id" in m && m.id === "col:drs" && !hasDrs ? { ...m, disabled: true, hint: "no data" } : m)),
     sep,
-    { id: "reset", label: "Reset columns", run: () => setConfig({ hidden: [] }) },
+    { id: "reset", label: "Reset columns", run: () => setConfig({ hidden: [], shown: [] }) },
   ];
+  const hide = (c: Col) => setConfig(c.optIn ? { shown: [...shown].filter((x) => x !== c.id) } : { hidden: [...hidden, c.id] });
   const menu = (): MenuItem[] => [
     { kind: "sub", id: "columns", label: "Columns", items: columnItems() },
     { id: "live-speed", label: "Live speed from telemetry", checked: live, run: () => setConfig({ liveSpeed: !live }) },
@@ -253,7 +287,7 @@ function TowerTable({ config, setConfig, session, width }: WidgetProps<TowerConf
     openMenu(
       e,
       [
-        ...(col && col.id !== "pos" && col.id !== "driver" ? [{ id: "hide", label: `Hide ${col.label}`, run: () => setConfig({ hidden: [...hidden, col.id] }) } as MenuItem, sep] : []),
+        ...(col && col.id !== "pos" && col.id !== "driver" ? [{ id: "hide", label: `Hide ${col.label}`, run: () => hide(col) } as MenuItem, sep] : []),
         ...menu(),
         sep,
         { kind: "sub", id: "panel", label: "Panel", items: panel.panelMenu() },
@@ -266,13 +300,21 @@ function TowerTable({ config, setConfig, session, width }: WidgetProps<TowerConf
       <HeaderSlot>
         {race && <span className="num">Lap {Math.min(timing.leaderLaps + 1, session.totalLaps ?? Infinity)}{session.totalLaps ? `/${session.totalLaps}` : ""}</span>}
         {!race && session.segments[timing.segment] && <span>{session.segments[timing.segment].label}</span>}
+        {dropped.length > 0 && (
+          <button
+            className={tcss.hiddenNote}
+            title={`Hidden to fit: ${dropped.map((c) => c.label).join(", ")}. Widen the panel to show them.`}
+            onClick={(e) => openMenu(e, columnItems(), "Columns")}
+          >
+            {dropped.length} hidden
+          </button>
+        )}
       </HeaderSlot>
-      <table className={`${css.table} ${css.dense} ${tcss.tower} num`} data-testid="ranking-tower">
+      <table className={`${css.table} ${tcss.tower} num`} data-testid="ranking-tower">
         <colgroup>
           {cols.map((c) => (
             <col key={c.id} style={{ width: c.width }} />
           ))}
-          <col />
         </colgroup>
         <thead>
           <tr onContextMenu={(e) => headerMenu(e)}>
@@ -281,7 +323,6 @@ function TowerTable({ config, setConfig, session, width }: WidgetProps<TowerConf
                 {c.label}
               </th>
             ))}
-            <th className={tcss.fill} />
           </tr>
         </thead>
         <tbody>
@@ -302,7 +343,7 @@ function TowerTable({ config, setConfig, session, width }: WidgetProps<TowerConf
                   const text = td?.innerText.trim();
                   openEntityMenu(e, r.entity.id, [
                     ...(text && col && col.id !== "driver" ? [{ id: "copy", label: `Copy ${col.label}`, hint: text.slice(0, 12), run: () => navigator.clipboard?.writeText(text) } as MenuItem] : []),
-                    ...(col && col.id !== "pos" && col.id !== "driver" ? [{ id: "hide-col", label: `Hide ${col.label}`, run: () => setConfig({ hidden: [...hidden, col.id] }) } as MenuItem] : []),
+                    ...(col && col.id !== "pos" && col.id !== "driver" ? [{ id: "hide-col", label: `Hide ${col.label}`, run: () => hide(col) } as MenuItem] : []),
                     { kind: "sub", id: "columns", label: "Columns", items: columnItems() },
                     { kind: "sub", id: "panel", label: "Panel", items: panel.panelMenu() },
                   ]);
@@ -331,7 +372,6 @@ function TowerTable({ config, setConfig, session, width }: WidgetProps<TowerConf
                     </Pill>
                   </td>
                 )}
-                <td className={tcss.fill} />
               </tr>
             );
           })}
@@ -345,25 +385,12 @@ function TowerTable({ config, setConfig, session, width }: WidgetProps<TowerConf
 export const towerWidget: WidgetDef<TowerConfig> = {
   type: "tower",
   name: "Ranking tower",
-  description: "Running order with tyre, pit stops, sectors, laps, gaps, trend and speed",
+  description: "Running order with tyre, pit stops, sectors, laps, gaps and speed",
   group: "Timing",
   unavailable: (s) => (s.entities.length ? null : "This file has no entity list or lap timing."),
   Component: TowerTable,
-  menu: ({ config, setConfig, session }) => {
-    const hidden = new Set(config.hidden ?? []);
-    return [
-      {
-        kind: "sub",
-        id: "columns",
-        label: "Columns",
-        items: COLS.filter((c) => c.id !== "pos" && c.id !== "driver" && (!c.race || session.kind === "race")).map((c) => ({
-          id: `col:${c.id}`,
-          label: c.label,
-          checked: !hidden.has(c.id),
-          run: () => setConfig({ hidden: hidden.has(c.id) ? [...hidden].filter((x) => x !== c.id) : [...hidden, c.id] }),
-        })),
-      },
-      { id: "live-speed", label: "Live speed from telemetry", checked: config.liveSpeed !== false, run: () => setConfig({ liveSpeed: config.liveSpeed === false }) },
-    ];
-  },
+  menu: ({ config, setConfig, session }) => [
+    { kind: "sub", id: "columns", label: "Columns", items: columnToggles(config, setConfig, session.kind === "race") },
+    { id: "live-speed", label: "Live speed from telemetry", checked: config.liveSpeed !== false, run: () => setConfig({ liveSpeed: config.liveSpeed === false }) },
+  ],
 };

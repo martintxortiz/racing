@@ -7,13 +7,24 @@
 }
 .tower td:first-child,
 .tower th:first-child {
-  padding-left: 6px;
+  padding-left: 8px;
 }
 .c {
   text-align: center !important;
 }
-.fill {
-  padding: 0 !important;
+.hiddenNote {
+  padding: 0 6px;
+  height: var(--pill-h);
+  border: 0;
+  border-radius: var(--pill-r);
+  background: var(--neutral-bg);
+  color: var(--text-2);
+  font: inherit;
+  font-size: var(--fs-sm);
+  cursor: pointer;
+}
+.hiddenNote:hover {
+  color: var(--text);
 }
 .pitCell {
   text-align: left !important;
