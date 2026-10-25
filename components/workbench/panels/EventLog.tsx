@@ -83,7 +83,7 @@ function EventLog({ id, panel }: PanelProps) {
       <colgroup>
         <col style={{ width: 72 }} />
         {showCat ? <col style={{ width: 76 }} /> : null}
-        <col style={{ width: 70 }} />
+        <col style={{ width: 86 }} />
         <col style={{ width: 40 }} />
         <col />
       </colgroup>
