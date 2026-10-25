@@ -198,6 +198,8 @@ function Trace({ panel, setConfig }: PanelProps) {
         axisLabel: {
           ...ax.axisLabel,
           fontSize: 11,
+          // Adjacent grids share a boundary; drop the top label so values never collide.
+          showMaxLabel: false,
           formatter: (v: number) => (g.ch === "rpm" ? `${Math.round(v / 1000)}k` : g.ch === "delta" ? fmtSigned(v, 1) : `${v}`),
         },
       })),

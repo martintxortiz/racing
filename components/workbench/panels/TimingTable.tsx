@@ -10,14 +10,14 @@ import { openMenu, setA, setB, swapAB, useWB } from "../state";
 import { Empty, Readout, Skeleton, useThrottledT, useTopicState, type PanelDef, type PanelProps } from "./common";
 
 const COLS: Record<string, { label: string; num?: boolean; width: number }> = {
-  pos: { label: "Pos", num: true, width: 28 },
+  pos: { label: "Pos", num: true, width: 26 },
   driver: { label: "Driver", width: 58 },
-  tyre: { label: "Tyre", width: 36 },
+  tyre: { label: "Tyre", width: 40 },
   best: { label: "Best", num: true, width: 60 },
-  gap: { label: "Gap", num: true, width: 48 },
-  s1: { label: "S1", num: true, width: 50 },
-  s2: { label: "S2", num: true, width: 50 },
-  s3: { label: "S3", num: true, width: 50 },
+  gap: { label: "Gap", num: true, width: 50 },
+  s1: { label: "S1", num: true, width: 48 },
+  s2: { label: "S2", num: true, width: 48 },
+  s3: { label: "S3", num: true, width: 48 },
   last: { label: "Last", num: true, width: 58 },
   laps: { label: "Laps", num: true, width: 30 },
 };
