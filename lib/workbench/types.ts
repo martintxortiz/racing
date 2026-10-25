@@ -1,0 +1,114 @@
+// Generic workbench model (spec: "Core concepts and data model").
+// Nothing in here is F1-specific; adapters map native topics onto it.
+
+export type EntityId = string;
+/** Seconds relative to session.startNs (float64). */
+export type Sec = number;
+
+export type TopicKind = "static" | "snapshot" | "stream" | "event";
+
+export interface TopicInfo {
+  name: string;
+  schema: string;
+  kind: TopicKind;
+  entity?: EntityId;
+  count: number;
+  rateHz?: number;
+}
+
+export interface Entity {
+  id: EntityId;
+  number?: number;
+  code: string;
+  name: string;
+  team?: string;
+  colour: string;
+}
+
+export interface SessionMeta {
+  title: string;
+  series: string;
+  event: string;
+  venue: string;
+  kind: "practice" | "qualifying" | "race" | "test";
+  /** ns since epoch, as a decimal string (bigint is not structured-clone friendly everywhere). */
+  startNs: string;
+  /** Scrub window in Sec: session start − 5 min … end + 10 min. */
+  window: [Sec, Sec];
+  /** Official session start/end in Sec. */
+  session: [Sec, Sec];
+  /** Track local offset from UTC in seconds. */
+  utcOffsetSec: number;
+  adapter: string;
+  topics: TopicInfo[];
+  notes: string[];
+}
+
+export interface Segment {
+  id: string;
+  t0: Sec;
+  t1: Sec | null;
+}
+
+export interface Lap {
+  entity: EntityId;
+  n: number;
+  t0: Sec;
+  t1: Sec | null;
+  time: Sec | null;
+  sectors: [Sec | null, Sec | null, Sec | null];
+  outLap: boolean;
+  deleted: boolean;
+  deletedReason?: string;
+  segment: string | null;
+  timed: boolean;
+}
+
+export type LapRef = "best" | "cursor" | { n: number };
+
+export interface Selection {
+  a: EntityId | null;
+  b: EntityId | null;
+  lapA: LapRef;
+  lapB: LapRef;
+  hoverEntity: EntityId | null;
+  hoverDistance: number | null;
+}
+
+export interface Cursor {
+  t: Sec;
+  playing: boolean;
+  speed: number;
+}
+
+/** Messages a stream topic keeps as typed columns; everything else keeps rows. */
+export interface StreamBatch {
+  topic: string;
+  t: Float64Array;
+  cols: Record<string, Float32Array>;
+}
+
+export interface RowBatch {
+  topic: string;
+  t: Float64Array;
+  rows: Record<string, unknown>[];
+}
+
+export type WorkerRequest =
+  | { type: "open"; source: { kind: "url"; url: string } | { kind: "file"; file: File } };
+
+export type WorkerMessage =
+  | { type: "summary"; session: SessionMeta }
+  | { type: "progress"; bytes: number; total: number; phase: string }
+  | { type: "append"; streams: StreamBatch[]; rows: RowBatch[] }
+  | { type: "done"; ms: number }
+  | { type: "error"; message: string };
+
+/** A lap deletion parsed from race control. Matched by lap time, then offence time, then lap number. */
+export interface LapFlag {
+  entity: EntityId;
+  reason: string;
+  time?: number;
+  at?: Sec;
+  lap?: number;
+}
