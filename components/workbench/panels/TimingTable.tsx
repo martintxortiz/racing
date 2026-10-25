@@ -26,8 +26,8 @@ const META: Record<string, { label: string; title: string; num?: boolean; width:
   crew: { label: "In car", title: "Driver in the car (driver swaps)", width: 90 },
   tyre: { label: "Tyre", title: "Compound and age", width: 44 },
   best: { label: "Best", title: "Best lap", num: true, width: 64 },
-  gap: { label: "Gap", title: "Gap", num: true, width: 56 },
-  int: { label: "Int", title: "Interval to the car ahead", num: true, width: 52 },
+  gap: { label: "Gap", title: "Gap", num: true, width: 64 },
+  int: { label: "Int", title: "Interval to the car ahead", num: true, width: 60 },
   sectors: { label: "Sectors", title: "Sector times", num: true, width: 48 },
   last: { label: "Last", title: "Last lap", num: true, width: 64 },
   laps: { label: "Laps", title: "Completed laps", num: true, width: 34 },
@@ -284,7 +284,7 @@ function TimingTable({ id, panel }: PanelProps) {
                 onClick={() => patch(id, { sort: nextSort(sort, col.key) })}
                 onContextMenu={(e) => {
                   e.preventDefault();
-                  openPanelMenu(id, e.clientX, e.clientY, () => columnMenu(id, col.key, col.base, nSec, has));
+                  openPanelMenu(id, e.clientX, e.clientY, () => columnMenu(id, col.key, col.base));
                 }}
               >
                 {col.sector !== undefined ? `S${col.sector + 1}` : META[col.base].label}
@@ -300,7 +300,7 @@ function TimingTable({ id, panel }: PanelProps) {
 }
 
 /** Header right-click: sort, hide, move and the full column chooser. */
-export function columnMenu(id: string, key: string, base: string, nSec: number, has: Record<string, boolean>): MenuItem[] {
+export function columnMenu(id: string, key: string, base: string): MenuItem[] {
   const cols = cfg<string[]>(id, "columns", DEFAULT_COLUMNS);
   const sort = cfg<SortState | null>(id, "sort", null);
   const label = key.startsWith("s") && base === "sectors" ? `Sector ${key.slice(1)}` : META[base].title;
@@ -314,7 +314,6 @@ export function columnMenu(id: string, key: string, base: string, nSec: number, 
     { label: base === "sectors" ? "Hide sector columns" : "Hide column", disabled: cols.length <= 1, onSelect: () => patch(id, { columns: toggleColumn(cols, base, all) }) },
     { label: "Move left", disabled: cols.indexOf(base) <= 0, onSelect: () => patch(id, { columns: moveColumn(cols, base, -1) }) },
     { label: "Move right", disabled: cols.indexOf(base) >= cols.length - 1, onSelect: () => patch(id, { columns: moveColumn(cols, base, 1) }) },
-    { label: "Columns", submenu: () => columnChooser(id, nSec, has) },
   ];
 }
 

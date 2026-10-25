@@ -129,6 +129,8 @@
 
 /* timing table */
 .wb-timing { table-layout: fixed; outline: none; font-size: var(--pw-fs-sm); }
+/* Shift+click compares; do not let it select text. */
+.wb-timing tbody, .wb-stints { user-select: none; }
 .wb-timing th, .wb-timing td { padding: 0 4px; }
 .wb-timing th:first-child, .wb-timing td:first-child { padding-left: 8px; }
 .wb-timing th:last-child, .wb-timing td:last-child { padding-right: 8px; }

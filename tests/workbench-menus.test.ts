@@ -78,7 +78,7 @@ describe("panel context menu", () => {
 
   it("column header menu sorts, hides and moves columns", () => {
     const [id] = panelsOfType("timing-table")[0];
-    const menu = () => columnMenu(id, "best", "best", 3, {});
+    const menu = () => columnMenu(id, "best", "best");
     find(menu(), "Sort descending").onSelect!();
     expect(useWB.getState().layout.panels[id].config.sort).toEqual({ key: "best", dir: "desc" });
     find(menu(), "Move left").onSelect!();
