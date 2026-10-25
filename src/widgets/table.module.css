@@ -1,0 +1,170 @@
+.scroll {
+  position: absolute;
+  inset: 0;
+  overflow: auto;
+}
+.table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 12px;
+  table-layout: auto;
+}
+.table th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  height: 24px;
+  padding: 0 8px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+  color: var(--text-3);
+  font-weight: 500;
+  font-size: 11.5px;
+  text-align: right;
+  white-space: nowrap;
+  cursor: context-menu;
+}
+.table th.l {
+  text-align: left;
+}
+.table td {
+  height: var(--row);
+  padding: 0 8px;
+  text-align: right;
+  white-space: nowrap;
+  color: var(--text);
+  border-bottom: 1px solid transparent;
+}
+.table th:last-child,
+.table td:last-child {
+  padding-right: 12px;
+}
+.table td.l {
+  text-align: left;
+}
+.table tbody tr:nth-child(even) td {
+  background: var(--zebra);
+}
+.table tbody tr {
+  cursor: pointer;
+}
+.table tbody tr:hover td {
+  background: var(--hover);
+}
+.table tbody tr[data-sel="a"] td {
+  background: var(--a-tint);
+}
+.table tbody tr[data-sel="b"] td {
+  background: var(--b-tint);
+}
+.table td.cell-sb,
+.table tbody tr td.cell-sb {
+  background: var(--sb-bg);
+  color: var(--sb-fg);
+}
+.table td.cell-pb,
+.table tbody tr td.cell-pb {
+  background: var(--pb-bg);
+  color: var(--pb-fg);
+}
+.table td.cell-good,
+.table tbody tr td.cell-good {
+  background: var(--pb-bg);
+  color: var(--pb-fg);
+}
+.table td.cell-bad,
+.table tbody tr td.cell-bad {
+  background: var(--bad-bg);
+  color: var(--bad-fg);
+}
+.dim td {
+  color: var(--text-3) !important;
+}
+.muted {
+  color: var(--text-3);
+}
+/* No value in the feed: kept readable so it does not look like a rendering gap. */
+.missing {
+  color: var(--text-2);
+  font-size: 11px;
+}
+.driver {
+  padding: 0 !important;
+  width: 1%;
+}
+.driverFill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: calc(var(--row) - 4px);
+  margin: 2px 0;
+  padding: 0 8px;
+  border-radius: 2px;
+  font-weight: 600;
+  font-size: 11.5px;
+  min-width: 52px;
+}
+.driverNum {
+  font-weight: 400;
+  opacity: 0.78;
+  font-family: var(--mono);
+  font-size: 10.5px;
+}
+.sel {
+  width: 16px;
+  padding: 0 0 0 6px !important;
+  text-align: left !important;
+  font-size: 10.5px;
+  font-weight: 600;
+}
+.selA {
+  color: var(--a);
+}
+.selB {
+  color: var(--b);
+}
+.groupRow td {
+  height: 22px;
+  padding-top: 4px;
+  background: var(--panel) !important;
+  color: var(--text-3) !important;
+  font-size: 11px;
+  text-align: left !important;
+  border-bottom: 1px solid var(--line);
+  cursor: default;
+}
+.tyre {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.tyreDot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  box-sizing: border-box;
+}
+.live {
+  color: var(--text-3);
+}
+.state {
+  color: var(--text-2);
+  font-size: 11px;
+}
+.empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-3);
+  font-size: 12px;
+}
+.up {
+  color: var(--good-fg);
+}
+.down {
+  color: var(--bad-fg);
+}

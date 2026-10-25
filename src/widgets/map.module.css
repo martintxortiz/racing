@@ -1,0 +1,29 @@
+.wrap {
+  position: absolute;
+  inset: 0;
+}
+.canvas {
+  position: absolute;
+  inset: 0;
+  cursor: default;
+}
+.legend {
+  position: absolute;
+  left: 10px;
+  bottom: 8px;
+  display: flex;
+  gap: 12px;
+  font-size: 11.5px;
+  color: var(--text-2);
+  pointer-events: none;
+}
+.key {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.swatch {
+  width: 14px;
+  height: 3px;
+  border-radius: 1px;
+}

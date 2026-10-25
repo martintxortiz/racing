@@ -1,0 +1,147 @@
+.bar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: var(--transport);
+  padding: 0 12px 0 8px;
+  background: var(--panel);
+  border-top: 1px solid var(--line);
+  user-select: none;
+}
+.controls {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.btn {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--text-2);
+}
+.btn:hover {
+  background: var(--hover);
+  color: var(--text);
+}
+.play {
+  color: var(--text);
+}
+.speed {
+  height: 24px;
+  min-width: 44px;
+  padding: 0 6px;
+  border: 1px solid var(--line-2);
+  border-radius: 4px;
+  background: none;
+  font-size: 11.5px;
+  color: var(--text-2);
+}
+.speed:hover {
+  color: var(--text);
+}
+.clock {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 232px;
+  white-space: nowrap;
+}
+.seg {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+}
+.elapsed {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text);
+}
+.tod {
+  font-size: 11.5px;
+  color: var(--text-3);
+}
+.scrub {
+  position: relative;
+  flex: 1;
+  height: 32px;
+  cursor: pointer;
+  touch-action: none;
+}
+.track {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 18px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--line);
+}
+.band {
+  position: absolute;
+  top: 18px;
+  height: 4px;
+  background: var(--line-2);
+}
+.bandLabel {
+  position: absolute;
+  top: 2px;
+  height: 12px;
+  line-height: 12px;
+  font-size: 10.5px;
+  color: var(--text-3);
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.span {
+  position: absolute;
+  top: 18px;
+  height: 4px;
+  opacity: 0.9;
+  pointer-events: none;
+}
+.fill {
+  position: absolute;
+  left: 0;
+  top: 18px;
+  height: 4px;
+  border-radius: 2px 0 0 2px;
+  background: var(--accent);
+  opacity: 0.85;
+}
+.thumb {
+  position: absolute;
+  top: 13px;
+  width: 2px;
+  height: 14px;
+  margin-left: -1px;
+  background: var(--accent);
+  border-radius: 1px;
+  z-index: 2;
+}
+.hover {
+  position: absolute;
+  bottom: 30px;
+  transform: translateX(-50%);
+  padding: 2px 6px;
+  border-radius: 3px;
+  background: var(--text);
+  color: var(--panel);
+  font-size: 11px;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 10;
+}
+.end {
+  font-size: 11.5px;
+  color: var(--text-3);
+  white-space: nowrap;
+}

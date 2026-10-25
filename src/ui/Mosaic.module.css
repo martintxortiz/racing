@@ -1,0 +1,57 @@
+.mosaic {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+.slot {
+  position: absolute;
+}
+.splitter {
+  position: absolute;
+  z-index: 5;
+}
+.splitter[data-dir="row"] {
+  cursor: col-resize;
+}
+.splitter[data-dir="col"] {
+  cursor: row-resize;
+}
+.splitter::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  background: var(--accent);
+  opacity: 0;
+  transition: opacity 80ms;
+}
+.splitter[data-dir="row"]::after {
+  width: 2px;
+}
+.splitter[data-dir="col"]::after {
+  height: 2px;
+}
+.splitter:hover::after,
+.splitter[data-active="true"]::after {
+  opacity: 0.7;
+}
+.empty {
+  position: absolute;
+  inset: 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  border: 1px dashed var(--line-2);
+  border-radius: 4px;
+  color: var(--text-2);
+}
+.empty p {
+  margin: 0;
+  font-size: 13px;
+}
+.emptyHint {
+  color: var(--text-3);
+  font-size: 12px;
+}

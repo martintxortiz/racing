@@ -1,0 +1,110 @@
+.panel {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--panel);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.header {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: var(--header);
+  padding: 0 4px 0 12px;
+  border-bottom: 1px solid var(--line);
+  cursor: grab;
+  user-select: none;
+  min-width: 0;
+}
+.header:active {
+  cursor: grabbing;
+}
+.title {
+  flex: none;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 50%;
+}
+.slot {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  overflow: hidden;
+  font-size: 11.5px;
+  color: var(--text-2);
+  white-space: nowrap;
+}
+.tools {
+  flex: none;
+  display: flex;
+  align-items: center;
+  opacity: 0;
+  transition: opacity 80ms;
+}
+.panel:hover .tools,
+.tools:focus-within {
+  opacity: 1;
+}
+.tool {
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 3px;
+  background: none;
+  color: var(--text-2);
+}
+.tool:hover {
+  background: var(--hover);
+  color: var(--text);
+}
+.rename {
+  height: 22px;
+  width: 180px;
+  padding: 0 6px;
+  border: 1px solid var(--accent);
+  border-radius: 3px;
+  background: var(--panel);
+  font-size: 12px;
+  font-weight: 600;
+  outline: none;
+}
+.body {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+.dragging {
+  opacity: 0.55;
+}
+.drop {
+  position: absolute;
+  z-index: 20;
+  background: var(--accent-soft);
+  border: 2px solid var(--accent);
+  border-radius: 3px;
+  pointer-events: none;
+  opacity: 0.85;
+}
+.unavailable {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  color: var(--text-3);
+  font-size: 12px;
+  text-align: center;
+}
