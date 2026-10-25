@@ -6,8 +6,9 @@ import { useApp } from "@/state/app";
 import { useHover } from "@/state/cursor";
 import { openMenu } from "@/state/menu";
 import { openEntityMenu, selectEntity } from "@/ui/actions";
+import { ask } from "@/ui/Dialogs";
 import { usePanel } from "@/ui/panelContext";
-import { useChartTheme } from "@/charts/theme";
+import { FS, useChartTheme } from "@/charts/theme";
 import { poseTopic, useSelection, useT, useTiming, useTopics } from "./hooks";
 import { useSelectionTraces } from "./traces";
 import type { WidgetDef, WidgetProps } from "./types";
@@ -15,7 +16,8 @@ import css from "./map.module.css";
 
 export interface MapConfig {
   colourBy?: "none" | "dominance";
-  rotate?: number;
+  /** "auto" (default) turns the circuit to fill the panel; a number fixes the angle in degrees. */
+  rotate?: number | "auto";
   labels?: "all" | "selected" | "none";
   corners?: boolean;
 }
@@ -46,6 +48,65 @@ function makeXf(xs: Float64Array, ys: Float64Array, w: number, h: number, rot: n
   };
 }
 
+const FIT_PAD = 24;
+
+/** Scale at which the outline, turned by `deg`, fits a w x h box with padding. */
+function fitScale(xs: ArrayLike<number>, ys: ArrayLike<number>, deg: number, w: number, h: number, pad: number): number {
+  const r = (deg * Math.PI) / 180;
+  const cos = Math.cos(r);
+  const sin = Math.sin(r);
+  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+  for (let i = 0; i < xs.length; i++) {
+    const X = xs[i] * cos - ys[i] * sin;
+    const Y = xs[i] * sin + ys[i] * cos;
+    if (X < x0) x0 = X;
+    if (X > x1) x1 = X;
+    if (Y < y0) y0 = Y;
+    if (Y > y1) y1 = Y;
+  }
+  return Math.min((w - 2 * pad) / (x1 - x0 || 1), (h - 2 * pad) / (y1 - y0 || 1));
+}
+
+/**
+ * The rotation that draws the circuit largest in the panel: every whole degree in a half turn
+ * (a bounding box repeats every 180°), seeded with the outline's principal axis laid along the
+ * panel's long side. Near-ties (within 3 %) go to the angle closest to the file's own orientation,
+ * so the map does not flip between equally good fits as the panel is resized.
+ */
+export function bestRotation(xs: ArrayLike<number>, ys: ArrayLike<number>, w: number, h: number, pad = FIT_PAD): number {
+  if (xs.length < 3 || w <= 2 * pad || h <= 2 * pad) return 0;
+  // Score on at most ~400 points; the bounding box barely moves.
+  const stride = Math.max(1, Math.floor(xs.length / 400));
+  const sx: number[] = [];
+  const sy: number[] = [];
+  for (let i = 0; i < xs.length; i += stride) {
+    sx.push(xs[i]);
+    sy.push(ys[i]);
+  }
+  // Principal axis of the outline.
+  let mx = 0, my = 0;
+  for (let i = 0; i < sx.length; i++) { mx += sx[i]; my += sy[i]; }
+  mx /= sx.length; my /= sx.length;
+  let cxx = 0, cyy = 0, cxy = 0;
+  for (let i = 0; i < sx.length; i++) {
+    const dx = sx[i] - mx, dy = sy[i] - my;
+    cxx += dx * dx; cyy += dy * dy; cxy += dx * dy;
+  }
+  const axis = (0.5 * Math.atan2(2 * cxy, cxx - cyy) * 180) / Math.PI;
+  // Turning by -axis lays the long axis along x; add 90° for a tall panel.
+  const pca = -axis + (h > w ? 90 : 0);
+  const candidates = [pca];
+  for (let d = -90; d < 90; d++) candidates.push(d);
+  const norm = (d: number) => ((((d + 90) % 180) + 180) % 180) - 90;
+  let best = 0;
+  let bestK = -Infinity;
+  const ks = candidates.map((d) => ({ d: norm(d), k: fitScale(sx, sy, d, w, h, pad) }));
+  for (const c of ks) if (c.k > bestK) { bestK = c.k; best = c.d; }
+  // Prefer the smallest turn among near-ties.
+  for (const c of ks) if (c.k >= bestK * 0.97 && Math.abs(c.d) < Math.abs(best)) best = c.d;
+  return Math.round(best * 10) / 10;
+}
+
 function TrackMap({ session, config, setConfig, width, height }: WidgetProps<MapConfig>) {
   const t = useT(20);
   const th = useChartTheme();
@@ -62,7 +123,7 @@ function TrackMap({ session, config, setConfig, width, height }: WidgetProps<Map
   const [hoverCar, setHoverCar] = useState<string | null>(null);
   const colourBy = config.colourBy ?? "dominance";
   const labels = config.labels ?? "all";
-  const rot = config.rotate ?? 0;
+  const auto = config.rotate == null || config.rotate === "auto";
 
   const poseTopics = useMemo(() => session.entities.map((e) => poseTopic(e.id)).filter((x): x is string => !!x), [session]);
   const { cols } = useTopics(poseTopics);
@@ -70,7 +131,11 @@ function TrackMap({ session, config, setConfig, width, height }: WidgetProps<Map
   const dom = useMemo(() => (traces.a?.trace && traces.b?.trace ? dominance(traces.a.trace, traces.b.trace, 30) : null), [traces.a, traces.b]);
 
   const o = session.outline;
-  const xf = useMemo(() => (o ? makeXf(o.x, o.y, width, height, rot, 24) : null), [o, width, height, rot]);
+  // Re-fit on resize; the angle only depends on the panel's shape, so round it to keep the memo warm.
+  const shape = Math.round((width / Math.max(1, height)) * 50) / 50;
+  const autoRot = useMemo(() => (o && auto ? bestRotation(o.x, o.y, 1000 * shape, 1000) : 0), [o, auto, shape]);
+  const rot = auto ? autoRot : (config.rotate as number);
+  const xf = useMemo(() => (o ? makeXf(o.x, o.y, width, height, rot, FIT_PAD) : null), [o, width, height, rot]);
 
   useEffect(() => {
     const cv = canvas.current;
@@ -134,7 +199,7 @@ function TrackMap({ session, config, setConfig, width, height }: WidgetProps<Map
 
     // Corners.
     if (config.corners !== false && session.corners.length) {
-      g.font = `500 10px ${th.mono}`;
+      g.font = `500 ${FS.xs}px ${th.mono}`;
       g.textAlign = "center";
       g.textBaseline = "middle";
       g.fillStyle = th.text3;
@@ -146,6 +211,31 @@ function TrackMap({ session, config, setConfig, width, height }: WidgetProps<Map
         const L = Math.hypot(dx, dy) || 1;
         g.fillText(`${c.number}${c.letter ?? ""}`, X + (dx / L) * 14, Y + (dy / L) * 14);
       }
+    }
+
+    // North: the file's +y axis, turned with the map.
+    {
+      const r = (rot * Math.PI) / 180;
+      const ux = -Math.sin(r);
+      const uy = -Math.cos(r);
+      const cx = width - 20, cy = 22;
+      g.beginPath();
+      g.arc(cx, cy, 11, 0, Math.PI * 2);
+      g.strokeStyle = th.text3;
+      g.lineWidth = 1;
+      g.stroke();
+      g.beginPath();
+      g.moveTo(cx + ux * 9, cy + uy * 9);
+      g.lineTo(cx - uy * 3.5, cy + ux * 3.5);
+      g.lineTo(cx + uy * 3.5, cy - ux * 3.5);
+      g.closePath();
+      g.fillStyle = th.text2;
+      g.fill();
+      g.font = `600 ${FS.xs}px ${th.sans}`;
+      g.textAlign = "center";
+      g.textBaseline = "middle";
+      g.fillStyle = th.text2;
+      g.fillText("N", cx + ux * 19, cy + uy * 19);
     }
 
     // Hover point from distance charts.
@@ -193,11 +283,11 @@ function TrackMap({ session, config, setConfig, width, height }: WidgetProps<Map
       if (show) tags.push({ code: r.entity.code, x: X, y: Y, rank: isA || isB || hoverCar === r.entity.id ? 0 : 1, colour: isA ? th.a : isB ? th.b : th.text2, strong: isA || isB });
       g.globalAlpha = 1;
     }
-    drawTags(g, tags, th.sans, th.panel, [...hl]);
+    drawTags(g, tags, th.sans, th.panel, [...hl], width, height);
     hits.current = hl;
     cv.dataset.cars = String(hl.length);
     cv.dataset.rows = String(rows.length);
-  }, [o, xf, width, height, t, cols, timing, focus, compare, explicit, hoverD, th, theme, dom, labels, hoverCar, config.corners, session.corners]);
+  }, [o, xf, rot, width, height, t, cols, timing, focus, compare, explicit, hoverD, th, theme, dom, labels, hoverCar, config.corners, session.corners]);
 
   const hit = (e: React.MouseEvent) => {
     const r = canvas.current!.getBoundingClientRect();
@@ -222,7 +312,7 @@ function TrackMap({ session, config, setConfig, width, height }: WidgetProps<Map
       { id: "l-none", label: "None", checked: labels === "none", run: () => setConfig({ labels: "none" }) },
     ] },
     { id: "corners", label: "Corner numbers", checked: config.corners !== false, run: () => setConfig({ corners: config.corners === false }) },
-    { id: "rot", label: "Rotate 90°", hint: `${rot}°`, run: () => setConfig({ rotate: (rot + 90) % 360 }) },
+    { kind: "sub", id: "rotation", label: "Rotation", items: rotationMenu(config, setConfig, rot) },
   ];
 
   if (!o) return null;
@@ -264,15 +354,38 @@ export const mapWidget: WidgetDef<MapConfig> = {
   Component: TrackMap,
   menu: ({ config, setConfig }) => [
     { id: "dom", label: "Colour by faster of A and B", checked: (config.colourBy ?? "dominance") === "dominance", run: () => setConfig({ colourBy: (config.colourBy ?? "dominance") === "dominance" ? "none" : "dominance" }) },
-    { id: "rot", label: "Rotate 90°", run: () => setConfig({ rotate: ((config.rotate ?? 0) + 90) % 360 }) },
+    { kind: "sub", id: "rotation", label: "Rotation", items: rotationMenu(config, setConfig, typeof config.rotate === "number" ? config.rotate : 0) },
   ],
 };
+
+function rotationMenu(config: MapConfig, setConfig: (c: Partial<MapConfig>) => void, current: number): MenuItem[] {
+  const auto = config.rotate == null || config.rotate === "auto";
+  const fixed = (d: number) => !auto && ((((config.rotate as number) % 360) + 360) % 360) === d;
+  return [
+    { id: "r-auto", label: "Auto-fit rotation", hint: auto ? `${Math.round(current)}°` : undefined, checked: auto, run: () => setConfig({ rotate: "auto" }) },
+    sep,
+    { kind: "label", label: "Fixed" },
+    ...[0, 90, 180, 270].map((d) => ({ id: `r-${d}`, label: `${d}°`, checked: fixed(d), run: () => setConfig({ rotate: d }) })),
+    {
+      id: "r-custom",
+      label: "Angle…",
+      hint: !auto && ![0, 90, 180, 270].some(fixed) ? `${config.rotate}°` : undefined,
+      run: async () => {
+        const v = await ask("Rotation in degrees, anticlockwise", String(Math.round(current)), "Rotate");
+        const n = v == null ? NaN : Number(v.replace("°", ""));
+        if (Number.isFinite(n)) setConfig({ rotate: ((n % 360) + 360) % 360 });
+      },
+    },
+    { id: "r-cw", label: "Turn 15° clockwise", run: () => setConfig({ rotate: (((Math.round(current) - 15) % 360) + 360) % 360 }) },
+    { id: "r-ccw", label: "Turn 15° anticlockwise", run: () => setConfig({ rotate: (((Math.round(current) + 15) % 360) + 360) % 360 }) },
+  ];
+}
 
 type Tag = { code: string; x: number; y: number; rank: number; colour: string; strong: boolean };
 type Box = { x0: number; y0: number; x1: number; y1: number };
 
 /** Car labels without overlaps: A, B and hovered first, then race order; each tries four spots or is skipped. */
-function drawTags(g: CanvasRenderingContext2D, tags: Tag[], font: string, halo: string, dots: { x: number; y: number }[]) {
+function drawTags(g: CanvasRenderingContext2D, tags: Tag[], font: string, halo: string, dots: { x: number; y: number }[], width: number, height: number) {
   const placed: Box[] = dots.map((d) => ({ x0: d.x - 6, y0: d.y - 6, x1: d.x + 6, y1: d.y + 6 }));
   const hit = (b: Box) => placed.some((p) => b.x0 < p.x1 && b.x1 > p.x0 && b.y0 < p.y1 && b.y1 > p.y0);
   // Leader is last in the draw order; prefer it among equals.
@@ -280,7 +393,7 @@ function drawTags(g: CanvasRenderingContext2D, tags: Tag[], font: string, halo: 
   g.textBaseline = "middle";
   g.lineWidth = 3;
   for (const { tag } of order) {
-    g.font = `${tag.strong ? 600 : 500} 10.5px ${font}`;
+    g.font = `${tag.strong ? 600 : 500} ${FS.sm}px ${font}`;
     const w = g.measureText(tag.code).width;
     const spots = [
       [9, -8, "left"],
@@ -290,8 +403,9 @@ function drawTags(g: CanvasRenderingContext2D, tags: Tag[], font: string, halo: 
     ] as const;
     for (const [dx, dy, align] of spots) {
       const x0 = align === "left" ? tag.x + dx : tag.x + dx - w;
-      const box = { x0: x0 - 1, y0: tag.y + dy - 6, x1: x0 + w + 1, y1: tag.y + dy + 6 };
-      if (tag.rank > 0 && hit(box)) continue;
+      const box = { x0: x0 - 1, y0: tag.y + dy - 7, x1: x0 + w + 1, y1: tag.y + dy + 7 };
+      const out = box.x0 < 2 || box.x1 > width - 2 || box.y0 < 2 || box.y1 > height - 2;
+      if (out || (tag.rank > 0 && hit(box))) continue;
       placed.push(box);
       g.textAlign = align;
       g.strokeStyle = halo;
