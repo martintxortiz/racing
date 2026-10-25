@@ -1,0 +1,5 @@
+fastapi>=0.115
+uvicorn[standard]>=0.30
+mcap>=1.2
+zstandard>=0.22
+lz4>=4
