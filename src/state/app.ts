@@ -8,6 +8,7 @@ import { buildSession } from "@/derive/session";
 import { resolveTopics, type TopicMap } from "@/derive/topics";
 import * as L from "@/layout/model";
 import { buildPreset, isPreset, presetFor, PRESET_REV, PRESETS } from "@/layout/presets";
+import { DEFAULT_EMPHASIS, type Emphasis } from "@/widgets/emphasis";
 import { useCursor } from "./cursor";
 
 export type Theme = "light" | "dark";
@@ -19,6 +20,8 @@ export interface Settings {
   fullRecording: boolean;
   /** Pick a layout matching the session type when a file opens. */
   autoLayout: boolean;
+  /** Thresholds for green/red highlights. */
+  emphasis: Emphasis;
 }
 
 export interface Source {
@@ -119,7 +122,7 @@ function initialWorkspace(): Persisted {
     layoutId,
     activeTab: Object.fromEntries(Object.values(layouts).map((l) => [l.id, l.tabs[0].id])),
     theme: "light",
-    settings: { clock: "track", fullRecording: false, autoLayout: true },
+    settings: { clock: "track", fullRecording: false, autoLayout: true, emphasis: DEFAULT_EMPHASIS },
   };
 }
 
@@ -152,7 +155,7 @@ function loadPersisted(): Persisted {
       layoutId,
       activeTab: { ...base.activeTab, ...Object.fromEntries(Object.entries(p.activeTab ?? {}).filter(([id]) => !stale.has(id))) },
       theme: p.theme === "dark" ? "dark" : "light",
-      settings: { ...base.settings, ...(p.settings ?? {}) },
+      settings: { ...base.settings, ...(p.settings ?? {}), emphasis: { ...DEFAULT_EMPHASIS, ...(p.settings?.emphasis ?? {}) } },
     };
   } catch {
     return base;

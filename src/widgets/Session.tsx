@@ -12,7 +12,7 @@ import css from "./session.module.css";
 
 const STATUS_TONE: Record<TrackState, Tone> = {
   none: "neutral",
-  green: "good",
+  green: "neutral",
   yellow: "flagYellow",
   sc: "flagYellow",
   vsc: "flagYellow",

@@ -309,7 +309,9 @@ export function raceTiming(s: SessionModel, t: number): Timing {
     r.lapsDown = lapsDown != null && lapsDown > 0 ? lapsDown : null;
     const lastLap = r.last?.time ?? 100;
     const before = seriesAt(s.intervals, r.entity.id, "interval_s", t - lastLap);
-    r.trend = r.interval != null && before != null ? r.interval - before : null;
+    // Only a like-for-like change counts: a new car ahead (a pass or a stop) is not a trend.
+    const posBefore = seriesAt(s.order, r.entity.id, "position", t - lastLap);
+    r.trend = r.interval != null && before != null && posBefore === r.pos ? r.interval - before : null;
   }
   const leaderLaps = Math.max(0, ...rows.map((r) => r.laps));
   for (const r of rows) {

@@ -272,9 +272,10 @@ function TrackMap({ session, config, setConfig, width, height }: WidgetProps<Map
         g.lineWidth = 2.5;
         g.stroke();
       }
+      // Cars are grey; only the selected A and B carry a colour.
       g.beginPath();
-      g.arc(X, Y, 5.5, 0, Math.PI * 2);
-      g.fillStyle = r.entity.colour;
+      g.arc(X, Y, isA || isB ? 5.5 : 4.5, 0, Math.PI * 2);
+      g.fillStyle = isA ? th.a : isB ? th.b : th.text3;
       g.fill();
       g.strokeStyle = th.panel;
       g.lineWidth = 1.5;

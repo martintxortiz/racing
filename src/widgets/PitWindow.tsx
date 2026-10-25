@@ -115,7 +115,7 @@ function PitWindow({ session, config, setConfig, width, height }: WidgetProps<Pi
                 <div
                   key={c.r.entity.id}
                   className={css.dot}
-                  style={{ left: c.px - 4, top: axisY - 4, background: fill }}
+                  style={{ left: c.px - 4, top: axisY - 4, background: "var(--text-3)" }}
                   title={`${c.r.entity.code}: ${c.rel >= 0 ? `${c.rel.toFixed(1)} s ahead` : `${(-c.rel).toFixed(1)} s behind`}`}
                   onClick={(e) => selectEntity(c.r.entity.id, e)}
                 />

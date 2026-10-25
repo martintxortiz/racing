@@ -7,7 +7,6 @@ import { useApp } from "@/state/app";
 import { openEntityMenu, selectEntity } from "@/ui/actions";
 import { HeaderSlot, usePanel } from "@/ui/panelContext";
 import { DriverChip, Pill, TyreGlyph } from "./cells";
-import { teamFill } from "./colour";
 import { useT, useTiming } from "./hooks";
 import type { WidgetDef, WidgetProps } from "./types";
 import css from "./ladder.module.css";
@@ -45,7 +44,8 @@ function Ladder({ session, config, setConfig, width, height }: WidgetProps<Ladde
   const t = useT(2);
   const timing = useTiming(session, t);
   const panel = usePanel();
-  const dark = useApp((s) => s.theme === "dark");
+  const focus = useApp((s) => s.focus);
+  const compare = useApp((s) => s.compare);
   // Races compare the latest lap; qualifying and practice compare personal bests.
   const basis = config.basis ?? (session.kind === "race" ? "last" : "best");
 
@@ -121,7 +121,7 @@ function Ladder({ session, config, setConfig, width, height }: WidgetProps<Ladde
         {items.map((x, i) => (
           <g key={x.entity.id}>
             <path d={narrow ? `M${ax} ${y(x.delta)} L${left} ${labelY[i]}` : `M${ax} ${y(x.delta)} H${ax + 10} L${ax + 20} ${labelY[i]} H${left}`} fill="none" stroke="var(--line-2)" />
-            <circle cx={ax} cy={y(x.delta)} r={3.5} fill={teamFill(x.entity.colour, dark)} stroke="var(--panel)" strokeWidth={1} />
+            <circle cx={ax} cy={y(x.delta)} r={3.5} fill={x.entity.id === focus ? "var(--a)" : x.entity.id === compare ? "var(--b)" : "var(--text-3)"} stroke="var(--panel)" strokeWidth={1} />
           </g>
         ))}
       </svg>

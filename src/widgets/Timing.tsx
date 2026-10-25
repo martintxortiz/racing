@@ -9,6 +9,7 @@ import { useApp } from "@/state/app";
 import { openEntityMenu, selectEntity } from "@/ui/actions";
 import { HeaderSlot, usePanel } from "@/ui/panelContext";
 import { DriverChip, Pill, TyreGlyph } from "./cells";
+import { gapTrendTone, placesTone, type Emphasis } from "./emphasis";
 import { useT, useTiming } from "./hooks";
 import { fitColumns } from "./fit";
 import type { WidgetDef, WidgetProps } from "./types";
@@ -28,6 +29,7 @@ export interface Ctx {
   session: SessionModel;
   t: number;
   startPos: Map<string, number>;
+  em: Emphasis;
 }
 
 interface Col {
@@ -85,12 +87,12 @@ const COLS: Col[] = [
   {
     id: "int",
     label: "Int",
-    title: "Interval to the car ahead. Race: green closing, red opening over the last lap",
+    title: "Interval to the car ahead. Race: green when it closed, red when it opened by more than the highlight threshold over the last lap",
     compact: true,
     cell: (r, c) => {
       if (r.pos === 1 || r.interval == null) return { text: DASH, muted: true };
-      const m = c.kind === "race" && r.trend != null ? (r.trend <= -0.25 ? "good" : r.trend >= 0.25 ? "bad" : undefined) : undefined;
-      return { text: fmtGap(r.interval), mark: m };
+      const tone = c.kind === "race" ? gapTrendTone(r.trend, c.em) : "none";
+      return { text: fmtGap(r.interval), mark: tone === "none" ? undefined : tone };
     },
   },
   {
@@ -158,7 +160,8 @@ const COLS: Col[] = [
       if (s == null || r.pos == null || r.state === "retired") return { text: DASH, muted: true };
       const d = s - r.pos;
       if (!d) return { text: "0", muted: true };
-      return { text: d > 0 ? `+${d}` : `\u2212${-d}`, mark: d > 0 ? "good" : "bad" };
+      const tone = placesTone(d, c.em);
+      return { text: d > 0 ? `+${d}` : `\u2212${-d}`, mark: tone === "none" ? undefined : tone };
     },
   },
   {
@@ -238,7 +241,8 @@ function TimingTable({ config, setConfig, session, width }: WidgetProps<TimingCo
   const fit = fitColumns(visibleCols(config, kind), width, kind);
   const cols = fit.cols;
   const startPos = useMemo(() => startPositions(session), [session]);
-  const ctx: Ctx = { timing, kind, session, t, startPos };
+  const em = useApp((s) => s.settings.emphasis);
+  const ctx: Ctx = { timing, kind, session, t, startPos, em };
   const seg = session.segments[timing.segment];
 
   const headerMenu = (e: React.MouseEvent, col?: Col) =>

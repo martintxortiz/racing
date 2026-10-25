@@ -19,15 +19,18 @@
   color: var(--sb-fg);
   font-weight: 500;
 }
-.pb,
-.good {
+.pb {
   background: var(--pb-bg);
   color: var(--pb-fg);
   font-weight: 500;
 }
+/* Gains and losses are text colour only; filled pills are kept for session and personal bests. */
+.good {
+  color: var(--good-fg);
+  font-weight: 500;
+}
 .bad {
-  background: var(--bad-bg);
-  color: var(--bad-fg);
+  color: var(--bad-text);
   font-weight: 500;
 }
 .warn {

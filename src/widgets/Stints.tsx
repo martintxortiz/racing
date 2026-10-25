@@ -10,8 +10,6 @@ import { useT, useTiming } from "./hooks";
 import type { WidgetDef, WidgetProps } from "./types";
 import css from "./stints.module.css";
 
-/** Dark text on the light compounds, white on the saturated ones. */
-const DARK_TEXT = new Set(["MEDIUM", "HARD"]);
 const WHO = 50;
 const PAD_R = 12;
 /** Smallest spacing between lap labels on the axis. */
@@ -98,7 +96,7 @@ function Stints({ session, width }: WidgetProps) {
                     <div
                       key={s.n}
                       className={css.bar}
-                      style={{ left: x0, width: w, background: TYRE[s.compound]?.css ?? "var(--text-3)", color: DARK_TEXT.has(s.compound) ? "#161616" : "#ffffff" }}
+                      style={{ left: x0, width: w, ["--c" as string]: TYRE[s.compound]?.css ?? "var(--text-3)" }}
                       title={`${s.compound.charAt(0) + s.compound.slice(1).toLowerCase()}, laps ${s.lapStart}–${s.lapEnd}${s.ageAtStart ? `, ${s.ageAtStart} laps old when fitted` : ", new set"}`}
                     >
                       {w >= 36 ? `${TYRE[s.compound]?.short ?? s.compound[0]} ${laps}` : w >= 15 ? (TYRE[s.compound]?.short ?? "") : ""}

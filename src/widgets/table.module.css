@@ -131,5 +131,5 @@
   color: var(--good-fg);
 }
 .down {
-  color: var(--bad-fg);
+  color: var(--bad-text);
 }

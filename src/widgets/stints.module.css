@@ -79,14 +79,18 @@
   line-height: var(--row);
   transform: translateX(-50%);
 }
+/* Stints are neutral bars; the compound shows only as a thin edge and the letter. */
 .bar {
   position: absolute;
   top: calc((var(--row) - var(--pill-h)) / 2);
   height: var(--pill-h);
   border-radius: var(--pill-r);
+  background: var(--neutral-bg);
+  color: var(--neutral-fg);
+  box-shadow: inset 3px 0 0 var(--c);
   display: flex;
   align-items: center;
-  padding: 0 5px;
+  padding: 0 5px 0 7px;
   font-size: var(--fs-xs);
   font-weight: 600;
   line-height: 1;

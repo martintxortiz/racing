@@ -28,6 +28,8 @@
   --pb-fg: #0e6027;
   --bad-bg: #ffd7d9;
   --bad-fg: #a2191f;
+  /* Loss as plain text, without a fill. */
+  --bad-text: #da1e28;
   --warn-bg: #fcf4d6;
   --warn-fg: #684e00;
   --info-bg: #d0e2ff;
@@ -75,6 +77,7 @@
   --pb-fg: #a7f0ba;
   --bad-bg: #750e13;
   --bad-fg: #ffd7d9;
+  --bad-text: #ff8389;
   --warn-bg: #483700;
   --warn-fg: #fddc69;
   --info-bg: #002d9c;

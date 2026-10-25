@@ -44,12 +44,12 @@ export function eventKind(e: RcEvent): EventKind {
   return "notes";
 }
 
-/** Type of a message as a pill: flags in their colour, everything else in a tinted tone. */
+/** Type of a message as a pill: only yellow, red, safety car and penalties are coloured; routine messages stay grey. */
 export function eventType(e: RcEvent): { label: string; tone: Tone } {
   const sector = e.scope?.toUpperCase() === "SECTOR" && e.sector != null ? ` S${e.sector}` : "";
   switch (e.flag) {
     case "GREEN":
-      return { label: "Green", tone: "good" };
+      return { label: "Green", tone: "neutral" };
     case "YELLOW":
       return { label: `Yellow${sector}`, tone: "flagYellow" };
     case "DOUBLE YELLOW":
@@ -57,11 +57,11 @@ export function eventType(e: RcEvent): { label: string; tone: Tone } {
     case "RED":
       return { label: "Red", tone: "flagRed" };
     case "BLUE":
-      return { label: "Blue", tone: "info" };
+      return { label: "Blue", tone: "neutral" };
     case "CHEQUERED":
       return { label: "Chequered", tone: "chequered" };
     case "CLEAR":
-      return { label: `Clear${sector}`, tone: "good" };
+      return { label: `Clear${sector}`, tone: "neutral" };
     case "BLACK AND WHITE":
       return { label: "Black/white", tone: "neutral" };
     case "BLACK":
@@ -71,9 +71,9 @@ export function eventType(e: RcEvent): { label: string; tone: Tone } {
   if (e.category === "SessionStatus") return { label: "Session", tone: "neutral" };
   const m = e.message.toUpperCase();
   if (/PENALTY|REPRIMAND|DISQUALIF/.test(m) && !/NO FURTHER|NO PENALTY/.test(m)) return { label: "Penalty", tone: "bad" };
-  if (/INVESTIGAT|NOTED|UNDER REVIEW|SUMMONED/.test(m)) return { label: "Investigation", tone: "warn" };
+  if (/INVESTIGAT|NOTED|UNDER REVIEW|SUMMONED/.test(m)) return { label: "Investigation", tone: "neutral" };
   if (/DELETED|TRACK LIMITS/.test(m)) return { label: "Track limits", tone: "neutral" };
-  if (/DRS/.test(m) || e.category === "Drs") return { label: "DRS", tone: "info" };
+  if (/DRS/.test(m) || e.category === "Drs") return { label: "DRS", tone: "neutral" };
   return { label: "Info", tone: "neutral" };
 }
 

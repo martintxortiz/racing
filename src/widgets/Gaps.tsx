@@ -96,7 +96,8 @@ function Gaps({ session, config, setConfig, width, height }: WidgetProps<GapsCon
         const isB = l.id === compare;
         const hot = isA || isB;
         const i = indexAtOrBefore(l.data.map((p) => p.value[0]), tk);
-        const colour = isA ? th.a : isB ? th.b : e.colour;
+        // Other cars stay thin and grey; only A and B are coloured.
+        const colour = isA ? th.a : isB ? th.b : th.text3;
         return {
           type: "line",
           name: e.code,

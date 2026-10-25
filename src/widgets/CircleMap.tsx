@@ -4,10 +4,8 @@ import { fmtClock } from "@/data/format";
 import type { Outline } from "@/derive/model";
 import { poseAt } from "@/derive/trace";
 import { openMenu } from "@/state/menu";
-import { useApp } from "@/state/app";
 import { openEntityMenu, selectEntity } from "@/ui/actions";
 import { usePanel } from "@/ui/panelContext";
-import { teamFill } from "./colour";
 import { poseTopic, useSelection, useT, useTiming, useTopics } from "./hooks";
 import type { WidgetDef, WidgetProps } from "./types";
 import css from "./circle.module.css";
@@ -37,7 +35,6 @@ function CircleMap({ session, width, height }: WidgetProps) {
   const t = useT(10);
   const timing = useTiming(session, t);
   const panel = usePanel();
-  const dark = useApp((s) => s.theme === "dark");
   // A and B as the Track map shows them, including the implicit top two.
   const sel = useSelection(session, t);
   const focus = sel.a?.entity ?? null;
@@ -149,9 +146,10 @@ function CircleMap({ session, width, height }: WidgetProps) {
           </text>
           {placedCars.map((c) => {
             const e = session.entityById.get(c.id)!;
-            const fill = teamFill(e.colour, dark);
             const [dx, dy] = at(c.a, R);
             const ring = c.id === focus ? "var(--a)" : c.id === compare ? "var(--b)" : null;
+            // Grey dots; only A and B are coloured.
+            const fill = ring ?? "var(--text-3)";
             const l = c.label;
             return (
               <g key={c.id} className={css.car} onClick={(ev) => selectEntity(c.id, ev)} onContextMenu={(ev) => { ev.stopPropagation(); openEntityMenu(ev, c.id); }}>
@@ -161,7 +159,7 @@ function CircleMap({ session, width, height }: WidgetProps) {
                     {c.code}
                   </text>
                 )}
-                <circle cx={dx} cy={dy} r={ring ? 5 : 4} fill={fill} stroke={ring ?? "var(--panel)"} strokeWidth={ring ? 2 : 1.5} />
+                <circle cx={dx} cy={dy} r={ring ? 5 : 4} fill={fill} stroke="var(--panel)" strokeWidth={1.5} />
               </g>
             );
           })}

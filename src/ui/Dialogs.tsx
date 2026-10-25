@@ -127,6 +127,30 @@ function SettingsDialog() {
           onChange={(v) => st.setSettings({ autoLayout: v === "auto" })}
         />
       </div>
+      <div className={css.field}>
+        <span className={css.fieldLabel}>
+          Highlight gap changes
+          <small>Gap ahead turns green or red when it moved this much over a lap</small>
+        </span>
+        <Segmented
+          label="Highlight gap changes"
+          value={String(settings.emphasis.gap)}
+          options={["0.1", "0.3", "0.5", "1"].map((v) => ({ value: v, label: `${v} s` }))}
+          onChange={(v) => st.setSettings({ emphasis: { ...settings.emphasis, gap: Number(v) } })}
+        />
+      </div>
+      <div className={css.field}>
+        <span className={css.fieldLabel}>
+          Highlight places gained
+          <small>+/− turns green or red from this many places</small>
+        </span>
+        <Segmented
+          label="Highlight places gained"
+          value={String(settings.emphasis.places)}
+          options={["1", "3", "5"].map((v) => ({ value: v, label: v }))}
+          onChange={(v) => st.setSettings({ emphasis: { ...settings.emphasis, places: Number(v) } })}
+        />
+      </div>
     </Modal>
   );
 }

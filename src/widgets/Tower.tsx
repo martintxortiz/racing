@@ -12,6 +12,7 @@ import { useApp } from "@/state/app";
 import { openEntityMenu, selectEntity } from "@/ui/actions";
 import { HeaderSlot, usePanel } from "@/ui/panelContext";
 import { DriverChip, Pill, TyreGlyph, type Tone } from "./cells";
+import { gapTrendTone, placesTone, type Emphasis } from "./emphasis";
 import { useT, useTiming, useTopics } from "./hooks";
 import { sectorCell, startPositions, type Ctx } from "./Timing";
 import type { WidgetDef, WidgetProps } from "./types";
@@ -58,7 +59,7 @@ function trendSeries(s: SessionModel, id: string, t: number, n = 5): number[] {
   return out;
 }
 
-function Spark({ v }: { v: number[] }) {
+function Spark({ v, em }: { v: number[]; em: Emphasis }) {
   if (v.length < 2) return <span className={css.muted}>{DASH}</span>;
   const W = 48;
   const H = 14;
@@ -67,7 +68,8 @@ function Spark({ v }: { v: number[] }) {
   const span = Math.max(0.2, hi - lo);
   const pts = v.map((y, i) => `${((i / (v.length - 1)) * (W - 2) + 1).toFixed(1)},${(H - 1 - ((y - lo) / span) * (H - 2)).toFixed(1)}`).join(" ");
   const d = v[v.length - 1] - v[v.length - 2];
-  const c = d <= -0.1 ? "var(--good-fg)" : d >= 0.1 ? "var(--bad-fg)" : "var(--text-3)";
+  const tone = gapTrendTone(d, em);
+  const c = tone === "good" ? "var(--good-fg)" : tone === "bad" ? "var(--bad-text)" : "var(--text-3)";
   const [lx, ly] = pts.split(" ").pop()!.split(",");
   return (
     <svg width={W} height={H} className={tcss.spark} aria-label="Gap ahead over the last 5 laps">
@@ -91,7 +93,7 @@ const COLS: Col[] = [
       if (s == null || r.pos == null || r.state === "retired") return { text: DASH, muted: true };
       const d = s - r.pos;
       if (!d) return { text: "0", muted: true };
-      return { text: d > 0 ? `+${d}` : `${MINUS}${-d}`, tone: d > 0 ? "good" : "bad" };
+      return { text: d > 0 ? `+${d}` : `${MINUS}${-d}`, tone: placesTone(d, x.ctx.em), muted: placesTone(d, x.ctx.em) === "none" };
     },
   },
   { id: "tyre", label: "Tyre", title: "Compound", width: 30, align: "c", cell: (r) => ({ text: <TyreGlyph compound={r.compound} /> }) },
@@ -152,15 +154,14 @@ const COLS: Col[] = [
   {
     id: "int",
     label: "Gap ahead",
-    title: "Interval to the car ahead. Race: green closing, red losing over the last lap",
+    title: "Interval to the car ahead. Race: green when it closed, red when it opened by more than the highlight threshold over the last lap",
     width: 70,
     cell: (r, x) => {
       if (r.pos === 1 || r.interval == null) return { text: DASH, muted: true };
-      const tone: Tone = x.ctx.kind === "race" && r.trend != null ? (r.trend <= -0.25 ? "good" : r.trend >= 0.25 ? "bad" : "none") : "none";
-      return { text: fmtGap(r.interval), tone };
+      return { text: fmtGap(r.interval), tone: x.ctx.kind === "race" ? gapTrendTone(r.trend, x.ctx.em) : "none" };
     },
   },
-  { id: "trend", label: "Last 5 laps trend", title: "Gap to the car ahead at each of the last 5 lap crossings. The dot is green when it shrank on the last lap, red when it grew", width: 100, align: "c", race: true, optIn: true, cell: (r, x) => ({ text: <Spark v={x.trend.get(r.entity.id) ?? []} /> }) },
+  { id: "trend", label: "Last 5 laps trend", title: "Gap to the car ahead at each of the last 5 lap crossings. The dot is green or red when it closed or opened past the highlight threshold on the last lap", width: 100, align: "c", race: true, optIn: true, cell: (r, x) => ({ text: <Spark v={x.trend.get(r.entity.id) ?? []} em={x.ctx.em} /> }) },
   {
     id: "spd",
     label: "SPD",
@@ -179,7 +180,7 @@ const COLS: Col[] = [
     align: "c",
     cell: (r, x) => {
       const v = x.drs.get(r.entity.id);
-      return v != null && v >= 10 ? { text: "On", tone: "info" } : { text: DASH, muted: true };
+      return v != null && v >= 10 ? { text: "On", tone: "neutral" } : { text: DASH, muted: true };
     },
   },
 ];
@@ -271,7 +272,8 @@ function TowerTable({ config, setConfig, session, width }: WidgetProps<TowerConf
     COLS.filter((c) => (!c.race || race) && on(c) && (c.id !== "drs" || hasDrs)),
     width,
   );
-  const extra: Extra = { ctx: { timing, kind: session.kind, session, t, startPos }, speed, drs, trend };
+  const em = useApp((s) => s.settings.emphasis);
+  const extra: Extra = { ctx: { timing, kind: session.kind, session, t, startPos, em }, speed, drs, trend };
 
   const columnItems = (): MenuItem[] => [
     ...columnToggles(config, setConfig, race).map((m) => ("id" in m && m.id === "col:drs" && !hasDrs ? { ...m, disabled: true, hint: "no data" } : m)),
@@ -367,7 +369,7 @@ function TowerTable({ config, setConfig, session, width }: WidgetProps<TowerConf
                 })}
                 {inPit && (
                   <td colSpan={cols.length - lead} className={tcss.pitCell}>
-                    <Pill tone="warn" block>
+                    <Pill tone="neutral" block>
                       In pit lane
                     </Pill>
                   </td>
