@@ -9,10 +9,9 @@ import { useCursor } from "@/state/cursor";
 import { openMenu } from "@/state/menu";
 import { openEntityMenu, selectEntity } from "@/ui/actions";
 import { HeaderSlot, usePanel } from "@/ui/panelContext";
-import { onColour, teamFill } from "./colour";
+import { DriverChip, Pill } from "./cells";
 import { useT, useTiming } from "./hooks";
 import type { WidgetDef, WidgetProps } from "./types";
-import tcss from "./table.module.css";
 import css from "./history.module.css";
 
 export interface HistoryConfig {
@@ -24,7 +23,6 @@ const MODE_LABEL = { time: "Lap time", delta: "Gap to own best", session: "Gap t
 function LapHistory({ session, config, setConfig }: WidgetProps<HistoryConfig>) {
   const t = useT(2);
   const panel = usePanel();
-  const theme = useApp((s) => s.theme);
   const focus = useApp((s) => s.focus);
   const compare = useApp((s) => s.compare);
   const focusLap = useApp((s) => s.focusLap);
@@ -55,7 +53,9 @@ function LapHistory({ session, config, setConfig }: WidgetProps<HistoryConfig>) 
     if (mode === "delta" && pe?.lap != null && l.valid && cls !== css.pb && cls !== css.sb) text = fmtSigned(l.time - pe.lap, 3);
     if (mode === "session" && bests.lap != null && l.valid && cls !== css.sb) text = fmtSigned(l.time - bests.lap, 3);
     if (l.pitIn || l.pitOut) text = <><span className={css.tag}>{l.pitIn ? "in" : "out"}</span>{text}</>;
-    return { text, cls };
+    // Session and personal bests are pills inside the cell, like every other highlighted value.
+    if (cls === css.sb || cls === css.pb) return { text: <Pill tone={cls === css.sb ? "sb" : "pb"}>{text}</Pill>, cls: "" };
+    return { text: <Pill>{text}</Pill>, cls };
   };
 
   const modeMenu = (): MenuItem[] => (Object.keys(MODE_LABEL) as (keyof typeof MODE_LABEL)[]).map((k) => ({ id: k, label: MODE_LABEL[k], checked: mode === k, run: () => setConfig({ value: k }) }));
@@ -79,13 +79,10 @@ function LapHistory({ session, config, setConfig }: WidgetProps<HistoryConfig>) 
           {timing.rows.map((r) => {
             const laps = session.lapsByEntity.get(r.entity.id) ?? [];
             const byN = new Map(laps.map((l) => [l.n, l]));
-            const fill = teamFill(r.entity.colour, theme === "dark");
             return (
               <tr key={r.entity.id}>
                 <td className={css.stick} onClick={(e) => selectEntity(r.entity.id, e)} onContextMenu={(e) => openEntityMenu(e, r.entity.id)}>
-                  <div className={tcss.driverFill} style={{ background: fill, color: onColour(fill), minWidth: 44 }}>
-                    {r.entity.code}
-                  </div>
+                  <DriverChip entity={r.entity} />
                 </td>
                 {cols.map((n) => {
                   const l = byN.get(n);

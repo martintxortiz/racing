@@ -8,7 +8,7 @@ import { openMenu } from "@/state/menu";
 import { useApp } from "@/state/app";
 import { openEntityMenu, selectEntity } from "@/ui/actions";
 import { HeaderSlot, usePanel } from "@/ui/panelContext";
-import { onColour, teamFill, TYRE } from "./colour";
+import { DriverChip, Pill, TyreGlyph } from "./cells";
 import { useT, useTiming } from "./hooks";
 import { fitColumns } from "./fit";
 import type { WidgetDef, WidgetProps } from "./types";
@@ -22,7 +22,7 @@ export interface TimingConfig {
   shown?: string[];
 }
 
-interface Ctx {
+export interface Ctx {
   timing: Timing;
   kind: SessionKind;
   session: SessionModel;
@@ -41,9 +41,8 @@ interface Col {
   cell: (r: TimingRow, c: Ctx) => { text: React.ReactNode; mark?: Mark | "good" | "bad"; muted?: boolean; missing?: boolean };
 }
 
-const markCls = (m: Mark | "good" | "bad" | undefined) => (m === "sb" ? css["cell-sb"] : m === "pb" ? css["cell-pb"] : m === "good" ? css["cell-good"] : m === "bad" ? css["cell-bad"] : "");
 
-function sectorCell(i: 0 | 1 | 2) {
+export function sectorCell(i: 0 | 1 | 2) {
   return (r: TimingRow, c: Ctx) => {
     const pe = c.timing.bests.byEntity.get(r.entity.id);
     // On a lap in progress, finished sectors show live; the rest show the previous lap, greyed.
@@ -137,13 +136,11 @@ const COLS: Col[] = [
     title: "Compound and laps on the set",
     cell: (r) => {
       if (!r.compound) return { text: DASH, muted: true };
-      const ty = TYRE[r.compound];
       return {
         text: (
-          <span className={css.tyre} title={r.compound}>
-            <span className={css.tyreDot} style={{ color: ty?.css ?? "var(--text-3)" }} />
-            {ty?.short ?? r.compound[0]}
-            <span className={css.muted}>{r.tyreAge ?? ""}</span>
+          <span className={css.tyre}>
+            <TyreGlyph compound={r.compound} />
+            <span className={css.tyreAge}>{r.tyreAge ?? ""}</span>
           </span>
         ),
       };
@@ -161,7 +158,7 @@ const COLS: Col[] = [
       if (s == null || r.pos == null || r.state === "retired") return { text: DASH, muted: true };
       const d = s - r.pos;
       if (!d) return { text: "0", muted: true };
-      return { text: <span className={d > 0 ? css.up : css.down}>{d > 0 ? `+${d}` : `\u2212${-d}`}</span> };
+      return { text: d > 0 ? `+${d}` : `\u2212${-d}`, mark: d > 0 ? "good" : "bad" };
     },
   },
   {
@@ -173,7 +170,17 @@ const COLS: Col[] = [
   },
 ];
 
-/** Rough rendered widths, used to drop columns that do not fit. */
+/** Race: each car's position just after the start, for places gained. */
+export function startPositions(session: SessionModel): Map<string, number> {
+  const m = new Map<string, number>();
+  const t0 = session.segments[0]?.t0;
+  if (session.kind !== "race" || t0 == null) return m;
+  for (const e of session.entities) {
+    const p = seriesAt(session.order, e.id, "position", t0 + 5);
+    if (p != null) m.set(e.id, p);
+  }
+  return m;
+}
 
 function visibleCols(cfg: TimingConfig, kind: SessionKind): Col[] {
   return COLS.filter((c) => {
@@ -226,21 +233,11 @@ function TimingTable({ config, setConfig, session, width }: WidgetProps<TimingCo
   const timing = useTiming(session, t);
   const focus = useApp((s) => s.focus);
   const compare = useApp((s) => s.compare);
-  const theme = useApp((s) => s.theme);
   const panel = usePanel();
   const kind = session.kind;
   const fit = fitColumns(visibleCols(config, kind), width, kind);
   const cols = fit.cols;
-  const startPos = useMemo(() => {
-    const m = new Map<string, number>();
-    const t0 = session.segments[0]?.t0;
-    if (kind !== "race" || t0 == null) return m;
-    for (const e of session.entities) {
-      const p = seriesAt(session.order, e.id, "position", t0 + 5);
-      if (p != null) m.set(e.id, p);
-    }
-    return m;
-  }, [session, kind]);
+  const startPos = useMemo(() => startPositions(session), [session]);
   const ctx: Ctx = { timing, kind, session, t, startPos };
   const seg = session.segments[timing.segment];
 
@@ -281,7 +278,6 @@ function TimingTable({ config, setConfig, session, width }: WidgetProps<TimingCo
         <tbody>
           {timing.rows.map((r, ri) => {
             const sel = r.entity.id === focus ? "a" : r.entity.id === compare ? "b" : undefined;
-            const fill = teamFill(r.entity.colour, theme === "dark");
             const grouped = !!config.groupByPhase;
             const group = grouped ? r.eliminatedIn : null;
             const prev = grouped && ri > 0 ? timing.rows[ri - 1].eliminatedIn : null;
@@ -318,17 +314,16 @@ function TimingTable({ config, setConfig, session, width }: WidgetProps<TimingCo
                     if (c.id === "driver") {
                       return (
                         <td key={c.id} data-col="driver" className={`${css.l} ${css.driver}`}>
-                          <div className={css.driverFill} style={{ background: fill, color: onColour(fill) }} title={`${r.entity.name}${r.entity.team ? ` · ${r.entity.team}` : ""}`}>
-                            {r.entity.code}
-                            {r.entity.number !== r.entity.code && <span className={css.driverNum}>{r.entity.number}</span>}
-                          </div>
+                          <DriverChip entity={r.entity} />
                         </td>
                       );
                     }
                     const v = c.cell(r, ctx);
                     return (
-                      <td key={c.id} data-col={c.id} className={`${c.left ? css.l : ""} ${markCls(v.mark)} ${v.muted && !v.mark ? css.muted : ""} ${v.missing ? css.missing : ""}`}>
-                        {v.text}
+                      <td key={c.id} data-col={c.id} className={`${c.left ? css.l : ""} ${v.missing ? css.missing : ""}`}>
+                        <Pill tone={v.mark ?? "none"} muted={v.muted}>
+                          {v.text}
+                        </Pill>
                       </td>
                     );
                   })}

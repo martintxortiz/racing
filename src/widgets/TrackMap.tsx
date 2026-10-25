@@ -95,10 +95,10 @@ function TrackMap({ session, config, setConfig, width, height }: WidgetProps<Map
     g.lineCap = "round";
     path(0, o.x.length - 1);
     g.closePath();
-    g.strokeStyle = theme === "dark" ? "#2c3037" : "#d5d9df";
+    g.strokeStyle = theme === "dark" ? "#333333" : "#e0e0e0";
     g.lineWidth = 9;
     g.stroke();
-    g.strokeStyle = theme === "dark" ? "#4a4f57" : "#aab0b8";
+    g.strokeStyle = theme === "dark" ? "#525252" : "#a8a8a8";
     g.lineWidth = 1.5;
     g.stroke();
 

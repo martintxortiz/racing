@@ -15,7 +15,8 @@
   top: 0;
   z-index: 2;
   height: 24px;
-  padding: 0 8px;
+  /* Header text lines up with the text inside the cell pills: 3 px cell + pill padding. */
+  padding: 0 calc(3px + var(--pill-px));
   background: var(--panel);
   border-bottom: 1px solid var(--line);
   color: var(--text-3);
@@ -30,15 +31,24 @@
 }
 .table td {
   height: var(--row);
-  padding: 0 8px;
+  padding: 0 3px;
   text-align: right;
   white-space: nowrap;
   color: var(--text);
   border-bottom: 1px solid transparent;
 }
-.table th:last-child,
+.table th:last-child {
+  padding-right: calc(8px + var(--pill-px));
+}
 .table td:last-child {
-  padding-right: 12px;
+  padding-right: 8px;
+}
+/* Dense tables (Monitor): one row height shared with the strips beside them. */
+.dense {
+  --row: var(--row-dense);
+}
+.dense th {
+  height: 22px;
 }
 .table td.l {
   text-align: left;
@@ -58,26 +68,6 @@
 .table tbody tr[data-sel="b"] td {
   background: var(--b-tint);
 }
-.table td.cell-sb,
-.table tbody tr td.cell-sb {
-  background: var(--sb-bg);
-  color: var(--sb-fg);
-}
-.table td.cell-pb,
-.table tbody tr td.cell-pb {
-  background: var(--pb-bg);
-  color: var(--pb-fg);
-}
-.table td.cell-good,
-.table tbody tr td.cell-good {
-  background: var(--pb-bg);
-  color: var(--pb-fg);
-}
-.table td.cell-bad,
-.table tbody tr td.cell-bad {
-  background: var(--bad-bg);
-  color: var(--bad-fg);
-}
 .dim td {
   color: var(--text-3) !important;
 }
@@ -90,26 +80,8 @@
   font-size: 11px;
 }
 .driver {
-  padding: 0 !important;
+  padding: 0 4px 0 6px !important;
   width: 1%;
-}
-.driverFill {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  height: calc(var(--row) - 4px);
-  margin: 2px 0;
-  padding: 0 8px;
-  border-radius: 2px;
-  font-weight: 600;
-  font-size: 11.5px;
-  min-width: 52px;
-}
-.driverNum {
-  font-weight: 400;
-  opacity: 0.78;
-  font-family: var(--mono);
-  font-size: 10.5px;
 }
 .sel {
   width: 16px;
@@ -134,17 +106,17 @@
   border-bottom: 1px solid var(--line);
   cursor: default;
 }
+/* Glyph and age on fixed tracks so every row lines up. */
 .tyre {
-  display: inline-flex;
+  display: inline-grid;
+  grid-template-columns: 15px 2.2ch;
+  column-gap: 4px;
   align-items: center;
-  gap: 4px;
+  justify-items: end;
 }
-.tyreDot {
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  border: 2px solid currentColor;
-  box-sizing: border-box;
+.tyreAge {
+  color: var(--text-2);
+  text-align: right;
 }
 .live {
   color: var(--text-3);

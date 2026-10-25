@@ -9,7 +9,10 @@ import { Panel } from "./Panel";
 import { Button } from "./controls";
 import css from "./Mosaic.module.css";
 
-const GUTTER = 4;
+/** 1 px splitters between panels, edge to edge (design system). */
+const GUTTER = 1;
+/** Hit area either side of a splitter. */
+const GRIP = 3;
 
 export function Mosaic() {
   const tab = useApp((s) => {
@@ -31,7 +34,7 @@ export function Mosaic() {
 
   if (!tab) return null;
   const root = maximized && L.contains(tab.root, maximized) ? L.leaf(maximized) : tab.root;
-  const { panels, splitters } = computeGeometry(root, { x: GUTTER, y: GUTTER, w: box.w - 2 * GUTTER, h: box.h - 2 * GUTTER }, GUTTER);
+  const { panels, splitters } = computeGeometry(root, { x: 0, y: 0, w: box.w, h: box.h }, GUTTER);
 
   const emptyMenu = (e: React.MouseEvent) => {
     const st = useApp.getState();
@@ -73,7 +76,8 @@ export function Mosaic() {
       )}
       {box.w > 0 &&
         [...panels.entries()].map(([id, r]) => (
-          <div key={id} className={css.slot} style={{ left: r.x, top: r.y, width: r.w, height: r.h }}>
+          // Whole pixels so 1 px splitters and panel content stay crisp.
+          <div key={id} className={css.slot} style={{ left: Math.round(r.x), top: Math.round(r.y), width: Math.round(r.x + r.w) - Math.round(r.x), height: Math.round(r.y + r.h) - Math.round(r.y) }}>
             <Panel id={id} tabId={tab.id} />
           </div>
         ))}
@@ -82,8 +86,8 @@ export function Mosaic() {
           const key = s.path.join("") || "root";
           const style =
             s.dir === "row"
-              ? { left: s.at - GUTTER, top: s.area.y, width: GUTTER * 2, height: s.area.h }
-              : { top: s.at - GUTTER, left: s.area.x, height: GUTTER * 2, width: s.area.w };
+              ? { left: s.at - GRIP, top: s.area.y, width: GRIP * 2, height: s.area.h }
+              : { top: s.at - GRIP, left: s.area.x, height: GRIP * 2, width: s.area.w };
           return (
             <div
               key={key}

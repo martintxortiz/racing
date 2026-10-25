@@ -23,7 +23,7 @@
 }
 .grid td {
   height: var(--row);
-  padding: 0 6px;
+  padding: 0 2px;
   min-width: 52px;
   text-align: right;
   white-space: nowrap;
@@ -48,13 +48,10 @@
 th.stick {
   z-index: 3;
 }
-.grid td.sb {
-  background: var(--sb-bg) !important;
-  color: var(--sb-fg);
-}
+.grid td.sb,
 .grid td.pb {
-  background: var(--pb-bg) !important;
-  color: var(--pb-fg);
+  /* The pill inside the cell carries the colour. */
+  background: transparent;
 }
 .grid td.del {
   color: var(--text-3);

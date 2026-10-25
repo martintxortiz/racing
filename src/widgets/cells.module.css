@@ -1,0 +1,100 @@
+/* One pill shape shared by driver chips, highlighted values, flags and message types.
+   Every value in a table sits in a pill, highlighted or not, so text lines up on every row. */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  height: var(--pill-h);
+  padding: 0 var(--pill-px);
+  border-radius: var(--pill-r);
+  line-height: 1;
+  white-space: nowrap;
+  vertical-align: middle;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+.sb {
+  background: var(--sb-bg);
+  color: var(--sb-fg);
+  font-weight: 500;
+}
+.pb,
+.good {
+  background: var(--pb-bg);
+  color: var(--pb-fg);
+  font-weight: 500;
+}
+.bad {
+  background: var(--bad-bg);
+  color: var(--bad-fg);
+  font-weight: 500;
+}
+.warn {
+  background: var(--warn-bg);
+  color: var(--warn-fg);
+  font-weight: 500;
+}
+.info {
+  background: var(--info-bg);
+  color: var(--info-fg);
+  font-weight: 500;
+}
+.neutral {
+  background: var(--neutral-bg);
+  color: var(--neutral-fg);
+  font-weight: 500;
+}
+.flagYellow {
+  background: var(--flag-yellow);
+  color: #161616;
+  font-weight: 500;
+}
+.flagRed {
+  background: var(--flag-red);
+  color: #ffffff;
+  font-weight: 500;
+}
+.flagGreen {
+  background: var(--flag-green);
+  color: #ffffff;
+  font-weight: 500;
+}
+.flagBlue {
+  background: var(--flag-blue);
+  color: #ffffff;
+  font-weight: 500;
+}
+.chequered {
+  background: var(--text);
+  color: var(--panel);
+  font-weight: 500;
+}
+.muted {
+  color: var(--text-3);
+}
+.driver {
+  width: 40px;
+  font-weight: 600;
+  font-size: 11px;
+  letter-spacing: 0;
+}
+.block {
+  display: flex;
+  width: 100%;
+}
+/* Tyre: a fixed-size ring with the compound letter, the same box on every row. */
+.tyre {
+  display: inline-grid;
+  place-items: center;
+  box-sizing: border-box;
+  width: 15px;
+  height: 15px;
+  border: 2px solid var(--c, var(--text-3));
+  border-radius: 50%;
+  font-size: 8.5px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--text);
+  vertical-align: middle;
+}

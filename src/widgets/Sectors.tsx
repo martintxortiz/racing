@@ -7,7 +7,7 @@ import { useApp } from "@/state/app";
 import { openMenu } from "@/state/menu";
 import { openEntityMenu, selectEntity } from "@/ui/actions";
 import { HeaderSlot, usePanel } from "@/ui/panelContext";
-import { onColour, teamFill } from "./colour";
+import { DriverChip, Pill } from "./cells";
 import { useT } from "./hooks";
 import type { WidgetDef, WidgetProps } from "./types";
 import css from "./table.module.css";
@@ -20,7 +20,6 @@ function Sectors({ session, config, setConfig, width }: WidgetProps<SectorsConfi
   const t = useT(2);
   const tk = Math.floor(t);
   const panel = usePanel();
-  const theme = useApp((s) => s.theme);
   const focus = useApp((s) => s.focus);
   const compare = useApp((s) => s.compare);
   const quali = session.kind === "qualifying" && session.segments.length > 1;
@@ -73,23 +72,38 @@ function Sectors({ session, config, setConfig, width }: WidgetProps<SectorsConfi
         <tbody>
           {data.rows.map((r, i) => {
             const sel = r.entity.id === focus ? "a" : r.entity.id === compare ? "b" : undefined;
-            const fill = teamFill(r.entity.colour, theme === "dark");
             return (
               <tr key={r.entity.id} data-sel={sel} onClick={(e) => selectEntity(r.entity.id, e)} onContextMenu={(e) => openEntityMenu(e, r.entity.id, scopeMenu().length ? [{ kind: "sub", id: "scope", label: "Bests over", items: scopeMenu() }] : [])}>
                 <td className={`${css.sel} ${sel === "a" ? css.selA : css.selB}`}>{sel ? sel.toUpperCase() : ""}</td>
-                <td>{i + 1}</td>
+                <td>
+                  <Pill>{i + 1}</Pill>
+                </td>
                 <td className={`${css.l} ${css.driver}`}>
-                  <div className={css.driverFill} style={{ background: fill, color: onColour(fill) }}>{r.entity.code}</div>
+                  <DriverChip entity={r.entity} />
                 </td>
                 {r.sectors.map((s, k) => (
-                  <td key={k} className={s != null && sb[k] != null && s <= sb[k]! + 1e-9 ? css["cell-sb"] : s == null ? css.muted : ""}>
-                    {fmtSector(s)}
+                  <td key={k}>
+                    <Pill tone={s != null && sb[k] != null && s <= sb[k]! + 1e-9 ? "sb" : "none"} muted={s == null}>
+                      {fmtSector(s)}
+                    </Pill>
                   </td>
                 ))}
-                <td style={{ fontWeight: 500 }}>{fmtLap(r.ideal)}</td>
-                <td className={r.best != null && data.bests.lap != null && r.best <= data.bests.lap + 1e-9 ? css["cell-sb"] : ""}>{fmtLap(r.best)}</td>
-                {showLost && <td className={css.muted}>{r.loss != null ? fmtGap(r.loss) : DASH}</td>}
-                {showTo && <td className={css.muted}>{i === 0 ? DASH : r.ideal != null && data.idealBest != null ? fmtGap(r.ideal - data.idealBest) : DASH}</td>}
+                <td style={{ fontWeight: 500 }}>
+                  <Pill>{fmtLap(r.ideal)}</Pill>
+                </td>
+                <td>
+                  <Pill tone={r.best != null && data.bests.lap != null && r.best <= data.bests.lap + 1e-9 ? "sb" : "none"}>{fmtLap(r.best)}</Pill>
+                </td>
+                {showLost && (
+                  <td>
+                    <Pill muted>{r.loss != null ? fmtGap(r.loss) : DASH}</Pill>
+                  </td>
+                )}
+                {showTo && (
+                  <td>
+                    <Pill muted>{i === 0 ? DASH : r.ideal != null && data.idealBest != null ? fmtGap(r.ideal - data.idealBest) : DASH}</Pill>
+                  </td>
+                )}
               </tr>
             );
           })}
