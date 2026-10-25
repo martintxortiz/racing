@@ -1,11 +1,14 @@
 "use client";
 
-import { defaultQualiLayout, validateLayout, type Layout } from "@/lib/workbench/layout";
+import { validateLayout, type Layout } from "@/lib/workbench/layout";
+import { defaultLayout } from "@/lib/workbench/presets";
 import { loadLayout, useWB } from "./state";
 
-// Layouts live in localStorage under layouts/v1/<id>; _last is the working copy.
+// Layouts live in localStorage under layouts/v1/<id>; _working is the working copy.
+// (_last held the v0 working copy with the old qualifying layout; it is ignored.)
 const KEY = "layouts/v1/";
-const LAST = `${KEY}_last`;
+const LAST = `${KEY}_working`;
+const RESERVED = new Set([LAST, `${KEY}_last`]);
 
 function read(key: string): Layout | null {
   try {
@@ -22,7 +25,7 @@ export function savedLayouts(): Layout[] {
   const out: Layout[] = [];
   for (let i = 0; i < localStorage.length; i++) {
     const k = localStorage.key(i)!;
-    if (k.startsWith(KEY) && k !== LAST) {
+    if (k.startsWith(KEY) && !RESERVED.has(k)) {
       const l = read(k);
       if (l) out.push(l);
     }
@@ -41,7 +44,7 @@ export function saveLayout(name?: string) {
 }
 
 export const deleteSaved = (id: string) => localStorage.removeItem(KEY + id);
-export const resetLayout = () => loadLayout(defaultQualiLayout());
+export const resetLayout = () => loadLayout(defaultLayout());
 
 export function exportLayout() {
   const { layout } = useWB.getState();

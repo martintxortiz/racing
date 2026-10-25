@@ -138,92 +138,22 @@ export function prune(l: Layout): Layout {
   return { ...l, panels };
 }
 
-const telemetry = (channels: string[]): PanelState => ({
-  type: "trace",
-  bindings: {
-    a: "/vehicle/{A}/telemetry",
-    b: "/vehicle/{B}/telemetry",
-    laps: "/timing/laps",
-    corners: "/track/corners",
-    outline: "/track/outline",
-  },
-  config: { x: "distance", channels, corners: true },
-});
-const map = (): PanelState => ({
-  type: "track-map",
-  bindings: { outline: "/track/outline", corners: "/track/corners", pose: "/vehicle/*/pose" },
-  config: { labels: "ab", rotation: "auto" },
-});
-const lapChart = (entities: "all" | "ab"): PanelState => ({
-  type: "lap-chart",
-  bindings: { laps: "/timing/laps", events: "/session/events", stints: "/timing/stints" },
-  config: { filter: "timed", dimOthers: true, entities },
-});
-
-/** The spec's default qualifying layout (exact split percentages). */
-export function defaultQualiLayout(): Layout {
-  return {
-    version: 1,
-    id: "quali-overview",
-    name: "Qualifying · Overview",
-    appliesTo: { kinds: ["qualifying"] },
-    links: { cursor: "global", selection: "global" },
-    tabs: [
-      {
-        id: "overview",
-        name: "Overview",
-        root: {
-          direction: "row",
-          splitPercentage: 30,
-          first: "timing",
-          second: {
-            direction: "column",
-            splitPercentage: 58,
-            first: { direction: "row", splitPercentage: 62, first: "trace", second: "map" },
-            second: { direction: "row", splitPercentage: 62, first: "laps", second: "log" },
-          },
-        },
-      },
-      {
-        id: "compare",
-        name: "Compare",
-        root: {
-          direction: "row",
-          splitPercentage: 64,
-          first: "trace2",
-          second: { direction: "column", splitPercentage: 45, first: "map2", second: "laps2" },
-        },
-      },
-    ],
-    panels: {
-      timing: {
-        type: "timing-table",
-        bindings: {
-          order: "/timing/classification",
-          laps: "/timing/laps",
-          stints: "/timing/stints",
-          events: "/session/events",
-        },
-        config: { columns: ["pos", "driver", "tyre", "best", "gap", "s1", "s2", "s3", "last", "laps"] },
-      },
-      trace: telemetry(["delta", "speed_kph", "throttle_pct", "brake_pct", "gear"]),
-      map: map(),
-      laps: lapChart("all"),
-      log: {
-        type: "event-log",
-        bindings: { events: "/session/events" },
-        config: { follow: true, raw: false, categories: [] },
-      },
-      trace2: telemetry(["delta", "speed_kph", "throttle_pct", "brake_pct", "gear", "rpm"]),
-      map2: map(),
-      laps2: lapChart("ab"),
-    },
-  };
-}
-
-/** Resolve a binding pattern against the selection. `*` stays a wildcard. */
-export function resolveBinding(pattern: string, sel: { a: string | null; b: string | null }): string | null {
-  if (pattern.includes("{A}")) return sel.a ? pattern.replaceAll("{A}", sel.a) : null;
-  if (pattern.includes("{B}")) return sel.b ? pattern.replaceAll("{B}", sel.b) : null;
+/**
+ * Resolve a binding pattern for one entity. `{id}` and `*` take the entity; the legacy `{A}`/`{B}`
+ * patterns of older layouts mean the focused entity and the reference.
+ */
+export function resolveBinding(
+  pattern: string,
+  sel: { focus?: string | null; reference?: string | null; entity?: string | null },
+): string | null {
+  if (pattern.includes("{A}")) return sel.focus ? pattern.replaceAll("{A}", sel.focus) : null;
+  if (pattern.includes("{B}")) return sel.reference ? pattern.replaceAll("{B}", sel.reference) : null;
+  if (pattern.includes("{id}") || pattern.includes("*")) {
+    return sel.entity ? pattern.replaceAll("{id}", sel.entity).replaceAll("*", sel.entity) : null;
+  }
   return pattern;
 }
+
+/** Per-entity topic for an entity-pattern binding, e.g. "/vehicle/{id}/telemetry" for entity 16. */
+export const topicFor = (pattern: string | undefined, fallback: string, entity: string) =>
+  resolveBinding(pattern ?? fallback, { entity, focus: entity, reference: entity }) ?? fallback.replace("*", entity);

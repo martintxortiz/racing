@@ -22,6 +22,8 @@ export interface Entity {
   code: string;
   name: string;
   team?: string;
+  /** Class or category in multi-class sessions (LMH, LMP2, GT3 …). */
+  class?: string;
   colour: string;
 }
 
@@ -56,24 +58,19 @@ export interface Lap {
   t0: Sec;
   t1: Sec | null;
   time: Sec | null;
-  sectors: [Sec | null, Sec | null, Sec | null];
+  /** Sector times in order; as many as the feed publishes (sector_1_s … sector_n_s). */
+  sectors: (Sec | null)[];
   outLap: boolean;
+  /** Driver in the car for this lap, when the feed names one (driver swaps). */
+  driver?: string;
   deleted: boolean;
   deletedReason?: string;
   segment: string | null;
   timed: boolean;
 }
 
-export type LapRef = "best" | "cursor" | { n: number };
+export type LapRef = "best" | "last" | "cursor" | { n: number };
 
-export interface Selection {
-  a: EntityId | null;
-  b: EntityId | null;
-  lapA: LapRef;
-  lapB: LapRef;
-  hoverEntity: EntityId | null;
-  hoverDistance: number | null;
-}
 
 export interface Cursor {
   t: Sec;

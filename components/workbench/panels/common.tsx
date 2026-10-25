@@ -1,11 +1,12 @@
 "use client";
 
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 
 import type { PanelState } from "@/lib/workbench/layout";
-import type { Sec } from "@/lib/workbench/types";
-import { useWB } from "../state";
+import { panelEntities } from "@/lib/workbench/selection";
+import type { EntityId, Sec } from "@/lib/workbench/types";
+import { useWB, type MenuItem } from "../state";
 
 export interface PanelProps {
   id: string;
@@ -28,6 +29,13 @@ export interface SettingDef {
   options: { value: unknown; label: string }[];
 }
 
+/** What a panel's own menu builder gets. Read live state from `useWB.getState()`. */
+export interface PanelMenuCtx {
+  id: string;
+  panel: PanelState;
+  setConfig: (patch: Record<string, unknown>) => void;
+}
+
 export interface PanelDef {
   type: string;
   title: string;
@@ -37,7 +45,14 @@ export interface PanelDef {
   /** Slot shown as the header topic chip. */
   primary: string;
   defaultConfig: Record<string, unknown>;
+  /** Simple radio settings, shown as submenus in the panel menu. */
   settings?: SettingDef[];
+  /** Extra panel-specific menu items (shown after local items, before the generic ones). */
+  menu?: (ctx: PanelMenuCtx) => MenuItem[];
+  /** The panel shows a set of entities chosen with config.drivers ("selection" | "field" | ids). */
+  entities?: "selection" | "field";
+  /** Topic names (exact or patterns) the widget needs, for dimming in the picker. */
+  needs?: string[];
   Component: (p: PanelProps) => React.ReactNode;
 }
 
@@ -105,4 +120,15 @@ export function useTopicState(topic: string | null): "loading" | "missing" | "re
   const known = session?.topics.some((x) => x.name === topic);
   if (status === "loading" && (known || !session)) return "loading";
   return "missing";
+}
+
+/** Entities a panel shows, following its `drivers` config and the shared selection. */
+export function usePanelEntities(config: Record<string, unknown>, fallback: "selection" | "field"): EntityId[] {
+  const sel = useWB((s) => s.sel);
+  const entities = useWB((s) => s.derived?.entities);
+  const drivers = config.drivers;
+  return useMemo(
+    () => panelEntities({ drivers }, sel, (entities ?? []).map((e) => e.id), fallback),
+    [drivers, sel, entities, fallback],
+  );
 }

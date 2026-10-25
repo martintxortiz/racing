@@ -3,58 +3,68 @@
 import { useEffect, useMemo, useRef } from "react";
 
 import { fmtClock, fmtLap } from "@/lib/workbench/format";
+import { slotOf } from "@/lib/workbench/selection";
 import type { Lap } from "@/lib/workbench/types";
 import { useEntityStyles, usePalette } from "../colors";
 import { axisStyle, EChart, type EChartsInstance, type EChartsOption } from "../EChart";
-import { setA, setB, setT, useWB } from "../state";
-import { rowMenu } from "./TimingTable";
-import { Empty, Readout, Skeleton, useThrottledT, useTopicState, type PanelDef, type PanelProps } from "./common";
+import { cfg, check, entityMenuItems, openPanelMenu, patch, radio } from "../menus";
+import { focusEntity, setT, showLap, toggleCompare, useWB, type MenuItem } from "../state";
+import { Empty, Readout, Skeleton, useThrottledT, usePanelEntities, useTopicState, type PanelDef, type PanelProps } from "./common";
 
 const CROSS = "path://M0,0L10,10M10,0L0,10";
 
-function LapChart({ panel, setConfig }: PanelProps) {
+function LapChart({ id, panel }: PanelProps) {
   const p = usePalette();
   const styles = useEntityStyles();
   const derived = useWB((s) => s.derived);
-  const a = useWB((s) => s.a);
-  const b = useWB((s) => s.b);
+  const sel = useWB((s) => s.sel);
+  const shown = usePanelEntities(panel.config, "field");
+  const xMode = panel.config.x === "lap" ? "lap" : "time";
+  const band = String(panel.config.band ?? "107");
   const hoverEntity = useWB((s) => s.hoverEntity);
   const t = useThrottledT(4);
   const state = useTopicState(panel.bindings.laps ?? "/timing/laps");
   const filter = String(panel.config.filter ?? "timed");
-  const who = String(panel.config.entities ?? "all");
   const chart = useRef<EChartsInstance | null>(null);
   const cursorEl = useRef<HTMLDivElement>(null);
+  const xModeRef = useRef(xMode);
+  useEffect(() => {
+    xModeRef.current = xMode;
+  });
 
   const { laps, yRange, pbs } = useMemo(() => {
-    const all = (derived?.laps ?? []).filter((l) => l.time !== null && l.t1 !== null);
+    const show = new Set(shown);
+    const all = (derived?.laps ?? []).filter((l) => l.time !== null && l.t1 !== null && show.has(l.entity));
     const laps = all.filter((l) => (filter === "all" ? true : !l.outLap && (l.timed || l.deleted)));
-    // Y range from timed laps: fastest − 0.5 s to the 107% band (slow laps get clipped at the top).
+    // Y range from timed laps: fastest − 0.5 s to a band above it (slow laps get clipped at the top).
     const times = laps.filter((l) => l.timed && !l.deleted).map((l) => l.time!);
     const min = times.length ? Math.min(...times) : 0;
+    const max = times.length ? Math.max(...times) : 1;
+    const top = band === "all" ? max + 0.5 : min * (band === "110" ? 1.1 : band === "103" ? 1.03 : 1.07);
     const pbs = new Set<Lap>();
     for (const ls of derived?.lapsByEntity.values() ?? []) {
       let best: Lap | null = null;
       for (const l of ls) if (l.timed && !l.deleted && l.time !== null && (!best || l.time < best.time!)) best = l;
       if (best) pbs.add(best);
     }
-    return { laps, yRange: [Math.floor((min - 0.5) * 2) / 2, Math.ceil(min * 1.07)], pbs };
-  }, [derived, filter]);
+    return { laps, yRange: [Math.floor((min - 0.5) * 2) / 2, Math.ceil(top)], pbs };
+  }, [derived, filter, shown, band]);
 
   const option = useMemo<EChartsOption>(() => {
     if (!derived) return {};
     const ax = axisStyle(p);
     const [w0, w1] = useWB.getState().session?.window ?? [0, 1];
-    const visible = laps.filter((l) => who === "all" || l.entity === a || l.entity === b);
+    const X = (l: Lap) => (xMode === "lap" ? l.n : l.t1!);
     const point = (l: Lap) => {
-      const role = l.entity === a ? "a" : l.entity === b ? "b" : null;
+      const slot = slotOf(sel, l.entity);
+      const role = slot >= 0;
       const st = styles.get(l.entity);
-      const dim = panel.config.dimOthers !== false && (a || b) && !role && l.entity !== hoverEntity;
+      const dim = panel.config.dimOthers !== false && sel.compare.length > 0 && !role && l.entity !== hoverEntity;
       const future = l.t1! > t;
-      const colour = role === "a" ? p.a : role === "b" ? p.b : (st?.colour ?? p.text3);
+      const colour = role ? p.series[slot % p.series.length] : (st?.colour ?? p.text3);
       const opacity = (future ? 0.15 : 1) * (dim ? 0.3 : 1);
       return {
-        value: [l.t1, Math.min(l.time!, yRange[1]), l.entity, l.n],
+        value: [X(l), Math.min(l.time!, yRange[1]), l.entity, l.n],
         symbol: l.deleted ? CROSS : "circle",
         symbolSize: l.deleted ? 7 : role ? 7 : 5,
         itemStyle: l.deleted
@@ -65,15 +75,11 @@ function LapChart({ panel, setConfig }: PanelProps) {
         z: role ? 4 : 2,
       };
     };
-    const lineFor = (e: string | null, colour: string, id: string) => ({
+    const lineFor = (e: string, colour: string, id: string) => ({
       id,
       type: "line",
-      // Join A's (B's) clean laps; laps beyond the 107% band break the line instead of spiking.
-      data: e
-        ? laps
-            .filter((l) => l.entity === e && l.timed && !l.deleted)
-            .map((l) => (l.time! < yRange[1] ? [l.t1, l.time] : [l.t1, null]))
-        : [],
+      // Join compared drivers' clean laps; laps above the band break the line instead of spiking.
+      data: laps.filter((l) => l.entity === e && l.timed && !l.deleted).map((l) => (l.time! < yRange[1] ? [X(l), l.time] : [X(l), null])),
       connectNulls: false,
       showSymbol: false,
       silent: true,
@@ -81,23 +87,27 @@ function LapChart({ panel, setConfig }: PanelProps) {
       z: 3,
     });
     const segs = derived.segments;
+    const maxLap = Math.max(1, ...laps.map((l) => l.n));
     return {
       animation: false,
       grid: { left: 58, right: 12, top: 10, bottom: 24 },
-      xAxis: {
-        type: "value",
-        min: w0,
-        max: w1,
-        ...ax,
-        splitLine: { show: false },
-        axisLabel: {
-          ...ax.axisLabel,
-          formatter: (v: number) => {
-            const s = [...segs].reverse().find((x) => v >= x.t0);
-            return s ? `${s.id} ${fmtClock(v - s.t0, false)}` : fmtClock(v, false);
-          },
-        },
-      },
+      xAxis:
+        xMode === "lap"
+          ? { type: "value", min: 0, max: maxLap + 1, minInterval: 1, ...ax, splitLine: { show: false }, name: "lap", nameLocation: "end", nameGap: 4 }
+          : {
+              type: "value",
+              min: w0,
+              max: w1,
+              ...ax,
+              splitLine: { show: false },
+              axisLabel: {
+                ...ax.axisLabel,
+                formatter: (v: number) => {
+                  const s = [...segs].reverse().find((x) => v >= x.t0);
+                  return s ? `${s.id} ${fmtClock(v - s.t0, false)}` : fmtClock(v, false);
+                },
+              },
+            },
       yAxis: {
         type: "value",
         min: yRange[0],
@@ -131,22 +141,23 @@ function LapChart({ panel, setConfig }: PanelProps) {
             silent: true,
             itemStyle: { color: p.chrome },
             label: { show: true, position: "insideTopLeft", color: p.text3, fontSize: 11, fontFamily: p.font, fontWeight: 500 },
-            data: segs.map((s) => [{ xAxis: s.t0, name: s.id }, { xAxis: s.t1 ?? w1 }]),
+            data: xMode === "lap" || segs.length < 2 ? [] : segs.map((s) => [{ xAxis: s.t0, name: s.id }, { xAxis: s.t1 ?? w1 }]),
           },
         },
-        { id: "points", type: "scatter", data: visible.map(point), cursor: "pointer" },
-        lineFor(b, p.b, "line-b"),
-        lineFor(a, p.a, "line-a"),
+        { id: "points", type: "scatter", data: laps.map(point), cursor: "pointer" },
+        ...sel.compare
+          .filter((e) => shown.includes(e))
+          .map((e, i) => lineFor(e, p.series[slotOf(sel, e) % p.series.length], `line-${i}`)),
       ],
     };
-  }, [derived, laps, yRange, pbs, who, a, b, hoverEntity, t, p, styles, panel.config.dimOthers]);
+  }, [derived, laps, yRange, pbs, sel, shown, hoverEntity, t, p, styles, panel.config.dimOthers, xMode]);
 
   useEffect(() => {
     const place = () => {
       const el = cursorEl.current;
       const c = chart.current;
       if (!el || !c) return;
-      const x = c.convertToPixel({ xAxisIndex: 0 }, useWB.getState().t);
+      const x = xModeRef.current === "lap" ? NaN : c.convertToPixel({ xAxisIndex: 0 }, useWB.getState().t);
       el.style.display = Number.isFinite(x) ? "block" : "none";
       el.style.transform = `translateX(${x}px)`;
     };
@@ -164,42 +175,42 @@ function LapChart({ panel, setConfig }: PanelProps) {
   }, [option]);
 
   if (state === "loading" && !laps.length) return <Skeleton rows={6} />;
-  if (!laps.length) return <Empty title="No laps yet" />;
+  if (!laps.length) return <Empty title="No laps yet">{shown.length ? null : "No drivers shown. Right-click › Drivers."}</Empty>;
 
   return (
     <>
       <Readout>
-        <button type="button" className="wb-textbtn" onClick={() => setConfig({ filter: filter === "all" ? "timed" : "all" })}>
-          {filter === "all" ? "All laps" : "Timed laps"}
-        </button>
-        <span className="pw-faint">·</span>
-        <button type="button" className="wb-textbtn" onClick={() => setConfig({ entities: who === "all" ? "ab" : "all" })}>
-          {who === "all" ? "All drivers" : "A and B"}
-        </button>
+        <span className="pw-faint">
+          {laps.length} laps · {shown.length === (derived?.entities.length ?? 0) ? "whole field" : `${shown.length} drivers`}
+        </span>
       </Readout>
       <EChart
         option={option}
         onReady={(c) => {
           chart.current = c;
           type Ev = { seriesId?: string; value?: unknown; event?: { event?: Event } };
-          const lapOf = (e: Ev) => (e.seriesId === "points" && Array.isArray(e.value) ? { entity: String(e.value[2]), n: Number(e.value[3]), t1: Number(e.value[0]) } : null);
+          const lapOf = (e: Ev) => (e.seriesId === "points" && Array.isArray(e.value) ? { entity: String(e.value[2]), n: Number(e.value[3]) } : null);
           c.on("click", (e: Ev) => {
             const l = lapOf(e);
             if (!l) return;
-            if ((e.event?.event as MouseEvent | undefined)?.shiftKey) setB(l.entity, { n: l.n });
-            else setA(l.entity, { n: l.n });
-            setT(l.t1);
+            const ev = e.event?.event as MouseEvent | undefined;
+            if (ev?.shiftKey || ev?.metaKey || ev?.ctrlKey) toggleCompare(l.entity);
+            else {
+              focusEntity(l.entity);
+              showLap(l.entity, { n: l.n });
+            }
           });
           c.on("contextmenu", (e: Ev) => {
             const l = lapOf(e);
             const ev = e.event?.event as MouseEvent | undefined;
             if (!l || !ev) return;
             ev.preventDefault();
-            ev.stopPropagation();
-            rowMenu(l.entity, ev.clientX, ev.clientY, [
-              { label: `Compare lap ${l.n} as A`, onSelect: () => setA(l.entity, { n: l.n }) },
-              { label: `Compare lap ${l.n} as B`, onSelect: () => setB(l.entity, { n: l.n }) },
-              { label: "Move cursor to lap end", onSelect: () => setT(l.t1) },
+            const lap = useWB.getState().derived?.lapsByEntity.get(l.entity)?.find((q) => q.n === l.n);
+            openPanelMenu(id, ev.clientX, ev.clientY, () => [
+              ...entityMenuItems(l.entity, { lapNumber: l.n }),
+              { separator: true },
+              { label: `Cursor to start of lap ${l.n}`, disabled: !lap, onSelect: () => lap && setT(lap.t0) },
+              { label: `Cursor to end of lap ${l.n}`, disabled: !lap?.t1, onSelect: () => lap?.t1 && setT(lap.t1) },
             ]);
           });
           c.on("mouseover", (e: Ev) => {
@@ -222,22 +233,33 @@ function escapeHtml(s: string) {
   return s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
 }
 
+function lapMenu(id: string): MenuItem[] {
+  return [
+    radio("X axis", [{ value: "time", label: "Session time" }, { value: "lap", label: "Lap number" }], cfg<string>(id, "x", "time"), (v) => patch(id, { x: v })),
+    radio("Laps", [{ value: "timed", label: "Timed and deleted" }, { value: "all", label: "All, incl. in/out laps" }], cfg<string>(id, "filter", "timed"), (v) => patch(id, { filter: v })),
+    radio("Y range", [
+      { value: "103", label: "Fastest + 3%" },
+      { value: "107", label: "Fastest + 7%" },
+      { value: "110", label: "Fastest + 10%" },
+      { value: "all", label: "All laps" },
+    ], cfg<string>(id, "band", "107"), (v) => patch(id, { band: v })),
+    check("Dim drivers not compared", cfg<boolean>(id, "dimOthers", true), (v) => patch(id, { dimOthers: v })),
+  ];
+}
+
 export const lapChart: PanelDef = {
   type: "lap-chart",
   title: "Lap times",
-  description: "Every lap over session time. Deleted laps are crosses, personal bests are ringed. Click a lap to compare it.",
+  description: "Every lap over session time or lap number. Deleted laps are crosses, personal bests ringed.",
   icon: "analytics",
   primary: "laps",
+  entities: "field",
+  needs: ["/timing/laps"],
   slots: {
     laps: { schemas: ["rtc.laps"], required: true, default: "/timing/laps" },
     events: { schemas: ["rtc.events"], required: false, default: "/session/events" },
-    stints: { schemas: ["rtc.stints"], required: false, default: "/timing/stints" },
   },
-  defaultConfig: { filter: "timed", dimOthers: true, entities: "all" },
-  settings: [
-    { key: "filter", label: "Laps", options: [{ value: "timed", label: "Timed only" }, { value: "all", label: "All" }] },
-    { key: "entities", label: "Drivers", options: [{ value: "all", label: "All" }, { value: "ab", label: "A and B" }] },
-    { key: "dimOthers", label: "Dim others", options: [{ value: true, label: "On" }, { value: false, label: "Off" }] },
-  ],
+  defaultConfig: { filter: "timed", dimOthers: true, drivers: "field", x: "time", band: "107" },
+  menu: ({ id }) => lapMenu(id),
   Component: LapChart,
 };

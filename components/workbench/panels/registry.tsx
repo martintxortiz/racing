@@ -3,12 +3,18 @@
 import type { PanelState } from "@/lib/workbench/layout";
 import type { PanelDef, PanelProps } from "./common";
 import { eventLog } from "./EventLog";
+import { gapChart } from "./GapChart";
 import { lapChart } from "./LapChart";
+import { sectors } from "./Sectors";
+import { sessionInfo } from "./SessionInfo";
+import { stints } from "./Stints";
 import { timingTable } from "./TimingTable";
 import { trace } from "./Trace";
 import { trackMap } from "./TrackMap";
+import { weather } from "./Weather";
 
-export const PANELS: PanelDef[] = [timingTable, trackMap, trace, lapChart, eventLog];
+/** In picker order; matches PANEL_TYPES in lib/workbench/presets.ts. */
+export const PANELS: PanelDef[] = [timingTable, trace, trackMap, lapChart, gapChart, stints, sectors, eventLog, sessionInfo, weather];
 const byType = new Map(PANELS.map((d) => [d.type, d]));
 
 /** Unknown panel types render their JSON so a newer layout never breaks an older app. */

@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 
+import { slotOf, type Selection } from "@/lib/workbench/selection";
 import type { Entity, EntityId } from "@/lib/workbench/types";
 import { useWB } from "./state";
 
@@ -20,6 +21,8 @@ export interface Palette {
   accent: string;
   a: string;
   b: string;
+  /** Comparison slot colours (series-1 … series-10). */
+  series: string[];
   purple: string;
   green: string;
   font: string;
@@ -31,7 +34,7 @@ export interface Palette {
 const FALLBACK: Palette = {
   bg: "#fff", chrome: "#f6f6f6", split: "#d4d4d4", rule: "#ebebeb", text1: "#161616", text2: "#474747",
   text3: "#666", grid: "#ececec", axis: "#8d8d8d", crosshair: "#393939", accent: "#0f62fe", a: "#0f62fe",
-  b: "#eb6200", purple: "#8a3ffc", green: "#198038", font: "IBM Plex Sans", mono: "IBM Plex Mono",
+  b: "#eb6200", series: ["#0f62fe", "#eb6200", "#198038", "#8a3ffc", "#d02670", "#007d79", "#b28600", "#6929c4", "#a2191f", "#005d5d"], purple: "#8a3ffc", green: "#198038", font: "IBM Plex Sans", mono: "IBM Plex Mono",
   flag: {}, tyre: {},
 };
 
@@ -43,7 +46,9 @@ export function readPalette(el: Element | null): Palette {
     bg: v("--pw-bg"), chrome: v("--pw-chrome"), split: v("--pw-split"), rule: v("--pw-rule"),
     text1: v("--pw-text-1"), text2: v("--pw-text-2"), text3: v("--pw-text-3"),
     grid: v("--pw-grid"), axis: v("--pw-axis"), crosshair: v("--pw-crosshair"), accent: v("--pw-accent"),
-    a: v("--pw-series-1"), b: v("--pw-series-2"), purple: v("--pw-sector-purple"), green: v("--pw-sector-green"),
+    a: v("--pw-series-1"), b: v("--pw-series-2"),
+    series: Array.from({ length: 10 }, (_, i) => v(`--pw-series-${i + 1}`) || FALLBACK.series[i]),
+    purple: v("--pw-sector-purple"), green: v("--pw-sector-green"),
     font: v("--pw-font"), mono: v("--pw-font-mono"),
     flag: {
       GREEN: v("--pw-flag-green"), YELLOW: v("--pw-flag-yellow"), "DOUBLE YELLOW": v("--pw-flag-yellow"),
@@ -123,4 +128,26 @@ export function entityStyles(entities: Entity[], bg: string): Map<EntityId, Enti
     });
   }
   return out;
+}
+
+export type ColourBy = "team" | "slot";
+
+/**
+ * Line colour of an entity in a panel. "slot" uses the comparison slot (1st compared = series-1 …),
+ * which keeps teammates apart; "team" uses the readable team colour. Entities outside the
+ * comparison fall back to their team colour.
+ */
+export function colourOf(
+  e: EntityId,
+  by: ColourBy,
+  sel: Selection,
+  styles: Map<EntityId, EntityStyle>,
+  p: Palette,
+): { colour: string; dashed: boolean } {
+  const st = styles.get(e);
+  if (by === "slot") {
+    const k = slotOf(sel, e);
+    if (k >= 0) return { colour: p.series[k % p.series.length], dashed: false };
+  }
+  return { colour: st?.colour ?? p.text3, dashed: by === "team" && !!st?.second };
 }

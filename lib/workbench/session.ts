@@ -19,7 +19,8 @@ export function derive(store: Store, session: SessionMeta): Derived {
   const entities = adapter.entities(store);
   const segments = adapter.segments?.(store) ?? [];
   const flags = adapter.lapFlags?.(store) ?? [];
-  const laps = buildLaps(store.get("/timing/laps"), segments, flags);
+  const cls = new Map(entities.map((e) => [e.id, e.class]));
+  const laps = buildLaps(store.get("/timing/laps"), segments, flags, (e) => cls.get(e));
   const outline = store.latest<{ distance_m?: number[] }>("/track/outline");
   const lapLength = outline?.distance_m?.length ? Math.max(...outline.distance_m) : null;
   return {

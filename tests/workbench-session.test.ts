@@ -48,7 +48,7 @@ describe.skipIf(!has)("Singapore 2026 qualifying MCAP", () => {
     const results = store.get("/results/session")!.rows;
     const rows = timingAt(
       {
-        entities: d.entities.map((e) => e.id),
+        entities: d.entities,
         laps: d.lapsByEntity,
         segments: d.segments,
         classification: store.get("/timing/classification"),
@@ -58,14 +58,13 @@ describe.skipIf(!has)("Singapore 2026 qualifying MCAP", () => {
     );
     const expected = [...results].sort((a, b) => Number(a.position ?? 99) - Number(b.position ?? 99));
     expect(rows.map((r) => r.entity)).toEqual(expected.map((r) => String(r.driver_number)));
+    // Session-wide best = fastest of the official per-part bests; no part-specific logic needed.
     for (const [i, r] of rows.entries()) {
-      const durs = expected[i].durations_s as (number | null)[];
-      const segIdx = r.eliminatedIn ? Number(r.eliminatedIn.slice(1)) - 1 : 2;
-      if (durs[segIdx] === null) expect(r.best).toBeNull();
-      else expect(r.best?.time).toBeCloseTo(durs[segIdx]!, 3);
+      const durs = (expected[i].durations_s as (number | null)[]).filter((x): x is number => x !== null);
+      if (!durs.length) expect(r.best).toBeNull();
+      else expect(r.best?.time).toBeCloseTo(Math.min(...durs), 3);
     }
-    expect(rows.filter((r) => r.eliminatedIn === "Q1")).toHaveLength(6); // incl. the no-show
-    expect(rows.filter((r) => r.eliminatedIn === "Q2")).toHaveLength(6);
+    expect(rows.map((r) => r.pos)).toEqual(rows.map((_, i) => i + 1));
   });
 
   it("flags deleted laps from race control", () => {

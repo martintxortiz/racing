@@ -1,22 +1,13 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { isSplit, panelIds, type Edge, type LayoutNode, type Path } from "@/lib/workbench/layout";
+import { PRESETS } from "@/lib/workbench/presets";
+import { dataItems, openPanelMenu, registerRename } from "./menus";
 import { HeaderSlot } from "./panels/common";
 import { panelDef } from "./panels/registry";
-import {
-  duplicatePanel,
-  movePanelTo,
-  openMenu,
-  openPicker,
-  removePanelById,
-  resizeSplit,
-  toggleMaximize,
-  updatePanel,
-  useWB,
-  type MenuItem,
-} from "./state";
+import { addPresetTab, addTab, movePanelTo, openMenu, openPicker, removePanelById, resizeSplit, toggleMaximize, updatePanel, useWB } from "./state";
 
 const DRAG_MIME = "application/x-wb-panel";
 
@@ -25,80 +16,9 @@ const DRAG_MIME = "application/x-wb-panel";
 export function emptySpaceMenu(x: number, y: number, tab: string) {
   openMenu(x, y, [
     { label: "Add panel…", hint: "P", onSelect: () => openPicker({ kind: "tab", tab }) },
-  ]);
-}
-
-function topicItems(id: string): MenuItem[] {
-  const { layout, session } = useWB.getState();
-  const panel = layout.panels[id];
-  const def = panelDef(panel.type);
-  const topics = session?.topics ?? [];
-  const items: MenuItem[] = [];
-  for (const [slot, s] of Object.entries(def.slots)) {
-    const cur = panel.bindings[slot];
-    const options = new Set<string>();
-    if (s.pattern) {
-      for (const tp of topics.filter((t) => s.schemas.includes(t.schema))) options.add(tp.name);
-      const sample = s.default;
-      for (const pat of ["{A}", "{B}", "*"]) options.add(sample.replace(/\{A\}|\{B\}|\*/, pat));
-    } else {
-      for (const tp of topics.filter((t) => s.schemas.includes(t.schema))) options.add(tp.name);
-    }
-    if (cur) options.add(cur);
-    const sorted = [...options].sort((a, b) => Number(/[{*]/.test(b)) - Number(/[{*]/.test(a)) || a.localeCompare(b, undefined, { numeric: true }));
-    items.push({ heading: `${slot}${s.required ? "" : " (optional)"}` });
-    // Long entity lists: show patterns + A/B concrete topics only, to keep the menu short.
-    const { a, b } = useWB.getState();
-    const pinned = (o: string) => /[{*]/.test(o) || o === cur || [a, b].some((e) => e && o.split("/").includes(e));
-    const shown = sorted.length > 10 ? sorted.filter(pinned) : sorted;
-    for (const o of shown)
-      items.push({
-        label: o,
-        checked: o === cur,
-        onSelect: () => updatePanel(id, (p) => ({ ...p, bindings: { ...p.bindings, [slot]: o } })),
-      });
-    if (!s.required && cur)
-      items.push({
-        label: "Unbind",
-        onSelect: () =>
-          updatePanel(id, (p) => {
-            const b = { ...p.bindings };
-            delete b[slot];
-            return { ...p, bindings: b };
-          }),
-      });
-  }
-  return items;
-}
-
-export function panelMenu(id: string, x: number, y: number, rename?: () => void) {
-  const { layout, maximized } = useWB.getState();
-  const panel = layout.panels[id];
-  if (!panel) return;
-  const def = panelDef(panel.type);
-  const split = (edge: Edge) => () => openPicker({ kind: "split", panel: id, edge });
-  const settings: MenuItem[] = (def.settings ?? []).flatMap((s) => [
-    { heading: s.label },
-    ...s.options.map((o) => ({
-      label: o.label,
-      checked: (panel.config[s.key] ?? def.defaultConfig[s.key]) === o.value,
-      onSelect: () => updatePanel(id, (p) => ({ ...p, config: { ...p.config, [s.key]: o.value } })),
-    })),
-  ]);
-  openMenu(x, y, [
-    { label: "Split right…", onSelect: split("right") },
-    { label: "Split down…", onSelect: split("bottom") },
-    { label: "Split left…", onSelect: split("left") },
-    { label: "Split up…", onSelect: split("top") },
-    { label: "Replace with…", onSelect: () => openPicker({ kind: "replace", panel: id }) },
     { separator: true },
-    { label: "Duplicate", onSelect: () => duplicatePanel(id) },
-    ...(rename ? [{ label: "Rename", onSelect: rename }] : []),
-    { label: maximized === id ? "Restore" : "Maximize", hint: "F", onSelect: () => toggleMaximize(id) },
-    { label: "Copy panel JSON", onSelect: () => void navigator.clipboard?.writeText(JSON.stringify(panel, null, 2)) },
-    ...(settings.length ? [{ separator: true } as const, ...settings] : []),
-    { separator: true },
-    { label: "Close panel", onSelect: () => removePanelById(id) },
+    { label: "New blank tab", onSelect: addTab },
+    { label: "New tab from preset", submenu: () => Object.entries(PRESETS).map(([k, p]) => ({ label: p.name, onSelect: () => addPresetTab(k) })) },
   ]);
 }
 
@@ -112,6 +32,10 @@ function PanelFrame({ id, tab }: { id: string; tab: string }) {
   const [renaming, setRenaming] = useState(false);
   const [drop, setDrop] = useState<Edge | null>(null);
   const frame = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    registerRename(id, () => setRenaming(true));
+    return () => void registerRename(id, null);
+  }, [id]);
   if (!panel) return null;
   const def = panelDef(panel.type);
   const title = panel.title ?? def.title;
@@ -133,8 +57,10 @@ function PanelFrame({ id, tab }: { id: string; tab: string }) {
       data-panel={id}
       onPointerDownCapture={() => useWB.getState().focused !== id && useWB.setState({ focused: id })}
       onContextMenu={(e) => {
+        // Panels open richer menus for what was clicked and call preventDefault themselves.
+        if (e.defaultPrevented) return;
         e.preventDefault();
-        panelMenu(id, e.clientX, e.clientY, () => setRenaming(true));
+        openPanelMenu(id, e.clientX, e.clientY);
       }}
       onDragOver={(e) => {
         if (!e.dataTransfer.types.includes(DRAG_MIME)) return;
@@ -190,7 +116,7 @@ function PanelFrame({ id, tab }: { id: string; tab: string }) {
             title="Topic binding"
             onClick={(e) => {
               const r = e.currentTarget.getBoundingClientRect();
-              openMenu(r.left, r.bottom + 2, topicItems(id));
+              openMenu(r.left, r.bottom + 2, () => dataItems(id));
             }}
           >
             {topic}
@@ -204,7 +130,7 @@ function PanelFrame({ id, tab }: { id: string; tab: string }) {
             aria-label="Panel menu"
             onClick={(e) => {
               const r = e.currentTarget.getBoundingClientRect();
-              panelMenu(id, r.right - 180, r.bottom + 2, () => setRenaming(true));
+              openPanelMenu(id, r.right - 220, r.bottom + 2);
             }}
           >
             <span className="pw-icon pw-icon--overflow-menu-horizontal" />

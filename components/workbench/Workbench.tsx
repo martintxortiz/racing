@@ -3,27 +3,27 @@
 import { useTheme } from "next-themes";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
+import { emptySelection, fromQuery, sanitize, toQuery } from "@/lib/workbench/selection";
 import { applyMessage } from "@/lib/workbench/session";
 import type { WorkerMessage, WorkerRequest } from "@/lib/workbench/types";
 import { ContextMenu } from "./ContextMenu";
 import { PanelPicker } from "./PanelPicker";
 import { lastLayout, saveLast, saveLayout } from "./persist";
-import { TabStrip } from "./TabStrip";
 import { TabBody } from "./Tiles";
 import { Timeline } from "./Timeline";
 import { TopBar } from "./TopBar";
 import {
+  clearComparison,
   closeMenu,
+  cycleFocus,
   loadLayout,
   notify,
   openPicker,
   refreshDerived,
   resetData,
-  setB,
   setT,
   stepLap,
   stepSpeed,
-  swapAB,
   toggleMaximize,
   togglePlay,
   useWB,
@@ -35,6 +35,10 @@ export type Source = { kind: "url"; url: string } | { kind: "file"; file: File }
 
 export interface UrlState {
   t?: number;
+  /** Comparison: sel=1,16 (legacy a/b still read). */
+  sel?: string;
+  focus?: string;
+  ref?: string;
   a?: string;
   b?: string;
   tab?: string;
@@ -137,17 +141,19 @@ export function Workbench({
           clearTimeout(pending);
           refreshDerived();
           const s = useWB.getState();
-          // Default A/B: P1 and P2 of the final classification.
-          const results = (s.store.get("/results/session")?.rows ?? [])
+          // Default comparison: the first two of the final order (classification / results / entity
+          // order), so it works for any series and session type. The URL wins when it names known ids.
+          const ids = (s.derived?.entities ?? []).map((e) => e.id);
+          const finalOrder = [...(s.store.get("/results/session")?.rows ?? []), ...(s.store.get("/timing/classification")?.rows ?? [])]
             .filter((r) => r.position != null)
-            .sort((x, y) => Number(x.position) - Number(y.position));
-          const known = (id?: string) => (id && s.derived?.entityById.has(id) ? id : undefined);
-          useWB.setState({
-            status: "ready",
-            progress: null,
-            a: known(initial.a) ?? (results[0] ? String(results[0].entity) : (s.derived?.entities[0]?.id ?? null)),
-            b: known(initial.b) ?? (results[1] ? String(results[1].entity) : null),
-          });
+            .sort((x, y) => Number(x.position) - Number(y.position))
+            .map((r) => String(r.entity))
+            .filter((e, k, a) => a.indexOf(e) === k && ids.includes(e));
+          const order = [...finalOrder, ...ids.filter((e) => !finalOrder.includes(e))];
+          const fromUrl = fromQuery(initial);
+          const sel = fromUrl ? sanitize(fromUrl, new Set(ids)) : null;
+          const fallback = { ...emptySelection(), compare: order.slice(0, 2), focus: order[0] ?? null };
+          useWB.setState({ status: "ready", progress: null, sel: sel && sel.compare.length ? sel : fallback });
           break;
         }
         case "error":
@@ -164,6 +170,20 @@ export function Workbench({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [source]);
+
+  // "Open .mcap file…" from the top bar.
+  useEffect(() => {
+    if (!onPickFile) return;
+    const h = () => {
+      const input = document.createElement("input");
+      input.type = "file";
+      input.accept = ".mcap";
+      input.onchange = () => input.files?.[0] && onPickFile(input.files[0]);
+      input.click();
+    };
+    window.addEventListener("wb:pick-file", h);
+    return () => window.removeEventListener("wb:pick-file", h);
+  }, [onPickFile]);
 
   // Playback.
   useEffect(() => {
@@ -193,14 +213,17 @@ export function Workbench({
       if (!s.session) return;
       const u = new URL(window.location.href);
       u.searchParams.set("t", s.t.toFixed(1));
-      for (const [k, v] of [["a", s.a], ["b", s.b], ["tab", s.activeTab], ["layout", s.layout.id]] as const) {
+      u.searchParams.delete("a");
+      u.searchParams.delete("b");
+      const q = toQuery(s.sel);
+      for (const [k, v] of [["sel", q.sel], ["focus", q.focus], ["ref", q.ref], ["tab", s.activeTab], ["layout", s.layout.id]] as const) {
         if (v) u.searchParams.set(k, v);
         else u.searchParams.delete(k);
       }
       window.history.replaceState(window.history.state, "", u);
     };
     const unsub = useWB.subscribe((s, p) => {
-      if (s.t === p.t && s.a === p.a && s.b === p.b && s.activeTab === p.activeTab && s.layout.id === p.layout.id) return;
+      if (s.t === p.t && s.sel === p.sel && s.activeTab === p.activeTab && s.layout.id === p.layout.id) return;
       timer ??= setTimeout(write, 500);
     });
     return () => {
@@ -251,7 +274,13 @@ export function Workbench({
           break;
         case "1":
         case "2":
-        case "3": {
+        case "3":
+        case "4":
+        case "5":
+        case "6":
+        case "7":
+        case "8":
+        case "9": {
           const seg = segs[Number(e.key) - 1];
           if (seg) setT(seg.t0);
           break;
@@ -266,12 +295,12 @@ export function Workbench({
           break;
         case "x":
         case "X":
-          swapAB();
+          cycleFocus(e.shiftKey ? -1 : 1);
           break;
         case "Escape":
           if (s.menu) closeMenu();
           else if (s.maximized) toggleMaximize(null);
-          else setB(null);
+          else clearComparison();
           break;
         case "p":
         case "P": {
@@ -319,7 +348,6 @@ export function Workbench({
       <div className="wb-progress" aria-hidden={status !== "loading"}>
         {status === "loading" ? <span style={{ width: `${pct ?? 15}%` }} className={pct === null ? "is-indeterminate" : undefined} /> : null}
       </div>
-      <TabStrip />
       <main className="wb-main">
         {status === "error" ? (
           <div className="pw-empty">

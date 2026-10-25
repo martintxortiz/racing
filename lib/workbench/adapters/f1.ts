@@ -34,7 +34,7 @@ function sessionKind(type: string): "practice" | "qualifying" | "race" | "test" 
 /** f1pipe (OpenF1) MCAP -> canonical topics. Positions are in ~0.1 m timing units. */
 export const f1OpenF1: Adapter = {
   id: "f1-openf1@1",
-  detect: (meta, topics) => meta.pipeline_version !== undefined || topics.includes("/session/info"),
+  detect: (meta, topics) => meta.pipeline_version !== undefined || topics.includes("/drivers"),
   skip: ["/scene/*"],
   topics: [
     { match: "/session/info", to: "/session/info", schema: "rtc.session_info", kind: "static", rows: (m) => [m] },

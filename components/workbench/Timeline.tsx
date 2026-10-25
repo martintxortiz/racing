@@ -7,7 +7,7 @@ import { usePalette } from "./colors";
 import { useThrottledT } from "./panels/common";
 import { openMenu, setT, SPEEDS, stepLap, togglePlay, useWB } from "./state";
 
-/** Playback bar: transport, clock, scrubber (Q bands, flags, A's laps), speed. */
+/** Playback bar: transport, playhead, scrubber (session parts, flags, the focused driver's laps), speed. */
 export function Timeline() {
   const session = useWB((s) => s.session);
   const derived = useWB((s) => s.derived);
@@ -15,7 +15,7 @@ export function Timeline() {
   const version = useWB((s) => s.version);
   const playing = useWB((s) => s.playing);
   const speed = useWB((s) => s.speed);
-  const a = useWB((s) => s.a);
+  const focus = useWB((s) => s.sel.focus);
   const progress = useWB((s) => s.progress);
   const status = useWB((s) => s.status);
   const t = useThrottledT(15);
@@ -52,7 +52,8 @@ export function Timeline() {
     return out;
   }, [w0, w1]);
 
-  const aLaps = (a && derived?.lapsByEntity.get(a)) || [];
+  const focusLaps = (focus && derived?.lapsByEntity.get(focus)) || [];
+  const focusCode = (focus && derived?.entityById.get(focus)?.code) || "focused driver";
 
   const scrub = (e: React.PointerEvent) => {
     const el = track.current!;
@@ -72,13 +73,13 @@ export function Timeline() {
   return (
     <footer className="pw-timeline wb-timeline">
       <span className="pw-timeline__controls">
-        <button type="button" className="pw-btn pw-btn--ghost pw-btn--icon" aria-label="Previous lap of A" title="Previous lap of A ([)" onClick={() => stepLap(-1)}>
+        <button type="button" className="pw-btn pw-btn--ghost pw-btn--icon" aria-label="Previous lap" title={`Previous lap of ${focusCode} ([)`} onClick={() => stepLap(-1)}>
           <span className="pw-icon pw-icon--skip-back" />
         </button>
         <button type="button" className="pw-btn pw-btn--ghost pw-btn--icon" aria-label={playing ? "Pause" : "Play"} title="Play/pause (Space)" onClick={togglePlay} disabled={!session}>
           <span className={`pw-icon pw-icon--${playing ? "pause" : "play"}`} />
         </button>
-        <button type="button" className="pw-btn pw-btn--ghost pw-btn--icon" aria-label="Next lap of A" title="Next lap of A (])" onClick={() => stepLap(1)}>
+        <button type="button" className="pw-btn pw-btn--ghost pw-btn--icon" aria-label="Next lap" title={`Next lap of ${focusCode} (])`} onClick={() => stepLap(1)}>
           <span className="pw-icon pw-icon--skip-forward" />
         </button>
       </span>
@@ -115,7 +116,7 @@ export function Timeline() {
             style={{ ["--a" as string]: f(fl.t), ["--c" as string]: p.flag[fl.flag] ?? p.text3 }}
           />
         ))}
-        {aLaps.map((l) => (
+        {focusLaps.map((l) => (
           <span key={l.n} className="wb-lapmark" style={{ ["--a" as string]: f(l.t0) }} />
         ))}
         <span className="pw-timeline__ticks">
@@ -136,6 +137,7 @@ export function Timeline() {
             const r = e.currentTarget.getBoundingClientRect();
             openMenu(r.left, r.top - 8 - SPEEDS.length * 26, SPEEDS.map((s) => ({
               label: `${s}×`,
+              radio: true,
               checked: s === speed,
               onSelect: () => useWB.setState({ speed: s }),
             })));

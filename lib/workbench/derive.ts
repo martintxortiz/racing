@@ -19,8 +19,25 @@ function segmentOfLap(segments: Segment[], t0: Sec): string | null {
   return null;
 }
 
+/** Sector times from `sector_1_s … sector_n_s`, as many as the feed publishes. */
+export function sectorsOf(r: Row): (number | null)[] {
+  const out: (number | null)[] = [];
+  for (const k of Object.keys(r)) {
+    const m = /^sector_(\d+)_s$/.exec(k);
+    if (m) out[Number(m[1]) - 1] = num(r[k]);
+  }
+  return Array.from(out, (v) => v ?? null);
+}
+
+const str = (v: unknown): string | undefined => (typeof v === "string" && v ? v : undefined);
+
 /** Lap index from canonical `/timing/laps` rows (stamped at lap start). */
-export function buildLaps(laps: TopicData | undefined, segments: Segment[], flags: LapFlag[] = []): Lap[] {
+export function buildLaps(
+  laps: TopicData | undefined,
+  segments: Segment[],
+  flags: LapFlag[] = [],
+  classOf: (e: EntityId) => string | undefined = () => undefined,
+): Lap[] {
   if (!laps) return [];
   const out: Lap[] = [];
   for (let i = 0; i < laps.length; i++) {
@@ -29,18 +46,21 @@ export function buildLaps(laps: TopicData | undefined, segments: Segment[], flag
     const n = Number(r.lap_number);
     const time = num(r.lap_time_s);
     const t0 = laps.t[i];
-    out.push({
+    const lap: Lap = {
       entity,
       n,
       t0,
       t1: time === null ? null : t0 + time,
       time,
-      sectors: [num(r.sector_1_s), num(r.sector_2_s), num(r.sector_3_s)],
-      outLap: r.is_pit_out_lap === true,
-      deleted: false,
+      sectors: sectorsOf(r),
+      outLap: r.is_pit_out_lap === true || r.is_out_lap === true,
+      deleted: r.deleted === true,
       segment: segmentOfLap(segments, t0),
       timed: false,
-    });
+    };
+    const driver = str(r.driver) ?? str(r.driver_name);
+    if (driver) lap.driver = driver;
+    out.push(lap);
   }
   // Deletions: exact lap time first, then the lap the offence happened on, then the lap number.
   for (const f of flags) {
@@ -54,14 +74,16 @@ export function buildLaps(laps: TopicData | undefined, segments: Segment[], flag
       hit.deletedReason = f.reason;
     }
   }
-  // timed = has a time, not an out lap, within 107% of the segment's fastest lap.
-  const min = new Map<string | null, number>();
+  // timed = has a time, not an out lap, within 107% of the fastest lap of its part and class
+  // (classes run at very different paces in multi-class sessions).
+  const key = (l: Lap) => `${l.segment ?? ""}\u0000${classOf(l.entity) ?? ""}`;
+  const min = new Map<string, number>();
   for (const l of out) {
     if (l.time === null || l.outLap) continue;
-    min.set(l.segment, Math.min(min.get(l.segment) ?? Infinity, l.time));
+    min.set(key(l), Math.min(min.get(key(l)) ?? Infinity, l.time));
   }
   for (const l of out) {
-    l.timed = l.time !== null && !l.outLap && l.time <= 1.07 * (min.get(l.segment) ?? Infinity);
+    l.timed = l.time !== null && !l.outLap && l.time <= 1.07 * (min.get(key(l)) ?? Infinity);
   }
   return out;
 }
@@ -95,6 +117,13 @@ export function bestLap(laps: Lap[] | undefined, opts: { segment?: string | null
 export function resolveLap(laps: Lap[] | undefined, ref: LapRef, t: Sec): Lap | null {
   if (!laps?.length) return null;
   if (ref === "best") return bestLap(laps);
+  if (ref === "last") {
+    for (let i = laps.length - 1; i >= 0; i--) {
+      const l = laps[i];
+      if (l.time !== null && l.t1 !== null && l.t1 <= t) return l;
+    }
+    return null;
+  }
   if (ref === "cursor") {
     let cur: Lap | null = null;
     for (const l of laps) if (l.t0 <= t) cur = l;
@@ -107,51 +136,71 @@ export type CellFlag = "purple" | "green" | null;
 
 export interface TimingRow {
   entity: EntityId;
+  /** Class or category, when the session has more than one. */
+  cls: string | null;
+  /** Rank in the table's ordering (1-based, per class when grouped by class). */
+  rank: number;
+  /** Official position from the classification topic, if any. */
   pos: number | null;
   best: Lap | null;
   bestFlag: CellFlag;
+  /** Gap to the leader (or class leader, or reference) in seconds. */
   gap: number | null;
-  sectors: [number | null, number | null, number | null];
-  sectorFlags: [CellFlag, CellFlag, CellFlag];
+  /** Gap to the row ahead in seconds. */
+  interval: number | null;
+  /** Laps behind the leader in race mode (0 on the lead lap). */
+  lapsDown: number;
+  sectors: (number | null)[];
+  sectorFlags: CellFlag[];
   last: Lap | null;
   lastFlag: CellFlag;
   laps: number;
   tyre: { compound: string; age: number } | null;
-  /** Segment id the driver was eliminated in, or null while still running. */
-  eliminatedIn: string | null;
+  pits: number;
+  /** Driver currently in the car, when the feed names one. */
+  driver: string | null;
 }
 
 export interface TimingInput {
-  entities: EntityId[];
+  entities: { id: EntityId; class?: string }[];
   laps: Map<EntityId, Lap[]>;
   segments: Segment[];
   classification?: TopicData;
   stints?: Row[];
+  pits?: TopicData;
+  /** Which laps count for bests and colours: the whole session or the current part. */
+  scope?: "session" | "part";
+  /** Gaps by best lap (practice, qualifying) or by elapsed time at equal laps (race). */
+  gapMode?: "best" | "race";
+  /** What gaps are measured to. "auto" = class leader in multi-class sessions, else leader. */
+  gapTo?: "auto" | "leader" | "class" | { entity: EntityId };
+  /** Ordering. "auto" = classification position when published, else by gap mode. */
+  rank?: "auto" | "position" | "best" | "race";
 }
 
-/** Everything the timing table shows at time t. */
-export function timingAt(inp: TimingInput, t: Sec): TimingRow[] {
-  const cur = segmentAt(inp.segments, t);
-  const curIdx = cur ? inp.segments.indexOf(cur) : -1;
+/** Number of sectors the feed publishes (longest sector list over all laps). */
+export function sectorCount(laps: Iterable<Lap[]>): number {
+  let n = 0;
+  for (const ls of laps) for (const l of ls) n = Math.max(n, l.sectors.length);
+  return n;
+}
 
-  // Who took part in each segment (from the whole recording; replay knows the future).
-  const participants = new Map<string, Set<EntityId>>();
-  for (const [e, ls] of inp.laps) {
-    for (const l of ls) {
-      if (!l.segment) continue;
-      let s = participants.get(l.segment);
-      if (!s) participants.set(l.segment, (s = new Set()));
-      s.add(e);
-    }
-  }
-  const eliminatedIn = (e: EntityId): string | null => {
-    if (curIdx <= 0) return null;
-    if (participants.get(inp.segments[curIdx].id)?.has(e)) return null;
-    for (let j = curIdx - 1; j >= 0; j--) {
-      if (participants.get(inp.segments[j].id)?.has(e)) return inp.segments[j].id;
-    }
-    return inp.segments[0].id; // never ran: out after the first segment
-  };
+/** Distinct classes in entity order; empty when the session is single-class. */
+export function classesOf(entities: { class?: string }[]): string[] {
+  const out: string[] = [];
+  for (const e of entities) if (e.class && !out.includes(e.class)) out.push(e.class);
+  return out.length > 1 ? out : [];
+}
+
+/** Everything the timing table shows at time t. Works for any series and session kind. */
+export function timingAt(inp: TimingInput, t: Sec): TimingRow[] {
+  const nSec = sectorCount(inp.laps.values());
+  const classes = classesOf(inp.entities);
+  const multi = classes.length > 0;
+  const clsOf = new Map(inp.entities.map((e) => [e.id, multi ? (e.class ?? null) : null]));
+  const cur = inp.scope === "part" ? segmentAt(inp.segments, t) : null;
+  const inScope = (l: Lap) => !cur || l.segment === cur.id;
+  const gapMode = inp.gapMode ?? "best";
 
   // Latest classification position per entity at or before t.
   const pos = new Map<EntityId, number>();
@@ -165,96 +214,140 @@ export function timingAt(inp: TimingInput, t: Sec): TimingRow[] {
     }
   }
 
-  // Segment bests (purple) up to t.
-  const segBest = new Map<string | null, { lap: number; s: [number, number, number] }>();
-  const sb = (seg: string | null) => {
-    let v = segBest.get(seg);
-    if (!v) segBest.set(seg, (v = { lap: Infinity, s: [Infinity, Infinity, Infinity] }));
-    return v;
-  };
-  for (const ls of inp.laps.values()) {
+  // Overall bests (purple) up to t, per class.
+  const fresh = () => ({ lap: Infinity, s: new Array<number>(nSec).fill(Infinity) });
+  const overall = new Map<string | null, ReturnType<typeof fresh>>();
+  for (const [e, ls] of inp.laps) {
+    const k = clsOf.get(e) ?? null;
+    let v = overall.get(k);
+    if (!v) overall.set(k, (v = fresh()));
     for (const l of ls) {
-      if (l.t1 === null || l.t1 > t || l.deleted || l.outLap) continue;
-      const v = sb(l.segment);
+      if (l.t1 === null || l.t1 > t || l.deleted || l.outLap || !inScope(l)) continue;
       if (l.timed && l.time! < v.lap) v.lap = l.time!;
-      l.sectors.forEach((s, k) => {
-        if (s !== null && s < v.s[k]) v.s[k] = s;
+      l.sectors.forEach((s, i) => {
+        if (s !== null && s < v.s[i]) v.s[i] = s;
       });
     }
   }
 
-  const rows: TimingRow[] = inp.entities.map((e) => {
+  const pitRows = new Map<EntityId, number>();
+  if (inp.pits) {
+    const end = indexAt(inp.pits.t, inp.pits.length, t);
+    for (let i = 0; i <= end; i++) {
+      const e = String(inp.pits.rows[i].entity ?? inp.pits.rows[i].driver_number);
+      pitRows.set(e, (pitRows.get(e) ?? 0) + 1);
+    }
+  }
+
+  const rows: (TimingRow & { _end: number })[] = inp.entities.map(({ id: e }) => {
     const ls = inp.laps.get(e) ?? [];
-    const elim = eliminatedIn(e);
-    const seg = elim ?? cur?.id ?? null;
-    const best = bestLap(ls, { segment: cur ? seg : undefined, t });
-    const done = ls.filter((l, i) => {
-      const end = l.t1 ?? ls[i + 1]?.t0 ?? Infinity;
-      return end <= t;
-    });
+    const best = bestLap(ls.filter(inScope), { t });
+    const done = ls.filter((l, i) => (l.t1 ?? ls[i + 1]?.t0 ?? Infinity) <= t);
     const last = [...done].reverse().find((l) => l.time !== null) ?? null;
-    // Personal bests up to t across the driver's laps in this segment.
-    const pb = { lap: Infinity, s: [Infinity, Infinity, Infinity] };
+    const pb = fresh();
     for (const l of done) {
-      if (l.deleted || l.outLap || (cur && l.segment !== seg)) continue;
+      if (l.deleted || l.outLap || !inScope(l)) continue;
       if (l.timed && l.time! < pb.lap) pb.lap = l.time!;
-      l.sectors.forEach((s, k) => {
-        if (s !== null && s < pb.s[k]) pb.s[k] = s;
+      l.sectors.forEach((s, i) => {
+        if (s !== null && s < pb.s[i]) pb.s[i] = s;
       });
     }
-    const segV = segBest.get(seg) ?? { lap: Infinity, s: [Infinity, Infinity, Infinity] };
-    const flag = (v: number | null, segMin: number, pbMin: number): CellFlag =>
-      v === null ? null : v <= segMin ? "purple" : v <= pbMin ? "green" : null;
-    const sectors = (best?.sectors ?? [null, null, null]) as TimingRow["sectors"];
+    const ov = overall.get(clsOf.get(e) ?? null) ?? fresh();
+    const flag = (v: number | null, min: number, pbMin: number): CellFlag =>
+      v === null ? null : v <= min ? "purple" : v <= pbMin ? "green" : null;
+    const sectors = Array.from({ length: nSec }, (_, i) => best?.sectors[i] ?? null);
 
-    let tyre: TimingRow["tyre"] = null;
     const started = ls.filter((l) => l.t0 <= t);
-    const n = started.length ? started[started.length - 1].n : null;
-    if (n !== null && inp.stints) {
+    const curLap = started.length ? started[started.length - 1] : null;
+    let tyre: TimingRow["tyre"] = null;
+    let stintsStarted = 0;
+    let driver: string | null = curLap?.driver ?? null;
+    if (curLap && inp.stints) {
       for (const st of inp.stints) {
         if (String(st.entity ?? st.driver_number) !== e) continue;
         const a = num(st.lap_start) ?? 0;
         const b = num(st.lap_end) ?? Infinity;
-        if (n >= a && n <= b) {
-          tyre = { compound: String(st.compound ?? "?"), age: (num(st.tyre_age_at_start_laps) ?? 0) + n - a };
+        if (a <= curLap.n) stintsStarted++;
+        if (curLap.n >= a && curLap.n <= b) {
+          tyre = st.compound != null ? { compound: String(st.compound), age: (num(st.tyre_age_at_start_laps) ?? 0) + curLap.n - a } : null;
+          driver = str(st.driver) ?? driver;
         }
       }
     }
-
+    const lastDone = [...done].reverse().find((l) => l.t1 !== null) ?? null;
     return {
       entity: e,
+      cls: clsOf.get(e) ?? null,
+      rank: 0,
       pos: pos.get(e) ?? null,
       best,
-      bestFlag: best && best.time! <= segV.lap ? "purple" : null,
+      bestFlag: best && best.time! <= ov.lap ? "purple" : null,
       gap: null,
+      interval: null,
+      lapsDown: 0,
       sectors,
-      sectorFlags: [0, 1, 2].map((k) => flag(sectors[k], segV.s[k], pb.s[k])) as TimingRow["sectorFlags"],
+      sectorFlags: sectors.map((s, i) => flag(s, ov.s[i], pb.s[i])),
       last,
-      lastFlag: last && !last.deleted && last.timed ? flag(last.time, segV.lap, pb.lap) : null,
-      laps: done.length,
+      lastFlag: last && !last.deleted && last.timed ? flag(last.time, ov.lap, pb.lap) : null,
+      laps: lastDone ? lastDone.n : done.length,
       tyre,
-      eliminatedIn: elim,
+      pits: pitRows.get(e) ?? Math.max(0, stintsStarted - 1),
+      driver,
+      _end: lastDone?.t1 ?? Infinity,
     };
   });
 
-  const segOrder = (r: TimingRow) => (r.eliminatedIn ? inp.segments.findIndex((s) => s.id === r.eliminatedIn) : Infinity);
+  const rank = inp.rank ?? "auto";
+  const usePos = rank === "position" || (rank === "auto" && pos.size > 0);
+  const byRace = rank === "race" || (rank === "auto" && !usePos && gapMode === "race");
+  const tie = (a: TimingRow, b: TimingRow) =>
+    Number(a.entity) - Number(b.entity) || a.entity.localeCompare(b.entity);
   rows.sort((a, b) => {
-    const g = segOrder(b) - segOrder(a);
-    if (g) return g;
-    if (a.pos !== null && b.pos !== null && a.pos !== b.pos) return a.pos - b.pos;
+    if (usePos && (a.pos !== null || b.pos !== null) && a.pos !== b.pos) return (a.pos ?? Infinity) - (b.pos ?? Infinity);
+    if (byRace) return b.laps - a.laps || a._end - b._end || tie(a, b);
     const ta = a.best?.time ?? Infinity;
     const tb = b.best?.time ?? Infinity;
-    if (ta !== tb) return ta - tb;
-    return Number(a.entity) - Number(b.entity) || a.entity.localeCompare(b.entity);
+    return ta - tb || tie(a, b);
   });
-  // Gap to the fastest driver of the same group.
-  const leader = new Map<string | null, number>();
+
+  // Gaps. Race mode: time behind at the same lap count (needs each lap's end time).
+  const endOf = (e: EntityId, n: number) => inp.laps.get(e)?.find((l) => l.n === n)?.t1 ?? null;
+  const gapTo = inp.gapTo ?? "auto";
+  const perClass = gapTo === "class" || (gapTo === "auto" && multi);
+  const refId = typeof gapTo === "object" ? gapTo.entity : null;
+  const ranks = new Map<string | null, number>();
+  const leaders = new Map<string | null, (typeof rows)[number]>();
+  const ref = refId ? rows.find((r) => r.entity === refId) : undefined;
+  let prev: (typeof rows)[number] | undefined;
+  const prevByClass = new Map<string | null, (typeof rows)[number]>();
   for (const r of rows) {
-    if (r.best && !leader.has(r.eliminatedIn)) leader.set(r.eliminatedIn, r.best.time!);
-    const lt = leader.get(r.eliminatedIn);
-    if (r.best && lt !== undefined) r.gap = r.best.time! - lt;
+    const k = perClass ? r.cls : null;
+    r.rank = (ranks.get(k) ?? 0) + 1;
+    ranks.set(k, r.rank);
+    if (!leaders.has(k)) leaders.set(k, r);
+    const base = ref ?? leaders.get(k)!;
+    const ahead = perClass ? prevByClass.get(k) : prev;
+    if (gapMode === "race") {
+      const g = (o: typeof r) => {
+        if (!r.laps || !o.laps) return null;
+        const n = Math.min(r.laps, o.laps);
+        const a = endOf(r.entity, n);
+        const b = endOf(o.entity, n);
+        return a !== null && b !== null ? a - b : null;
+      };
+      r.gap = r === base ? 0 : g(base);
+      r.lapsDown = Math.max(0, base.laps - r.laps);
+      r.interval = ahead ? g(ahead) : null;
+    } else {
+      const bt = base.best?.time;
+      r.gap = r.best && bt != null ? r.best.time! - bt : null;
+      const at = ahead?.best?.time;
+      r.interval = r.best && at != null ? r.best.time! - at : null;
+    }
+    prev = r;
+    prevByClass.set(k, r);
   }
-  return rows;
+  return rows.map(({ _end, ...r }) => (void _end, r));
 }
 
 export interface LapTrace {
@@ -280,13 +373,19 @@ export function lapTrace(tel: TopicData, lap: Lap, L: number | null, entity = la
   const i0 = Math.max(0, indexAt(tel.t, tel.length, lap.t0 - 1));
   const i1 = Math.min(tel.length - 1, indexAt(tel.t, tel.length, lap.t1 + 1) + 1);
   const speed = tel.cols.speed_kph;
-  if (!speed || i1 - i0 < 3) return null;
+  // Games publish lap distance; F1 does not, so integrate speed there.
+  const dist = tel.cols.lap_distance_m ?? tel.cols.distance_m;
+  if ((!speed && !dist) || i1 - i0 < 3) return null;
   const n = i1 - i0 + 1;
   const tau = new Float64Array(n);
   const D = new Float64Array(n);
   for (let j = 0; j < n; j++) {
     tau[j] = tel.t[i0 + j] - lap.t0;
-    if (j > 0) {
+    if (j === 0) continue;
+    if (dist) {
+      // Lap distance resets at the line: ignore the backwards jump.
+      D[j] = D[j - 1] + Math.max(0, (dist[i0 + j] || 0) - (dist[i0 + j - 1] || 0));
+    } else {
       const v0 = (speed[i0 + j - 1] || 0) / 3.6;
       const v1 = (speed[i0 + j] || 0) / 3.6;
       D[j] = D[j - 1] + ((v0 + v1) / 2) * (tau[j] - tau[j - 1]);

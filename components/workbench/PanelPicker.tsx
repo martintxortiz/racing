@@ -18,6 +18,12 @@ function Picker({ target }: { target: PickerTarget }) {
   useEffect(() => {
     requestAnimationFrame(() => input.current?.focus());
   }, []);
+  const topics = useWB((s) => s.session?.topics);
+  const has = (need: string) => {
+    if (!topics) return true;
+    const re = new RegExp(`^${need.replace(/[.+?^${}()|[\]\\]/g, "\\$&").replace(/\*/g, "[^/]+")}$`);
+    return topics.some((t) => re.test(t.name));
+  };
   const list = PANELS.filter((d) => `${d.title} ${d.description}`.toLowerCase().includes(q.toLowerCase()));
   const pick = (i: number) => {
     const d = list[i];
@@ -36,8 +42,10 @@ function Picker({ target }: { target: PickerTarget }) {
         onKeyDown={(e) => {
           e.stopPropagation();
           if (e.key === "Escape") closePicker();
-          if (e.key === "ArrowDown") setSel((s) => Math.min(list.length - 1, s + 1));
-          if (e.key === "ArrowUp") setSel((s) => Math.max(0, s - 1));
+          if (e.key === "ArrowDown") setSel((s) => Math.min(list.length - 1, s + 2));
+          if (e.key === "ArrowUp") setSel((s) => Math.max(0, s - 2));
+          if (e.key === "ArrowRight") setSel((s) => Math.min(list.length - 1, s + 1));
+          if (e.key === "ArrowLeft") setSel((s) => Math.max(0, s - 1));
           if (e.key === "Enter") pick(sel);
         }}
       >
@@ -54,21 +62,25 @@ function Picker({ target }: { target: PickerTarget }) {
             }}
           />
         </div>
-        <ul className="pw-list">
-          {list.map((d, i) => (
-            <li
-              key={d.type}
-              className={`wb-picker__item${i === sel ? " is-active" : ""}`}
-              onPointerEnter={() => setSel(i)}
-              onClick={() => pick(i)}
-            >
-              <span className={`pw-icon pw-icon--${d.icon}`} />
-              <span>
-                <span className="wb-picker__title">{d.title}</span>
-                <span className="wb-picker__desc">{d.description}</span>
-              </span>
-            </li>
-          ))}
+        <ul className="wb-picker__grid">
+          {list.map((d, i) => {
+            const missing = (d.needs ?? []).filter((n) => !has(n));
+            return (
+              <li
+                key={d.type}
+                className={`wb-picker__item${i === sel ? " is-active" : ""}${missing.length ? " is-unavailable" : ""}`}
+                onPointerEnter={() => setSel(i)}
+                onClick={() => pick(i)}
+                title={missing.length ? `This recording has no ${missing.join(", ")}` : undefined}
+              >
+                <span className={`pw-icon pw-icon--${d.icon}`} />
+                <span>
+                  <span className="wb-picker__title">{d.title}</span>
+                  <span className="wb-picker__desc">{missing.length ? `No ${missing.join(", ")} in this recording` : d.description}</span>
+                </span>
+              </li>
+            );
+          })}
           {list.length === 0 ? <li className="wb-picker__none">No panel matches “{q}”.</li> : null}
         </ul>
       </div>

@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  defaultQualiLayout,
   insertAt,
   movePanel,
   panelIds,
@@ -12,12 +11,23 @@ import {
   validateLayout,
   type LayoutNode,
 } from "../lib/workbench/layout";
+import { defaultLayout } from "../lib/workbench/presets";
 
-const overview = defaultQualiLayout().tabs[0].root as LayoutNode;
+const overview: LayoutNode = {
+  direction: "row",
+  splitPercentage: 40,
+  first: "timing",
+  second: {
+    direction: "column",
+    splitPercentage: 60,
+    first: { direction: "row", splitPercentage: 60, first: "trace", second: "map" },
+    second: { direction: "row", splitPercentage: 50, first: "laps", second: "log" },
+  },
+};
 
 describe("layout tree", () => {
-  it("default layout is valid and matches the spec order", () => {
-    expect(validateLayout(defaultQualiLayout())).toBeNull();
+  it("default layout is valid", () => {
+    expect(validateLayout(defaultLayout())).toBeNull();
     expect(panelIds(overview)).toEqual(["timing", "trace", "map", "laps", "log"]);
   });
 
@@ -47,16 +57,18 @@ describe("layout tree", () => {
 
   it("rejects broken layouts and prunes unused panels", () => {
     expect(validateLayout({ version: 2 })).toMatch(/version/);
-    const l = defaultQualiLayout();
+    const l = defaultLayout();
     l.tabs[0].root = "ghost";
     expect(validateLayout(l)).toMatch(/ghost/);
-    const p = prune({ ...defaultQualiLayout(), tabs: [defaultQualiLayout().tabs[1]] });
-    expect(Object.keys(p.panels).sort()).toEqual(["laps2", "map2", "trace2"]);
+    const d = defaultLayout();
+    const p = prune({ ...d, tabs: [d.tabs[1]] });
+    expect(Object.keys(p.panels).sort()).toEqual(panelIds(d.tabs[1].root).sort());
   });
 
-  it("resolves A/B tokens", () => {
-    expect(resolveBinding("/vehicle/{A}/telemetry", { a: "12", b: null })).toBe("/vehicle/12/telemetry");
-    expect(resolveBinding("/vehicle/{B}/telemetry", { a: "12", b: null })).toBeNull();
-    expect(resolveBinding("/vehicle/*/pose", { a: null, b: null })).toBe("/vehicle/*/pose");
+  it("resolves entity patterns and legacy A/B tokens", () => {
+    expect(resolveBinding("/vehicle/{id}/telemetry", { entity: "12" })).toBe("/vehicle/12/telemetry");
+    expect(resolveBinding("/vehicle/*/telemetry", { entity: "7" })).toBe("/vehicle/7/telemetry");
+    expect(resolveBinding("/vehicle/{A}/telemetry", { focus: "12" })).toBe("/vehicle/12/telemetry");
+    expect(resolveBinding("/vehicle/{B}/telemetry", { focus: "12", reference: null })).toBeNull();
   });
 });

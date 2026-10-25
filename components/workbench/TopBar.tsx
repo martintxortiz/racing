@@ -1,25 +1,45 @@
 "use client";
 
-import { useMemo } from "react";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 
-import { segmentClock, timeOfDay } from "@/lib/workbench/format";
-import { indexAt } from "@/lib/workbench/store";
-import { useEntityStyles } from "./colors";
-import { useThrottledT } from "./panels/common";
+import { PRESETS } from "@/lib/workbench/presets";
 import { deleteSaved, exportLayout, importLayout, resetLayout, saveLayout, savedLayouts } from "./persist";
-import { loadLayout, notify, openMenu, setA, setB, swapAB, useWB, type MenuItem } from "./state";
+import {
+  addPresetTab,
+  addTab,
+  deleteTab,
+  duplicateTab,
+  loadLayout,
+  moveTab,
+  notify,
+  openMenu,
+  openPicker,
+  renameTab,
+  setActiveTab,
+  SPEEDS,
+  useWB,
+  type MenuItem,
+} from "./state";
 
-const at = (e: React.MouseEvent) => {
+const MIME = "application/x-wb-tab";
+const below = (e: React.MouseEvent, alignRight = false) => {
   const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
-  return [r.left, r.bottom + 2] as const;
+  return [alignRight ? r.right - 220 : r.left, r.bottom + 2] as const;
 };
 
-export function layoutMenu(x: number, y: number) {
+const presetItems = (): MenuItem[] =>
+  Object.entries(PRESETS).map(([key, p]) => ({ label: p.name, hint: "New tab", onSelect: () => addPresetTab(key) }));
+
+export function layoutMenuItems(): MenuItem[] {
   const { layout, dirty } = useWB.getState();
   const saved = savedLayouts();
-  openMenu(x, y, [
-    { heading: `${layout.name}${dirty ? " (edited)" : ""}` },
-    { label: "Save", hint: "⌘S", onSelect: () => (saveLayout(), notify(`Saved “${useWB.getState().layout.name}”`)) },
+  return [
+    { heading: `${layout.name}${dirty ? " · edited" : ""}` },
+    { label: "Add tab from preset", submenu: presetItems },
+    { label: "Reset to default layout", onSelect: resetLayout },
+    { separator: true },
+    { label: "Save", hint: "Ctrl+S", onSelect: () => (saveLayout(), notify(`Saved “${useWB.getState().layout.name}”`)) },
     {
       label: "Save as…",
       onSelect: () =>
@@ -27,161 +47,239 @@ export function layoutMenu(x: number, y: number) {
           prompt: { title: "Save layout as", value: `${layout.name} copy`, onSubmit: (v) => (saveLayout(v), notify(`Saved “${v}”`)) },
         }),
     },
-    { label: "Reset to default", onSelect: resetLayout },
+    {
+      label: "Saved layouts",
+      disabled: !saved.length,
+      submenu: () => [
+        ...saved.map((l) => ({ label: l.name, radio: true, checked: l.id === layout.id, onSelect: () => loadLayout(l) })),
+        { separator: true },
+        {
+          label: "Delete current from saved",
+          danger: true,
+          disabled: !saved.some((l) => l.id === layout.id),
+          onSelect: () => (deleteSaved(layout.id), notify(`Deleted “${layout.name}”`)),
+        },
+      ],
+    },
     { separator: true },
     { label: "Import JSON…", onSelect: () => importLayout((m) => notify(m, "error")) },
     { label: "Export JSON", onSelect: exportLayout },
-    ...(saved.length
-      ? [
-          { separator: true } as const,
-          { heading: "Saved layouts" },
-          ...saved.flatMap((l): MenuItem[] => [
-            { label: l.name, checked: l.id === layout.id, onSelect: () => loadLayout(l) },
-          ]),
-          {
-            label: "Delete current from saved",
-            disabled: !saved.some((l) => l.id === layout.id),
-            onSelect: () => (deleteSaved(layout.id), notify(`Deleted “${layout.name}”`)),
-          },
-        ]
-      : []),
-  ]);
+  ];
 }
 
-function driverMenu(role: "A" | "B", x: number, y: number) {
-  const { derived, a, b } = useWB.getState();
-  const cur = role === "A" ? a : b;
-  const pick = role === "A" ? setA : setB;
-  openMenu(x, y, [
-    { heading: `Driver ${role}` },
-    ...(derived?.entities ?? []).map((e) => ({
-      label: `${e.code}  ${e.number ?? ""}  ${e.team ?? ""}`,
-      checked: e.id === cur,
-      onSelect: () => pick(e.id),
-    })),
-    ...(role === "B" ? [{ separator: true } as const, { label: "Clear B", disabled: !b, onSelect: () => setB(null) }] : []),
-  ]);
+function openItems(go: (href: string) => void): MenuItem[] {
+  const { session } = useWB.getState();
+  return [
+    ...(session ? [{ heading: session.title } as const] : []),
+    { label: "Open .mcap file…", hint: "or drop it", onSelect: () => window.dispatchEvent(new Event("wb:pick-file")) },
+    { label: "Session library", onSelect: () => go("/dashboard") },
+    { label: "Demo session", onSelect: () => go("/s/demo") },
+  ];
 }
 
-function Weather() {
-  const store = useWB((s) => s.store);
-  const version = useWB((s) => s.version);
-  const t = useThrottledT(1);
-  const w = useMemo(() => {
-    const d = store.get("/session/weather");
-    if (!d) return null;
-    const i = indexAt(d.t, d.length, t);
-    return (d.rows[Math.max(0, i)] ?? null) as Record<string, number> | null;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [store, version, t]);
-  if (!w) return null;
-  return (
-    <span className="wb-weather" title={`Humidity ${w.humidity_pct ?? "—"}%`}>
-      <span className="pw-icon pw-icon--temperature" />
-      <span>
-        Air <b>{w.air_temperature_c?.toFixed(1)}°</b> Track <b>{w.track_temperature_c?.toFixed(1)}°</b>
-      </span>
-      <span className="pw-icon pw-icon--wind-gusts" />
-      <span>
-        <b>{w.wind_speed_mps?.toFixed(1)}</b> m/s
-      </span>
-      {w.rainfall ? (
-        <>
-          <span className="pw-icon pw-icon--rain-drop" /> Rain
-        </>
-      ) : null}
-    </span>
-  );
+function settingsItems(): MenuItem[] {
+  const { session, theme, speed } = useWB.getState();
+  const notes = session?.notes ?? [];
+  return [
+    {
+      label: "Theme",
+      hint: theme === "dark" ? "Dark" : "Light",
+      submenu: () =>
+        (["light", "dark"] as const).map((t) => ({
+          label: t === "dark" ? "Dark" : "Light",
+          radio: true,
+          checked: useWB.getState().theme === t,
+          onSelect: () => window.dispatchEvent(new CustomEvent("wb:theme", { detail: t })),
+        })),
+    },
+    {
+      label: "Playback speed",
+      hint: `${speed}×`,
+      submenu: () =>
+        SPEEDS.map((v) => ({
+          label: `${v}×`,
+          radio: true,
+          checked: useWB.getState().speed === v,
+          onSelect: () => useWB.setState({ speed: v }),
+        })),
+    },
+    {
+      label: "Data notes",
+      hint: notes.length ? String(notes.length) : undefined,
+      disabled: !notes.length,
+      submenu: () => notes.map((n) => ({ label: n })),
+    },
+    {
+      label: "Keyboard shortcuts",
+      submenu: [
+        { label: "Play / pause", hint: "Space" },
+        { label: "Step 1 s / 10 s", hint: "← → / Shift" },
+        { label: "Previous / next lap", hint: "[ ]" },
+        { label: "Jump to session part", hint: "1–9" },
+        { label: "Next focused driver", hint: "X" },
+        { label: "Add panel", hint: "P" },
+        { label: "Maximize panel", hint: "F" },
+        { label: "Toggle theme", hint: "\\" },
+        { label: "Save layout", hint: "Ctrl+S" },
+      ],
+    },
+  ];
 }
 
-function Clock() {
-  const t = useThrottledT(10);
-  const session = useWB((s) => s.session);
-  const derived = useWB((s) => s.derived);
-  if (!session) return null;
-  return (
-    <span className="wb-clock">
-      <b>{segmentClock(t, derived?.segments ?? [], session.session)}</b>
-      <span className="pw-faint">{timeOfDay(t, session.startNs, session.utcOffsetSec)}</span>
-    </span>
-  );
-}
-
+/** Top bar: layout tabs on the left, app controls on the right. No session data lives here. */
 export function TopBar() {
-  const session = useWB((s) => s.session);
-  const derived = useWB((s) => s.derived);
-  const a = useWB((s) => s.a);
-  const b = useWB((s) => s.b);
+  const router = useRouter();
+  const tabs = useWB((s) => s.layout.tabs);
+  const active = useWB((s) => s.activeTab);
   const theme = useWB((s) => s.theme);
   const dirty = useWB((s) => s.dirty);
   const layoutName = useWB((s) => s.layout.name);
-  const styles = useEntityStyles();
-  const ent = (id: string | null) => (id ? derived?.entityById.get(id) : undefined);
+  const [editing, setEditing] = useState<string | null>(null);
+  const [dropAt, setDropAt] = useState<number | null>(null);
 
-  const chip = (role: "A" | "B", id: string | null) => (
-    <button
-      type="button"
-      className={`wb-chip wb-chip--${role.toLowerCase()}`}
-      title={`Driver ${role} · click to change`}
-      onClick={(e) => driverMenu(role, ...at(e))}
-    >
-      <span className="wb-chip__role">{role}</span>
-      {id ? (
-        <>
-          <i className="pw-team" style={{ ["--c" as string]: styles.get(id)?.colour }} />
-          <b>{ent(id)?.code ?? id}</b>
-        </>
-      ) : (
-        <span className="pw-faint">none</span>
-      )}
-    </button>
-  );
+  const tabMenu = (id: string, x: number, y: number) =>
+    openMenu(x, y, () => {
+      const ts = useWB.getState().layout.tabs;
+      const i = ts.findIndex((t) => t.id === id);
+      return [
+        { label: "Rename", onSelect: () => setEditing(id) },
+        { label: "Duplicate", onSelect: () => duplicateTab(id) },
+        { label: "Add panel…", hint: "P", onSelect: () => openPicker({ kind: "tab", tab: id }) },
+        { separator: true },
+        { label: "Move left", disabled: i === 0, onSelect: () => moveTab(id, i - 1) },
+        { label: "Move right", disabled: i === ts.length - 1, onSelect: () => moveTab(id, i + 2) },
+        { separator: true },
+        { label: "New blank tab", onSelect: addTab },
+        { label: "New tab from preset", submenu: presetItems },
+        { separator: true },
+        { label: ts.length === 1 ? "Clear tab" : "Close tab", danger: true, onSelect: () => deleteTab(id) },
+      ];
+    });
 
   return (
-    <header className="pw-topbar wb-topbar">
-      <span className="wb-title">
-        <b>{session?.title ?? "Workbench"}</b>
-        {session ? <span className="pw-faint">{session.venue}</span> : null}
-      </span>
-      <span className="pw-topbar__meta">
-        <Clock />
-        <Weather />
-      </span>
-      <span className="pw-spacer" />
-      <span className="wb-ab">
-        {chip("A", a)}
-        <button type="button" className="pw-btn pw-btn--ghost pw-btn--sm pw-btn--icon" aria-label="Swap A and B" title="Swap A/B (X)" onClick={swapAB}>
-          <span className="pw-icon pw-icon--arrows-vertical wb-rot90" />
-        </button>
-        {chip("B", b)}
-      </span>
-      <span className="pw-topbar__actions">
-        <button type="button" className="pw-btn pw-btn--ghost pw-btn--sm" onClick={(e) => layoutMenu(...at(e))} title="Layout">
-          <span className="pw-icon pw-icon--grid" />
-          {layoutName}
-          {dirty ? <span className="pw-faint">•</span> : null}
-        </button>
-        {session?.notes.length ? (
-          <button
-            type="button"
-            className="pw-btn pw-btn--ghost pw-btn--sm pw-btn--icon"
-            aria-label="Data notes"
-            title="Data notes"
-            onClick={(e) => openMenu(...at(e), [{ heading: "Data notes" }, ...session.notes.map((n) => ({ label: n, onSelect: () => {} }))])}
+    <header
+      className="wb-topbar"
+      onContextMenu={(e) => {
+        if ((e.target as HTMLElement).closest(".wb-tab, button")) return;
+        e.preventDefault();
+        openMenu(e.clientX, e.clientY, () => [
+          { label: "New blank tab", onSelect: addTab },
+          { label: "New tab from preset", submenu: presetItems },
+          { separator: true },
+          ...layoutMenuItems(),
+        ]);
+      }}
+    >
+      <nav className="wb-tabs" role="tablist" aria-label="Layout tabs">
+        {tabs.map((t, i) => (
+          <div
+            key={t.id}
+            className={`wb-tabwrap${dropAt === i ? " is-drop" : ""}`}
+            onDragOver={(e) => {
+              if (!e.dataTransfer.types.includes(MIME)) return;
+              e.preventDefault();
+              const r = e.currentTarget.getBoundingClientRect();
+              setDropAt(e.clientX < r.left + r.width / 2 ? i : i + 1);
+            }}
+            onDragLeave={() => setDropAt(null)}
+            onDrop={(e) => {
+              const id = e.dataTransfer.getData(MIME);
+              if (id && dropAt !== null) moveTab(id, dropAt);
+              setDropAt(null);
+            }}
           >
-            <span className="pw-icon pw-icon--information" />
-          </button>
-        ) : null}
+            {editing === t.id ? (
+              <input
+                className="pw-input wb-rename"
+                autoFocus
+                defaultValue={t.name}
+                onFocus={(e) => e.target.select()}
+                onBlur={(e) => {
+                  renameTab(t.id, e.target.value);
+                  setEditing(null);
+                }}
+                onKeyDown={(e) => {
+                  e.stopPropagation();
+                  if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+                  if (e.key === "Escape") setEditing(null);
+                }}
+              />
+            ) : (
+              <button
+                type="button"
+                role="tab"
+                aria-selected={t.id === active}
+                className={`wb-tab${t.id === active ? " is-active" : ""}`}
+                draggable
+                onDragStart={(e) => {
+                  e.dataTransfer.setData(MIME, t.id);
+                  e.dataTransfer.effectAllowed = "move";
+                }}
+                onClick={() => setActiveTab(t.id)}
+                onDoubleClick={() => setEditing(t.id)}
+                onAuxClick={(e) => e.button === 1 && tabs.length > 1 && deleteTab(t.id)}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  tabMenu(t.id, e.clientX, e.clientY);
+                }}
+              >
+                {t.name}
+              </button>
+            )}
+          </div>
+        ))}
+        {dropAt === tabs.length ? <div className="wb-tabwrap is-drop" /> : null}
+        <button
+          type="button"
+          className="pw-btn pw-btn--ghost pw-btn--sm pw-btn--icon"
+          aria-label="New tab"
+          title="New tab"
+          onClick={(e) =>
+            openMenu(...below(e), () => [
+              { label: "Blank tab", onSelect: addTab },
+              { separator: true },
+              { heading: "From preset" },
+              ...presetItems(),
+            ])
+          }
+        >
+          <span className="pw-icon pw-icon--add" />
+        </button>
+      </nav>
+      <span className="pw-spacer" />
+      <div className="wb-controls">
+        <button type="button" className="pw-btn pw-btn--ghost pw-btn--sm" title="Layouts" onClick={(e) => openMenu(...below(e, true), layoutMenuItems)}>
+          <span className="pw-icon pw-icon--grid" />
+          <span>{layoutName}</span>
+          {dirty ? <span className="wb-dirty" title="Unsaved changes" /> : null}
+          <span className="pw-icon pw-icon--chevron-down" />
+        </button>
+        <button
+          type="button"
+          className="pw-btn pw-btn--ghost pw-btn--sm"
+          title="Add panel (P)"
+          onClick={() => openPicker({ kind: "tab", tab: useWB.getState().activeTab })}
+        >
+          <span className="pw-icon pw-icon--add" />
+          <span>Add panel</span>
+        </button>
+        <span className="wb-controls__sep" />
+        <button type="button" className="pw-btn pw-btn--ghost pw-btn--sm pw-btn--icon" aria-label="Open recording" title="Open recording" onClick={(e) => openMenu(...below(e, true), () => openItems(router.push))}>
+          <span className="pw-icon pw-icon--document" />
+        </button>
         <button
           type="button"
           className="pw-btn pw-btn--ghost pw-btn--sm pw-btn--icon"
           aria-label="Toggle theme"
-          title={`${theme === "dark" ? "Light" : "Dark"} theme`}
+          title={`${theme === "dark" ? "Light" : "Dark"} theme (\\)`}
           onClick={() => window.dispatchEvent(new CustomEvent("wb:theme", { detail: theme === "dark" ? "light" : "dark" }))}
         >
           <span className={`pw-icon pw-icon--${theme === "dark" ? "light" : "asleep"}`} />
         </button>
-      </span>
+        <button type="button" className="pw-btn pw-btn--ghost pw-btn--sm pw-btn--icon" aria-label="Settings" title="Settings" onClick={(e) => openMenu(...below(e, true), settingsItems)}>
+          <span className="pw-icon pw-icon--settings" />
+        </button>
+      </div>
     </header>
   );
 }

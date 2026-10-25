@@ -1,5 +1,6 @@
 import type { Store } from "../store";
 import type { Entity, LapFlag, SessionMeta, Segment, TopicKind } from "../types";
+import { canonical } from "./canonical";
 import { f1OpenF1 } from "./f1";
 
 type Row = Record<string, unknown>;
@@ -34,7 +35,7 @@ export interface Adapter {
   lapFlags?(store: Store): LapFlag[];
 }
 
-export const adapters: Adapter[] = [f1OpenF1];
+export const adapters: Adapter[] = [f1OpenF1, canonical];
 
 export function getAdapter(id: string): Adapter {
   const a = adapters.find((x) => x.id === id);

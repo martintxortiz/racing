@@ -18,6 +18,9 @@ async function Route({ params, searchParams }: PageProps<"/s/[sessionId]">) {
       src={one(q.src)}
       initial={{
         t: Number.isFinite(t) && one(q.t) !== undefined ? t : undefined,
+        sel: one(q.sel),
+        focus: one(q.focus),
+        ref: one(q.ref),
         a: one(q.a),
         b: one(q.b),
         tab: one(q.tab),

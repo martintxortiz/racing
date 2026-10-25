@@ -3,7 +3,6 @@
 import { create } from "zustand";
 
 import {
-  defaultQualiLayout,
   insertAt,
   movePanel,
   newId,
@@ -17,18 +16,34 @@ import {
   type PanelState,
   type Path,
 } from "@/lib/workbench/layout";
+import { defaultLayout, presetTab } from "@/lib/workbench/presets";
+import * as S from "@/lib/workbench/selection";
 import { derive, type Derived } from "@/lib/workbench/session";
 import { Store } from "@/lib/workbench/store";
 import type { EntityId, LapRef, Sec, SessionMeta } from "@/lib/workbench/types";
 
-export type MenuItem =
-  | { label: string; onSelect: () => void; hint?: string; disabled?: boolean; checked?: boolean }
-  | { separator: true }
-  | { heading: string };
+export interface MenuAction {
+  label: string;
+  onSelect?: () => void;
+  hint?: string;
+  disabled?: boolean;
+  /** Checkbox (true/false) or radio state; undefined = plain item. */
+  checked?: boolean;
+  radio?: boolean;
+  /** Keep the menu open after selecting (checkbox lists). */
+  keepOpen?: boolean;
+  /** Small colour square before the label (entities, series). */
+  swatch?: string;
+  danger?: boolean;
+  /** Nested menu, built when it opens so it always reflects current state. */
+  submenu?: MenuItem[] | (() => MenuItem[]);
+}
+export type MenuItem = MenuAction | { separator: true } | { heading: string };
 export interface MenuState {
   x: number;
   y: number;
-  items: MenuItem[];
+  /** Items are rebuilt on every state change while the menu is open (checkmarks stay live). */
+  items: MenuItem[] | (() => MenuItem[]);
 }
 /** Where a panel chosen in the picker goes. */
 export type PickerTarget =
@@ -51,10 +66,9 @@ interface WB {
   playing: boolean;
   speed: number;
 
-  a: EntityId | null;
-  b: EntityId | null;
-  lapA: LapRef;
-  lapB: LapRef;
+  sel: S.Selection;
+  /** Entity the track maps follow, if any. */
+  follow: EntityId | null;
   hoverEntity: EntityId | null;
   hoverDistance: number | null;
 
@@ -83,15 +97,13 @@ export const useWB = create<WB>(() => ({
   t: 0,
   playing: false,
   speed: 1,
-  a: null,
-  b: null,
-  lapA: "best",
-  lapB: "best",
+  sel: S.emptySelection(),
+  follow: null,
   hoverEntity: null,
   hoverDistance: null,
-  layout: defaultQualiLayout(),
+  layout: defaultLayout(),
   dirty: false,
-  activeTab: "overview",
+  activeTab: defaultLayout().tabs[0].id,
   maximized: null,
   focused: null,
   menu: null,
@@ -134,10 +146,11 @@ export function stepSpeed(dir: 1 | -1) {
   set({ speed: SPEEDS[Math.min(SPEEDS.length - 1, Math.max(0, (i < 0 ? 1 : i) + dir))] });
 }
 
-/** Cursor to the start of A's previous/next lap. */
+/** Cursor to the start of the focused entity's previous/next lap. */
 export function stepLap(dir: 1 | -1) {
-  const { derived, a, t } = get();
-  const laps = (a && derived?.lapsByEntity.get(a)) || [];
+  const { derived, sel, t } = get();
+  const e = sel.focus ?? derived?.entities[0]?.id;
+  const laps = (e && derived?.lapsByEntity.get(e)) || [];
   if (!laps.length) return;
   if (dir > 0) {
     const next = laps.find((l) => l.t0 > t + 0.05);
@@ -150,15 +163,24 @@ export function stepLap(dir: 1 | -1) {
 
 // ---------- selection ----------
 
-export const setA = (a: EntityId | null, lapA: LapRef = "best") =>
-  set((s) => (a !== null && a === s.b ? { a, b: s.a, lapA, lapB: s.lapA } : { a, lapA }));
-export const setB = (b: EntityId | null, lapB: LapRef = "best") =>
-  set((s) => (b !== null && b === s.a ? { b, a: s.b, lapB, lapA: s.lapB } : { b, lapB }));
-export const swapAB = () => set((s) => (s.a == null || s.b == null ? s : { a: s.b, b: s.a, lapA: s.lapB, lapB: s.lapA }));
+const editSel = (f: (s: S.Selection) => S.Selection) => set((st) => ({ sel: f(st.sel) }));
+export const focusEntity = (e: EntityId) => editSel((s) => S.focus(s, e));
+export const toggleCompare = (e: EntityId) => editSel((s) => S.toggleCompare(s, e));
+export const addCompare = (e: EntityId) => editSel((s) => S.addCompare(s, e));
+export const removeCompare = (e: EntityId) => editSel((s) => S.removeCompare(s, e));
+export const isolateEntity = (e: EntityId) => editSel((s) => S.isolate(s, e));
+export const setReference = (e: EntityId | null) => editSel((s) => S.setReference(s, e));
+export const toggleHidden = (e: EntityId) => editSel((s) => S.toggleHidden(s, e));
+export const cycleFocus = (dir: 1 | -1 = 1) => editSel((s) => S.cycleFocus(s, dir));
+export const clearComparison = () => editSel((s) => (s.focus ? S.isolate(s, s.focus) : s));
+export const setSelection = (sel: S.Selection) => set({ sel });
+/** Show a lap of an entity in lap-based panels (and add the entity to the comparison). */
+export const showLap = (e: EntityId, ref: LapRef) => editSel((s) => S.setLap(S.addCompare(s, e), e, ref));
+export const setFollow = (e: EntityId | null) => set({ follow: e });
 
 // ---------- menus ----------
 
-export const openMenu = (x: number, y: number, items: MenuItem[]) => set({ menu: { x, y, items } });
+export const openMenu = (x: number, y: number, items: MenuItem[] | (() => MenuItem[])) => set({ menu: { x, y, items } });
 export const closeMenu = () => set({ menu: null });
 export const openPicker = (target: PickerTarget) => set({ picker: target, menu: null });
 export const closePicker = () => set({ picker: null });
@@ -198,6 +220,34 @@ export function addPanel(type: string, panel: PanelState, target: PickerTarget) 
       panels,
     };
   });
+}
+
+/** Swap a panel's widget type in place, keeping its position (title and config reset). */
+export function changePanelType(id: string, panel: PanelState) {
+  editLayout((l) => (l.panels[id] ? { ...l, panels: { ...l.panels, [id]: panel } } : l));
+}
+
+/** Move a panel to another tab (it lands on the right of that tab). */
+export function movePanelToTab(id: string, tabId: string) {
+  editLayout((l) => {
+    const src = tabOf(l, id);
+    if (!src || src.id === tabId) return l;
+    return mapTabs(l, (t) =>
+      t.id === src.id ? { ...t, root: removePanel(t.root, id) } : t.id === tabId ? { ...t, root: insertAt(t.root, null, id, "right") } : t,
+    );
+  });
+  set({ activeTab: tabId, maximized: null });
+}
+
+/** Add a preset tab (Timing, Telemetry, Strategy …) after the active tab. */
+export function addPresetTab(key: string) {
+  const l = get().layout;
+  const { tab, panels } = presetTab(key, l);
+  const idx = l.tabs.findIndex((t) => t.id === get().activeTab);
+  const tabs = [...l.tabs];
+  tabs.splice(idx < 0 ? tabs.length : idx + 1, 0, tab);
+  editLayout(() => ({ ...l, tabs, panels: { ...l.panels, ...panels } }));
+  set({ activeTab: tab.id, maximized: null });
 }
 
 export function removePanelById(id: string) {
