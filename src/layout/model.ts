@@ -29,6 +29,8 @@ export interface Layout {
   panels: Record<string, PanelState>;
   /** Preset the layout was created from, if any. */
   preset?: string;
+  /** Preset revision a built-in layout was built from; older saved copies are replaced on load. */
+  rev?: number;
 }
 
 let counter = 0;
@@ -261,5 +263,5 @@ export function parseLayout(v: unknown): Layout | null {
     return false;
   };
   for (const t of o.tabs) if (!t || typeof t.id !== "string" || typeof t.name !== "string" || !okNode(t.root)) return null;
-  return normalize({ id: typeof o.id === "string" ? o.id : uid("l"), name: typeof o.name === "string" ? o.name : "Imported", version: 1, tabs: o.tabs, panels: o.panels, preset: o.preset });
+  return normalize({ id: typeof o.id === "string" ? o.id : uid("l"), name: typeof o.name === "string" ? o.name : "Imported", version: 1, tabs: o.tabs, panels: o.panels, preset: o.preset, ...(typeof o.rev === "number" ? { rev: o.rev } : {}) });
 }

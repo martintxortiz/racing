@@ -43,6 +43,7 @@ Other URL parameters:
   or `preset:practice`.
 - `?tab=`: the open tab.
 - `?t=`: the replay time.
+- `?lap=`: start the replay 30 s into the given lap of the leading car.
 
 ## Using the workspace
 
@@ -50,6 +51,10 @@ Other URL parameters:
   it to reorder, and right-click it for more options.
 - **Panels:** split, resize, swap (drag a header), maximise, change widget or
   close a panel from its header menu or by right-clicking it.
+- **Monitor:** every preset opens on a Monitor tab modelled on a pit wall:
+  track and weather, race control messages, track map, lap time distribution,
+  ranking tower, circle map, tyre strategy, pit window (races), team radio,
+  race trace or lap times, pit stops and a speed trace.
 - **Layouts:** the Qualifying, Race and Practice / Endurance presets are
   ordinary layouts of the same widgets. Save your own layout from the layout
   menu. Tabs and layouts are kept in localStorage.

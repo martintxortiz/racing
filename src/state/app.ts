@@ -5,7 +5,7 @@ import type { SessionModel } from "@/derive/model";
 import { buildSession } from "@/derive/session";
 import { resolveTopics, type TopicMap } from "@/derive/topics";
 import * as L from "@/layout/model";
-import { buildPreset, isPreset, presetFor, PRESETS } from "@/layout/presets";
+import { buildPreset, isPreset, presetFor, PRESET_REV, PRESETS } from "@/layout/presets";
 import { useCursor } from "./cursor";
 
 export type Theme = "light" | "dark";
@@ -116,8 +116,14 @@ function loadPersisted(): Persisted {
     }
     const p = JSON.parse(raw) as Partial<Persisted>;
     const layouts: Record<string, L.Layout> = { ...base.layouts };
+    const stale = new Set<string>();
     for (const [id, l] of Object.entries(p.layouts ?? {})) {
       const parsed = L.parseLayout(l);
+      // Built-in layouts saved from an older preset revision are rebuilt so new tabs appear.
+      if (parsed && isPreset(id) && (parsed.rev ?? 1) < PRESET_REV) {
+        stale.add(id);
+        continue;
+      }
       if (parsed) layouts[id] = { ...parsed, id };
     }
     const order = [...new Set([...(p.order ?? []).filter((id) => layouts[id]), ...Object.keys(layouts)])];
@@ -126,7 +132,7 @@ function loadPersisted(): Persisted {
       layouts,
       order,
       layoutId,
-      activeTab: { ...base.activeTab, ...(p.activeTab ?? {}) },
+      activeTab: { ...base.activeTab, ...Object.fromEntries(Object.entries(p.activeTab ?? {}).filter(([id]) => !stale.has(id))) },
       theme: p.theme === "dark" ? "dark" : "light",
       settings: { ...base.settings, ...(p.settings ?? {}) },
     };
@@ -218,7 +224,8 @@ export const useApp = create<AppState>((set, get) => {
         if (!st.layouts[layoutId]) layoutId = st.order[0];
         set({ status: "ready", progress: null, session, topics, layoutId });
         const urlT = Number(params?.get("t"));
-        const t0 = Number.isFinite(urlT) && params?.get("t") ? urlT : defaultStart(session);
+        const urlLap = Number(params?.get("lap"));
+        const t0 = Number.isFinite(urlT) && params?.get("t") ? urlT : Number.isFinite(urlLap) && params?.get("lap") ? (lapStart(session, urlLap) ?? defaultStart(session)) : defaultStart(session);
         useCursor.setState({ t: t0, playing: false });
         persist(get());
       } catch (err) {
@@ -396,6 +403,13 @@ export function hydrateWorkspace() {
 /** Start of the replay: first segment start. */
 export function defaultStart(s: SessionModel): number {
   return s.segments[0]?.t0 ?? s.window[0];
+}
+
+/** A little after the first car starts lap `n`, so the lap shows as in progress. */
+export function lapStart(s: SessionModel, n: number): number | null {
+  let t: number | null = null;
+  for (const l of s.laps) if (l.n === n && (t == null || l.t0 < t)) t = l.t0;
+  return t != null ? t + 30 : null;
 }
 
 /** Replay bounds for the scrubber. */

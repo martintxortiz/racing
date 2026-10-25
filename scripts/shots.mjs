@@ -1,11 +1,14 @@
 // Screenshot helper for visual review (not part of the app). Usage:
 //   node scripts/shots.mjs <outdir> <name> <url-query> [theme]
+// Optional: W=1920 H=1080 set the viewport (default 1600x1000).
 // Optional: RCLICK=<selector> RCLICK_AT=fx,fy right-clicks before the capture; SUBMENU=<label> then opens that submenu.
 import puppeteer from "puppeteer-core";
 
 const [out, name, query = "", theme = "light"] = process.argv.slice(2);
 const BASE = process.env.BASE_URL ?? "http://localhost:3313";
-const browser = await puppeteer.launch({ executablePath: process.env.CHROME ?? "/usr/bin/google-chrome", args: ["--no-sandbox", "--window-size=1600,1000"], defaultViewport: { width: 1600, height: 1000 } });
+const W = Number(process.env.W ?? 1600);
+const H = Number(process.env.H ?? 1000);
+const browser = await puppeteer.launch({ executablePath: process.env.CHROME ?? "/usr/bin/google-chrome", args: ["--no-sandbox", `--window-size=${W},${H}`], defaultViewport: { width: W, height: H } });
 const page = await browser.newPage();
 page.on("pageerror", (e) => console.error("pageerror", e.message));
 page.on("console", (m) => m.type() === "error" && console.error("console", m.text()));
