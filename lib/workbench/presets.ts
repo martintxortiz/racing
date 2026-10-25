@@ -68,7 +68,7 @@ export const PRESETS: Record<string, Preset> = {
     name: "Timing",
     description: "Timing tower, track map, lap times, race control and session status.",
     build: () => ({
-      root: row(36, "timing", col(56, row(58, "map", col(55, "session", "weather")), row(60, "laps", "log"))),
+      root: row(38, "timing", col(56, row(58, "map", col(55, "session", "weather")), row(58, "laps", "log"))),
       panels: {
         timing: WIDGETS.timing(),
         map: WIDGETS.map(),
@@ -97,7 +97,7 @@ export const PRESETS: Record<string, Preset> = {
     name: "Strategy",
     description: "Gaps or pace over laps, tyre stints, the order and conditions.",
     build: () => ({
-      root: col(55, row(64, "gaps", "timing"), row(64, "stints", col(50, "weather", "log"))),
+      root: row(62, col(58, "gaps", "stints"), col(50, "timing", col(45, "weather", "log"))),
       panels: {
         gaps: WIDGETS.gaps(),
         timing: WIDGETS.timing(["pos", "driver", "status", "gap", "int", "tyre", "age", "last", "laps", "pits"]),

@@ -1,14 +1,13 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 
 import { sectorSummary, type SectorSummary } from "@/lib/workbench/analysis";
 import { fmtLap, fmtSector, fmtSigned } from "@/lib/workbench/format";
 import { slotOf } from "@/lib/workbench/selection";
-import { teamCell } from "../colors";
 import { cfg, entityMenuItems, openPanelMenu, patch, radio } from "../menus";
 import { focusEntity, toggleCompare, useWB, type MenuItem } from "../state";
-import { Empty, Readout, Skeleton, useThrottledT, usePanelEntities, useTopicState, type PanelDef, type PanelProps } from "./common";
+import { Chip, Empty, Readout, Skeleton, useThrottledT, useWidth, usePanelEntities, useTopicState, type PanelDef, type PanelProps } from "./common";
 
 type SortKey = "ideal" | "best" | "gain";
 
@@ -25,6 +24,8 @@ function Sectors({ id, panel }: PanelProps) {
   const state = useTopicState(panel.bindings.laps ?? "/timing/laps");
   const sort = (panel.config.sort as SortKey) ?? "ideal";
   const relative = panel.config.values === "delta";
+  const [host, setHost] = useState<HTMLDivElement | null>(null);
+  const width = useWidth(host);
 
   const sum = useMemo(() => (derived ? sectorSummary(derived.lapsByEntity, shown, t) : null), [derived, shown, t]);
   if (state === "loading" && !derived?.laps.length) return <Skeleton rows={6} />;
@@ -39,12 +40,26 @@ function Sectors({ id, panel }: PanelProps) {
   };
   const isBest = (v: number | null, best: number | null) => v !== null && best !== null && v === best;
 
+  // Narrow panel: drop Best, then Ideal (the sectors and the time left stay).
+  const fixed = 70 + sum.n * 60 + 72;
+  const showIdeal = !width || width >= fixed + 74;
+  const showBest = !width || width >= fixed + 148;
   return (
     <>
       <Readout>
-        <span className="pw-faint">Ideal {fmtLap(fieldIdeal)}</span>
+        <span>Ideal {fmtLap(fieldIdeal)}</span>
       </Readout>
-      <table className="pw-table wb-timing wb-sectors">
+      <div className="wb-scroll" ref={setHost}>
+      <table className="wb-t wb-sectors">
+        <colgroup>
+          <col style={{ width: 70 }} />
+          {Array.from({ length: sum.n }, (_, i) => (
+            <col key={i} style={{ width: 60 }} />
+          ))}
+          {showIdeal ? <col style={{ width: 74 }} /> : null}
+          {showBest ? <col style={{ width: 74 }} /> : null}
+          <col style={{ width: 72 }} />
+        </colgroup>
         <thead>
           <tr>
             <th>Driver</th>
@@ -53,8 +68,8 @@ function Sectors({ id, panel }: PanelProps) {
                 S{i + 1}
               </th>
             ))}
-            <th className="is-num">Ideal</th>
-            <th className="is-num">Best</th>
+            {showIdeal ? <th className="is-num">Ideal</th> : null}
+            {showBest ? <th className="is-num">Best</th> : null}
             <th className="is-num" title="Best lap minus the ideal lap">To ideal</th>
           </tr>
         </thead>
@@ -72,24 +87,25 @@ function Sectors({ id, panel }: PanelProps) {
                   openPanelMenu(id, ev.clientX, ev.clientY, () => entityMenuItems(r.entity, { lapNumber: r.best?.n }));
                 }}
               >
-                <td {...teamCell(e?.colour)} title={e?.name}>
-                  {e?.code ?? r.entity}
+                <td className="wb-team-cell">
+                  <Chip code={e?.code ?? r.entity} colour={e?.colour} title={e?.name} />
                 </td>
                 {r.sectors.map((v, i) => (
                   <td key={i} className={`is-num${isBest(v, sum.field[i]) ? " wb-fill--purple" : ""}`}>
                     {cell(v, sum.field[i])}
                   </td>
                 ))}
-                <td className="is-num">{relative && fieldIdeal !== null && r.ideal !== null ? fmtSigned(r.ideal - fieldIdeal) : fmtLap(r.ideal)}</td>
-                <td className="is-num">{fmtLap(r.best?.time)}</td>
-                <td className={`is-num${r.gain !== null && r.gain > 0.05 ? " wb-fill--yellow" : " pw-faint"}`} title="Best lap minus ideal lap: time left in the sectors">
-                  {r.gain === null ? "—" : r.gain < 0.0005 ? "0" : fmtSigned(r.gain)}
+                {showIdeal ? <td className="is-num">{relative && fieldIdeal !== null && r.ideal !== null ? fmtSigned(r.ideal - fieldIdeal) : fmtLap(r.ideal)}</td> : null}
+                {showBest ? <td className="is-num">{fmtLap(r.best?.time)}</td> : null}
+                <td className={`is-num${r.gain !== null && r.gain > 0.05 ? "" : " is-dim"}`} title="Best lap minus ideal lap: time left in the sectors">
+                  {r.gain === null ? "—" : r.gain < 0.0005 ? "—" : fmtSigned(r.gain)}
                 </td>
               </tr>
             );
           })}
         </tbody>
       </table>
+      </div>
     </>
   );
 }

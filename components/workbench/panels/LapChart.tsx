@@ -6,7 +6,7 @@ import { fmtClock, fmtLap } from "@/lib/workbench/format";
 import { slotOf } from "@/lib/workbench/selection";
 import type { Lap } from "@/lib/workbench/types";
 import { useEntityStyles, usePalette } from "../colors";
-import { axisStyle, EChart, type EChartsInstance, type EChartsOption } from "../EChart";
+import { axisStyle, CHART_GRID, EChart, type EChartsInstance, type EChartsOption } from "../EChart";
 import { cfg, check, entityMenuItems, openPanelMenu, patch, radio } from "../menus";
 import { focusEntity, setT, showLap, toggleCompare, useWB, type MenuItem } from "../state";
 import { Empty, Readout, Skeleton, useThrottledT, usePanelEntities, useTopicState, type PanelDef, type PanelProps } from "./common";
@@ -61,17 +61,18 @@ function LapChart({ id, panel }: PanelProps) {
       const st = styles.get(l.entity);
       const dim = panel.config.dimOthers !== false && sel.compare.length > 0 && !role && l.entity !== hoverEntity;
       const future = l.t1! > t;
-      const colour = role ? p.series[slot % p.series.length] : (st?.colour ?? p.text3);
-      const opacity = (future ? 0.15 : 1) * (dim ? 0.3 : 1);
+      // With a comparison, the rest of the field is quiet grey context; without one, team colours.
+      const colour = role ? p.series[slot % p.series.length] : dim ? p.text3 : (st?.colour ?? p.text3);
+      const opacity = (future ? 0.15 : 1) * (dim ? 0.35 : 1);
       return {
         value: [X(l), Math.min(l.time!, yRange[1]), l.entity, l.n],
         symbol: l.deleted ? CROSS : "circle",
-        symbolSize: l.deleted ? 7 : role ? 7 : 5,
+        symbolSize: l.deleted ? 6 : role ? 7 : dim ? 4 : 5,
         itemStyle: l.deleted
           ? { color: "transparent", borderColor: colour, borderWidth: 1.5, opacity }
           : pbs.has(l)
             ? { color: colour, borderColor: p.text1, borderWidth: 1.5, opacity }
-            : { color: st?.second && !role ? p.bg : colour, borderColor: colour, borderWidth: st?.second && !role ? 1.25 : 0, opacity },
+            : { color: st?.second && !role && !dim ? p.bg : colour, borderColor: colour, borderWidth: st?.second && !role && !dim ? 1.25 : 0, opacity },
         z: role ? 4 : 2,
       };
     };
@@ -79,18 +80,19 @@ function LapChart({ id, panel }: PanelProps) {
       id,
       type: "line",
       // Join compared drivers' clean laps; laps above the band break the line instead of spiking.
-      data: laps.filter((l) => l.entity === e && l.timed && !l.deleted).map((l) => (l.time! < yRange[1] ? [X(l), l.time] : [X(l), null])),
+      // Up to the cursor only: later laps stay as faint points.
+      data: laps.filter((l) => l.entity === e && l.timed && !l.deleted && l.t1! <= t).map((l) => (l.time! < yRange[1] ? [X(l), l.time] : [X(l), null])),
       connectNulls: false,
       showSymbol: false,
       silent: true,
-      lineStyle: { color: colour, width: 1, opacity: 0.6 },
+      lineStyle: { color: colour, width: 1.5, opacity: 0.85 },
       z: 3,
     });
     const segs = derived.segments;
     const maxLap = Math.max(1, ...laps.map((l) => l.n));
     return {
       animation: false,
-      grid: { left: 58, right: 12, top: 10, bottom: 24 },
+      grid: { ...CHART_GRID, top: segs.length > 1 && xMode !== "lap" ? 26 : CHART_GRID.top },
       xAxis:
         xMode === "lap"
           ? { type: "value", min: 0, max: maxLap + 1, minInterval: 1, ...ax, splitLine: { show: false }, name: "lap", nameLocation: "end", nameGap: 4 }
@@ -104,7 +106,7 @@ function LapChart({ id, panel }: PanelProps) {
                 ...ax.axisLabel,
                 formatter: (v: number) => {
                   const s = [...segs].reverse().find((x) => v >= x.t0);
-                  return s ? `${s.id} ${fmtClock(v - s.t0, false)}` : fmtClock(v, false);
+                  return s && segs.length > 1 ? `${s.id} ${fmtClock(v - s.t0, false)}` : fmtClock(s ? v - s.t0 : v, false);
                 },
               },
             },
@@ -112,8 +114,8 @@ function LapChart({ id, panel }: PanelProps) {
         type: "value",
         min: yRange[0],
         max: yRange[1],
-        ...ax,
-        axisLabel: { ...ax.axisLabel, formatter: (v: number) => fmtLap(v) },
+        ...axisStyle(p, { line: false }),
+        axisLabel: { ...ax.axisLabel, formatter: (v: number) => fmtLap(v).replace(/\.?0+$/, "") },
       },
       tooltip: {
         trigger: "item",
@@ -139,8 +141,8 @@ function LapChart({ id, panel }: PanelProps) {
           silent: true,
           markArea: {
             silent: true,
-            itemStyle: { color: p.chrome },
-            label: { show: true, position: "insideTopLeft", color: p.text3, fontSize: 11, fontFamily: p.font, fontWeight: 500 },
+            itemStyle: { color: p.chrome, opacity: 0.6 },
+            label: { show: true, position: "top", distance: 4, color: p.text3, fontSize: 11, fontFamily: p.font },
             data: xMode === "lap" || segs.length < 2 ? [] : segs.map((s) => [{ xAxis: s.t0, name: s.id }, { xAxis: s.t1 ?? w1 }]),
           },
         },
@@ -180,7 +182,7 @@ function LapChart({ id, panel }: PanelProps) {
   return (
     <>
       <Readout>
-        <span className="pw-faint">
+        <span>
           {laps.length} laps · {shown.length === (derived?.entities.length ?? 0) ? "whole field" : `${shown.length} drivers`}
         </span>
       </Readout>

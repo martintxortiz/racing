@@ -51,3 +51,25 @@ export function timeOfDay(t: Sec, startNs: string, utcOffsetSec: number): string
   const tz = h === 0 ? "UTC" : `UTC${h > 0 ? "+" : MINUS}${Math.abs(h)}`;
   return `${hh}:${mm}:${ss} ${tz}`;
 }
+
+const KEEP = new Set(["FIA", "DRS", "SC", "VSC", "FCY", "ERS", "PU", "RC", "F1", "F2", "F3", "UTC", "GMT", "CET", "TV", "OK", "II", "III", "LMP1", "LMP2", "LMGT3", "GT3", "GTE", "LMH", "LMDH", "IMSA", "WEC", "ACO"]);
+
+/**
+ * Race control shouts in capitals; show it in sentence case. Acronyms, codes in brackets
+ * ("(VER)") and mixed letter-digit tokens stay as written.
+ */
+export function sentenceCase(msg: string): string {
+  if (/[a-z]/.test(msg)) return msg;
+  let first = true;
+  return msg.replace(/[A-Z0-9][A-Z0-9'’.-]*/g, (w, at: number) => {
+    const bracketed = msg[at - 1] === "(" && msg[at + w.length] === ")";
+    const isFirst = first;
+    first = false;
+    const core = w.replace(/[.'’-]+$/, "");
+    if (bracketed || KEEP.has(core) || (/\d/.test(core) && /[A-Z]/.test(core))) return w;
+    const lower = w.toLowerCase();
+    const afterStop = /[.!?:]\s+$/.test(msg.slice(0, at));
+    return isFirst || afterStop ? lower.charAt(0).toUpperCase() + lower.slice(1) : lower;
+  });
+}
+

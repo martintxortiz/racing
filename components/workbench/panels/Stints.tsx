@@ -7,7 +7,8 @@ import { slotOf } from "@/lib/workbench/selection";
 import { usePalette } from "../colors";
 import { cfg, entityMenuItems, openPanelMenu, patch, radio } from "../menus";
 import { focusEntity, toggleCompare, useWB, type MenuItem } from "../state";
-import { Empty, Readout, Skeleton, useThrottledT, usePanelEntities, useTopicState, type PanelDef, type PanelProps } from "./common";
+import { Chip, Empty, Readout, Skeleton, useThrottledT, usePanelEntities, useTopicState, type PanelDef, type PanelProps } from "./common";
+import { niceTicks } from "./LapDistribution";
 import { tyreClass } from "./TimingTable";
 
 /** Label inside a stint bar: compound initial, driver or lap count, whatever fits the config. */
@@ -49,22 +50,29 @@ function Stints({ id, panel }: PanelProps) {
   if (state === "loading" && !derived?.laps.length) return <Skeleton rows={8} />;
   if (!rows.length) return <Empty title="No drivers" />;
 
+  const ticks = niceTicks(0, maxLap, 6).filter((n) => n > 0 && n <= maxLap * 0.97);
   const colour = (s: Stint) => (s.compound ? (p.tyre[s.compound.toUpperCase()] ?? p.split) : p.split);
   return (
     <>
       <Readout>
-        <span className="pw-faint">{inferred ? "Stints from pit stops" : "Stints and tyres"}</span>
+        <span>{inferred ? "Stints from pit stops" : "Stints and tyres"}</span>
       </Readout>
       <div className="wb-stints">
         <div className="wb-stints__axis">
-          <span />
+          <span>Driver</span>
           <div>
-            {Array.from({ length: 5 }, (_, i) => Math.round(((i + 1) * maxLap) / 5)).map((n) => (
+            {ticks.map((n) => (
               <span key={n} style={{ left: `${(n / maxLap) * 100}%` }}>
                 {n}
               </span>
             ))}
           </div>
+        </div>
+        <div className="wb-stints__body">
+        <div className="wb-stints__gridlayer" aria-hidden>
+          {ticks.map((n) => (
+            <i key={n} style={{ left: `${(n / maxLap) * 100}%` }} />
+          ))}
         </div>
         {rows.map(([e, stints]) => {
           const ent = derived?.entityById.get(e);
@@ -80,9 +88,8 @@ function Stints({ id, panel }: PanelProps) {
               }}
             >
               <span className="wb-driver">
-                <i className="wb-dot" style={{ background: slot >= 0 ? p.series[slot % p.series.length] : "transparent" }} />
-                <i className="pw-team" style={{ ["--c" as string]: ent?.colour }} />
-                <span>{ent?.code ?? e}</span>
+                <Chip code={ent?.code ?? e} colour={ent?.colour} title={ent?.name} />
+                {slot >= 0 ? <i className="wb-slotdot" style={{ ["--c" as string]: p.series[slot % p.series.length] }} /> : null}
               </span>
               <div className="wb-stints__track">
                 {stints.map((s) => {
@@ -106,6 +113,7 @@ function Stints({ id, panel }: PanelProps) {
             </div>
           );
         })}
+        </div>
       </div>
     </>
   );

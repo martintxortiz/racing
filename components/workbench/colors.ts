@@ -29,13 +29,17 @@ export interface Palette {
   mono: string;
   flag: Record<string, string>;
   tyre: Record<string, string>;
+  /** Tooltip surface. */
+  inverseBg: string;
+  inverseText: string;
+  inverseText2: string;
 }
 
 const FALLBACK: Palette = {
   bg: "#fff", chrome: "#f6f6f6", split: "#d4d4d4", rule: "#ebebeb", text1: "#161616", text2: "#474747",
   text3: "#666", grid: "#ececec", axis: "#8d8d8d", crosshair: "#393939", accent: "#0f62fe", a: "#0f62fe",
   b: "#eb6200", series: ["#0f62fe", "#eb6200", "#198038", "#8a3ffc", "#d02670", "#007d79", "#b28600", "#6929c4", "#a2191f", "#005d5d"], purple: "#8a3ffc", green: "#198038", font: "IBM Plex Sans", mono: "IBM Plex Mono",
-  flag: {}, tyre: {},
+  flag: {}, tyre: {}, inverseBg: "#262626", inverseText: "#f4f4f4", inverseText2: "#c6c6c6",
 };
 
 export function readPalette(el: Element | null): Palette {
@@ -58,6 +62,7 @@ export function readPalette(el: Element | null): Palette {
       SOFT: v("--pw-tyre-soft"), MEDIUM: v("--pw-tyre-medium"), HARD: v("--pw-tyre-hard"),
       INTERMEDIATE: v("--pw-tyre-inter"), WET: v("--pw-tyre-wet"),
     },
+    inverseBg: v("--pw-inverse-bg"), inverseText: v("--pw-inverse-text"), inverseText2: v("--pw-inverse-text-2"),
   };
 }
 
@@ -157,8 +162,8 @@ export function onColour(hex: string): string {
   return lum(hexToRgb(hex)) > 0.36 ? "#161616" : "#ffffff";
 }
 
-/** Props for a table cell filled with a team colour. */
-export function teamCell(colour: string | undefined): { className: string; style: React.CSSProperties } {
-  const c = colour ?? "#8d8d8d";
-  return { className: "wb-team-cell", style: { ["--c" as string]: c, ["--fg" as string]: onColour(c) } };
+/** Style for a team chip (`.wb-chip`): solid team colour with readable text. */
+export function chipStyle(colour: string | undefined): React.CSSProperties {
+  const c = colour || "#8d8d8d";
+  return { ["--c" as string]: c, ["--fg" as string]: onColour(c) };
 }

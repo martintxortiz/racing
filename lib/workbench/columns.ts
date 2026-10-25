@@ -56,3 +56,31 @@ export function sortBy<T>(rows: T[], get: (r: T) => number | string | null, dir:
     })
     .map((x) => x.r);
 }
+
+export interface FitColumn {
+  key: string;
+  /** Minimum width in px, padding included. */
+  width: number;
+  /** Lower keeps the column longer when the panel is narrow. */
+  priority: number;
+}
+
+/**
+ * Columns that fit in `avail` px: drop the least important first, keep the configured order.
+ * The first column is always kept. `avail` of 0 (not measured yet) keeps everything.
+ */
+export function fitColumns<T extends FitColumn>(cols: T[], avail: number): { shown: T[]; hidden: T[] } {
+  if (!(avail > 0)) return { shown: cols, hidden: [] };
+  const keep = new Set(cols);
+  let total = cols.reduce((s, c) => s + c.width, 0);
+  const byDrop = cols
+    .map((c, i) => ({ c, i }))
+    .slice(1)
+    .sort((a, b) => b.c.priority - a.c.priority || b.i - a.i);
+  for (const { c } of byDrop) {
+    if (total <= avail) break;
+    keep.delete(c);
+    total -= c.width;
+  }
+  return { shown: cols.filter((c) => keep.has(c)), hidden: cols.filter((c) => !keep.has(c)) };
+}

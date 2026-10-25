@@ -5,10 +5,10 @@ import { useMemo } from "react";
 import { lapQuartiles, orderAt, representativeLaps } from "@/lib/workbench/analysis";
 import { fmtLap, fmtSigned } from "@/lib/workbench/format";
 import { slotOf } from "@/lib/workbench/selection";
-import { teamCell, usePalette } from "../colors";
+import { usePalette } from "../colors";
 import { cfg, entityMenuItems, openPanelMenu, patch, radio } from "../menus";
 import { focusEntity, toggleCompare, useWB, type MenuItem } from "../state";
-import { Empty, Readout, Skeleton, useThrottledT, usePanelEntities, useTopicState, type PanelDef, type PanelProps } from "./common";
+import { Chip, Empty, Readout, Skeleton, useThrottledT, usePanelEntities, useTopicState, type PanelDef, type PanelProps } from "./common";
 
 const LAPS = "/timing/laps";
 
@@ -52,21 +52,21 @@ function LapDistribution({ id, panel }: PanelProps) {
   return (
     <>
       <Readout>
-        <span className="pw-faint">{cutoff > 0 ? `Laps within ${Math.round((cutoff - 1) * 100)}% of own best` : "All clean laps"} · out and in laps excluded</span>
+        <span>{cutoff > 0 ? `Laps within ${Math.round((cutoff - 1) * 100)}% of own best` : "All clean laps"} · out and in laps excluded</span>
       </Readout>
       <div className="wb-scroll">
-        <table className="pw-table wb-box">
+        <table className="wb-t wb-box">
           <colgroup>
-            <col style={{ width: 44 }} />
+            <col style={{ width: 66 }} />
             <col />
-            <col style={{ width: 70 }} />
-            <col style={{ width: 54 }} />
-            <col style={{ width: 46 }} />
-            <col style={{ width: 30 }} />
+            <col style={{ width: 72 }} />
+            <col style={{ width: 60 }} />
+            <col style={{ width: 48 }} />
+            <col style={{ width: 40 }} />
           </colgroup>
           <thead>
             <tr>
-              <th>Car</th>
+              <th>Driver</th>
               <th className="wb-box__axis">
                 {ticks.map((v) => (
                   <span key={v} style={{ left: pct(v) }}>
@@ -83,9 +83,9 @@ function LapDistribution({ id, panel }: PanelProps) {
           <tbody>
             {rows.map(({ e, q }) => {
               const ent = derived?.entityById.get(e);
-              const tc = teamCell(ent?.colour);
               const slot = slotOf(sel, e);
-              const c = ent?.colour ?? p.text3;
+              // Compared cars in their series colour, the rest neutral: the boxes, not the colours, carry the story.
+              const c = slot >= 0 ? p.series[slot % p.series.length] : p.text3;
               return (
                 <tr
                   key={e}
@@ -96,8 +96,8 @@ function LapDistribution({ id, panel }: PanelProps) {
                     openPanelMenu(id, ev.clientX, ev.clientY, () => entityMenuItems(e));
                   }}
                 >
-                  <td className={tc.className} style={tc.style}>
-                    {ent?.code ?? e}
+                  <td className="wb-team-cell">
+                    <Chip code={ent?.code ?? e} colour={ent?.colour} title={ent?.name} />
                   </td>
                   <td className="wb-box__plot" title={`min ${fmtLap(q.min)} · Q1 ${fmtLap(q.q1)} · median ${fmtLap(q.median)} · Q3 ${fmtLap(q.q3)} · max ${fmtLap(q.max)}`}>
                     {ticks.map((v) => (

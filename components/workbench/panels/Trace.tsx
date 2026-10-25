@@ -18,7 +18,8 @@ import { Empty, Readout, Skeleton, useThrottledT, usePanelEntities, type PanelDe
 const PREFERRED = ["speed_kph", "throttle_pct", "brake_pct", "gear", "rpm", "steering_deg"];
 const WEIGHT: Record<string, number> = { delta: 2, speed_kph: 4, throttle_pct: 2, brake_pct: 1, gear: 1.5, rpm: 2 };
 const SKIP = new Set(["x_m", "y_m", "z_m", "lap_distance_m", "distance_m", "timestamp_ns", "driver_number"]);
-const PAD = { left: 52, right: 12, top: 18, bottom: 22, gap: 6 };
+/** Plot margins. Each channel gets a label strip of `strip` px above its plot; corner numbers sit in `top`. */
+const PAD = { left: 44, right: 12, top: 14, bottom: 22, gap: 6, strip: 18 };
 const TEL = "/vehicle/*/telemetry";
 
 const metaOf = (ch: string) => (ch === "delta" ? { key: "delta", label: "Δ time", unit: "s", digits: 3 } : fieldMeta(ch));
@@ -32,12 +33,12 @@ interface Grid {
 function layoutGrids(channels: string[], height: number): Grid[] {
   const w = (c: string) => WEIGHT[c] ?? 2;
   const total = channels.reduce((s, c) => s + w(c), 0);
-  const avail = Math.max(40, height - PAD.top - PAD.bottom - PAD.gap * (channels.length - 1));
+  const avail = Math.max(40, height - PAD.top - PAD.bottom - PAD.gap * (channels.length - 1) - PAD.strip * channels.length);
   let y = PAD.top;
   return channels.map((ch) => {
     const h = (avail * w(ch)) / total;
-    const g = { ch, top: y, height: h };
-    y += h + PAD.gap;
+    const g = { ch, top: y + PAD.strip, height: h };
+    y += PAD.strip + h + PAD.gap;
     return g;
   });
 }
@@ -184,7 +185,7 @@ function Trace({ id, panel }: PanelProps) {
           symbol: "none",
           animation: false,
           lineStyle: { color: p.grid, width: 1, type: "solid" },
-          label: { show: i === 0, position: "end", formatter: (x: { name: string }) => x.name, color: p.text3, fontSize: 10, fontFamily: p.font, distance: 2 },
+          label: { show: i === 0, position: "end", formatter: (x: { name: string }) => x.name, color: p.text3, fontSize: 10, fontFamily: p.font, distance: PAD.strip + 1 },
           data: [
             ...prev.map((d) => ({ ...d, lineStyle: { color: p.axis }, label: { show: false } })),
             ...corners.map((c) => ({ xAxis: c.distance_m! / 1000, name: `${c.number}${c.letter ?? ""}` })),
@@ -201,6 +202,7 @@ function Trace({ id, panel }: PanelProps) {
         min: 0,
         max: xMax,
         ...ax,
+        axisLine: { ...ax.axisLine, show: i === grids.length - 1 },
         axisLabel: { ...ax.axisLabel, show: i === grids.length - 1, formatter: (v: number) => `${+v.toFixed(2)}` },
         name: i === grids.length - 1 ? (xMode === "distance" ? "km" : "s") : undefined,
         nameLocation: "end",
@@ -216,12 +218,11 @@ function Trace({ id, panel }: PanelProps) {
           scale: !range,
           min: range?.[0],
           max: range?.[1],
-          splitNumber: Math.max(1, Math.floor(g.height / 28)),
+          splitNumber: Math.max(1, Math.floor(g.height / 32)),
           ...ax,
           axisLine: { show: false },
           axisLabel: {
             ...ax.axisLabel,
-            fontSize: 11,
             showMaxLabel: false,
             formatter: (v: number) => (g.ch === "delta" ? fmtSigned(v, 1) : Math.abs(v) >= 10000 ? `${Math.round(v / 1000)}k` : `${v}`),
           },
@@ -395,7 +396,7 @@ function Trace({ id, panel }: PanelProps) {
           {grids.map((g) => {
             const m = metaOf(g.ch);
             return (
-              <div key={g.ch} className="wb-chlabel" style={{ top: g.top, left: PAD.left + 4 }}>
+              <div key={g.ch} className="wb-chlabel" style={{ top: g.top - PAD.strip, left: PAD.left }}>
                 {m.label}
                 {m.unit ? <span className="pw-faint"> {m.unit}</span> : null}
                 {hover !== null ? (
@@ -410,9 +411,9 @@ function Trace({ id, panel }: PanelProps) {
               </div>
             );
           })}
-          <div ref={cursorEl} className="wb-vline wb-vline--cursor" style={{ top: PAD.top, bottom: PAD.bottom }} />
-          <div ref={hoverEl} className="wb-vline wb-vline--hover" style={{ top: PAD.top, bottom: PAD.bottom }} />
-          <div ref={boxEl} className="wb-zoombox" style={{ top: PAD.top, bottom: PAD.bottom }} />
+          <div ref={cursorEl} className="wb-vline wb-vline--cursor" style={{ top: PAD.top + PAD.strip, bottom: PAD.bottom }} />
+          <div ref={hoverEl} className="wb-vline wb-vline--hover" style={{ top: PAD.top + PAD.strip, bottom: PAD.bottom }} />
+          <div ref={boxEl} className="wb-zoombox" style={{ top: PAD.top + PAD.strip, bottom: PAD.bottom }} />
           {hover !== null ? (
             <div className="wb-xread" style={{ left: PAD.left }}>
               {xMode === "distance" ? `${(hover / 1000).toFixed(3)} km` : `${hover.toFixed(2)} s`}

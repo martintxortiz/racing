@@ -6,7 +6,7 @@ import { buildLaps, speedsOf, timingAt, withAdvance } from "../lib/workbench/der
 import { DEFAULT_TABS, PRESETS } from "../lib/workbench/presets";
 import type { Lap, Segment } from "../lib/workbench/types";
 import { niceTicks } from "../components/workbench/panels/LapDistribution";
-import { categoryLabel, flagText, shortClock } from "../components/workbench/panels/EventLog";
+import { categoryLabel, flagText, sentenceCase, shortClock } from "../components/workbench/panels/EventLog";
 import { flagColour } from "../components/workbench/panels/SessionInfo";
 import { onColour } from "../components/workbench/colors";
 import { laps, topic } from "./workbench-fixtures";
@@ -169,6 +169,15 @@ describe("race control and session info helpers", () => {
     expect(flagText("DOUBLE YELLOW")).toBe("Dbl yellow");
     expect(shortClock("Session 44:20.9", 1)).toBe("44:20");
     expect(shortClock("Q2 03:14.9", 3)).toBe("Q2 03:14");
+  });
+
+  it("puts shouted race control messages in sentence case, keeping codes", () => {
+    expect(sentenceCase("CAR 44 (HAM) TIME 1:32.411 DELETED - TRACK LIMITS AT TURN 7 LAP 3 18:02:11")).toBe(
+      "Car 44 (HAM) time 1:32.411 deleted - track limits at turn 7 lap 3 18:02:11",
+    );
+    expect(sentenceCase("DRS ENABLED")).toBe("DRS enabled");
+    expect(sentenceCase("FIA STEWARDS: 5 SECOND TIME PENALTY FOR CAR 1 (VER)")).toBe("FIA stewards: 5 second time penalty for car 1 (VER)");
+    expect(sentenceCase("Already mixed Case")).toBe("Already mixed Case");
   });
 
   it("maps any flag to a colour block and picks readable text", () => {

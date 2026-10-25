@@ -8,10 +8,9 @@ import { fmtLap } from "@/lib/workbench/format";
 import { topicFor } from "@/lib/workbench/layout";
 import { lapOf, slotOf } from "@/lib/workbench/selection";
 import type { EntityId, Lap } from "@/lib/workbench/types";
-import { teamCell } from "../colors";
 import { cfg, check, entityMenuItems, lapItems, openPanelMenu, patch } from "../menus";
 import { focusEntity, toggleCompare, useWB, type MenuItem } from "../state";
-import { Empty, Readout, Skeleton, useThrottledT, usePanelEntities, type PanelDef, type PanelProps } from "./common";
+import { Chip, Empty, Readout, Skeleton, useThrottledT, usePanelEntities, type PanelDef, type PanelProps } from "./common";
 
 const TEL = "/vehicle/*/telemetry";
 const PARTS = [
@@ -59,27 +58,27 @@ function Pedal({ id, panel }: PanelProps) {
   return (
     <>
       <Readout>
-        <span className="pw-faint">Share of lap time · full ≥ {fullAt}%</span>
+        <span>Share of lap time · full ≥ {fullAt}%</span>
       </Readout>
       <div className="wb-scroll">
-        <table className="pw-table wb-pedal">
+        <table className="wb-t wb-pedal">
           <colgroup>
+            <col style={{ width: 66 }} />
             <col style={{ width: 44 }} />
-            <col style={{ width: 70 }} />
             <col />
             {PARTS.map((x) => (
               <col key={x.key} style={{ width: 50 }} />
             ))}
             {showCounts ? (
               <>
-                <col style={{ width: 52 }} />
-                <col style={{ width: 52 }} />
+                <col style={{ width: 60 }} />
+                <col style={{ width: 60 }} />
               </>
             ) : null}
           </colgroup>
           <thead>
             <tr>
-              <th>Car</th>
+              <th>Driver</th>
               <th className="is-num">Lap</th>
               <th>
                 <span className="wb-pedal__legend">
@@ -107,7 +106,6 @@ function Pedal({ id, panel }: PanelProps) {
           <tbody>
             {rows.map(({ e, lap, s }, k) => {
               const ent = derived?.entityById.get(e);
-              const tc = teamCell(ent?.colour);
               return (
                 <tr
                   key={e}
@@ -118,16 +116,18 @@ function Pedal({ id, panel }: PanelProps) {
                     openPanelMenu(id, ev.clientX, ev.clientY, () => [{ label: "Lap", submenu: () => lapItems(e) }, { separator: true }, ...entityMenuItems(e, { lapNumber: lap.n })]);
                   }}
                 >
-                  <td className={tc.className} style={tc.style}>
-                    {ent?.code ?? e}
+                  <td className="wb-team-cell">
+                    <Chip code={ent?.code ?? e} colour={ent?.colour} title={ent?.name} />
                   </td>
                   <td className="is-num" title={fmtLap(lap.time)}>
                     {lap.n}
                   </td>
                   <td className="wb-pedal__bar">
-                    {PARTS.map((x) => (
-                      <i key={x.key} className={`is-${x.key}`} style={{ width: `${s[x.key] * 100}%` }} title={`${x.title} ${(s[x.key] * 100).toFixed(1)}%`} />
-                    ))}
+                    <div>
+                      {PARTS.map((x) => (
+                        <i key={x.key} className={`is-${x.key}`} style={{ width: `${s[x.key] * 100}%` }} title={`${x.title} ${(s[x.key] * 100).toFixed(1)}%`} />
+                      ))}
+                    </div>
                   </td>
                   {PARTS.map((x) => {
                     const d = (s[x.key] - ref[x.key]) * 100;

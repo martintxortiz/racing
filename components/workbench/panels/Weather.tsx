@@ -3,9 +3,9 @@
 import { useMemo } from "react";
 
 import { fieldMeta, numericFields, valueAt } from "@/lib/workbench/analysis";
-import { fmtClock } from "@/lib/workbench/format";
+import { timeOfDay } from "@/lib/workbench/format";
 import { usePalette } from "../colors";
-import { axisStyle, EChart, type EChartsOption } from "../EChart";
+import { axisStyle, CHART_GRID, EChart, type EChartsOption } from "../EChart";
 import { cfg, check, patch } from "../menus";
 import { useWB, type MenuItem } from "../state";
 import { Empty, Skeleton, useThrottledT, useTopicState, type PanelDef, type PanelProps } from "./common";
@@ -46,18 +46,31 @@ function Weather({ panel }: PanelProps) {
   const option = useMemo<EChartsOption>(() => {
     if (!d || !showChart || !session) return {};
     const ax = axisStyle(p);
-    const s0 = session.session[0];
     // Data extent plus the cursor: sparse feeds stay readable instead of a sliver of the session.
     const x0 = Math.min(d.t[0], t);
     const x1 = Math.max(d.t[d.length - 1], t);
     const padX = Math.max(30, (x1 - x0) * 0.03);
+    // Ticks on round local clock times (every 10, 15, 30 or 60 min), labelled hh:mm.
+    const wall0 = Number(BigInt(session.startNs) / BigInt(1000000)) / 1000 + session.utcOffsetSec;
+    const span = x1 - x0 + 2 * padX;
+    const step = [300, 600, 900, 1800, 3600, 7200].find((st) => span / st <= 5) ?? 7200;
+    const ticks: number[] = [];
+    for (let w = Math.ceil((wall0 + x0 - padX) / step) * step; w <= wall0 + x1 + padX; w += step) ticks.push(w - wall0);
     return {
       animation: false,
-      grid: { left: 40, right: 10, top: 18, bottom: 22 },
-      legend: { show: true, top: 0, right: 6, itemWidth: 10, itemHeight: 2, textStyle: { color: p.text2, fontFamily: p.font, fontSize: 11 }, icon: "rect" },
-      xAxis: { type: "value", min: x0 - padX, max: x1 + padX, ...ax, splitLine: { show: false }, axisLabel: { ...ax.axisLabel, formatter: (v: number) => fmtClock(v - s0, false) } },
-      yAxis: { type: "value", scale: true, ...ax },
-      tooltip: { trigger: "axis", confine: true, className: "pw-tooltip", borderWidth: 0, padding: [4, 8], backgroundColor: p.bg, textStyle: { color: p.text1, fontFamily: p.font, fontSize: 12 }, valueFormatter: (v: unknown) => (typeof v === "number" ? v.toFixed(1) : "") },
+      grid: { ...CHART_GRID, left: 32, top: 24 },
+      legend: { show: true, top: 2, left: 32, itemWidth: 10, itemHeight: 2, itemGap: 12, textStyle: { color: p.text2, fontFamily: p.font, fontSize: 11 }, icon: "rect" },
+      xAxis: {
+        type: "value",
+        min: x0 - padX,
+        max: x1 + padX,
+        ...ax,
+        splitLine: { show: false },
+        axisLabel: { ...ax.axisLabel, customValues: ticks, formatter: (v: number) => timeOfDay(v, session.startNs, session.utcOffsetSec).slice(0, 5) },
+        axisTick: { show: false, customValues: ticks },
+      },
+      yAxis: { type: "value", scale: true, ...axisStyle(p, { line: false }), splitNumber: 3 },
+      tooltip: { trigger: "axis", confine: true, className: "pw-tooltip", borderWidth: 0, padding: [4, 8], backgroundColor: p.inverseBg, textStyle: { color: p.inverseText, fontFamily: p.font, fontSize: 12 }, valueFormatter: (v: unknown) => (typeof v === "number" ? v.toFixed(1) : "") },
       series: [
         ...chartFields.map((f, i) => ({
           type: "line" as const,

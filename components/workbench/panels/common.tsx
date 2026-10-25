@@ -6,6 +6,7 @@ import { createPortal } from "react-dom";
 import type { PanelState } from "@/lib/workbench/layout";
 import { panelEntities } from "@/lib/workbench/selection";
 import type { EntityId, Sec } from "@/lib/workbench/types";
+import { chipStyle } from "../colors";
 import { useWB, type MenuItem } from "../state";
 
 export interface PanelProps {
@@ -131,4 +132,26 @@ export function usePanelEntities(config: Record<string, unknown>, fallback: "sel
     () => panelEntities({ drivers }, sel, (entities ?? []).map((e) => e.id), fallback),
     [drivers, sel, entities, fallback],
   );
+}
+
+/** Team colour chip around a driver code: the one place a table shows team colour. */
+export function Chip({ code, colour, title }: { code: React.ReactNode; colour?: string; title?: string }) {
+  return (
+    <span className="wb-chip" style={chipStyle(colour)} title={title}>
+      {code}
+    </span>
+  );
+}
+
+/** Width of an element in px, tracked with a ResizeObserver (0 until measured). */
+export function useWidth(el: HTMLElement | null): number {
+  const [w, setW] = useState(0);
+  useEffect(() => {
+    if (!el) return;
+    // The observer reports the first size right after observe().
+    const ro = new ResizeObserver(() => setW(el.clientWidth));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [el]);
+  return w;
 }

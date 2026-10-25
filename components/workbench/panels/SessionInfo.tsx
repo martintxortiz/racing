@@ -4,8 +4,8 @@ import { useMemo } from "react";
 
 import { trackStatusAt, valueAt } from "@/lib/workbench/analysis";
 import { classesOf } from "@/lib/workbench/derive";
-import { fmtClock, segmentClock, timeOfDay } from "@/lib/workbench/format";
-import { onColour, usePalette } from "../colors";
+import { fmtClock, segmentClock, sentenceCase, timeOfDay } from "@/lib/workbench/format";
+import { usePalette } from "../colors";
 import { cfg, patch } from "../menus";
 import { useWB, type MenuItem } from "../state";
 import { Empty, useThrottledT, type PanelDef, type PanelProps } from "./common";
@@ -60,7 +60,8 @@ function SessionInfo({ panel }: PanelProps) {
 
   const remainingText =
     remaining > 0 && started ? fmtClock(remaining, false) : !started ? "Not started" : part || t > session.session[1] ? "Finished" : "Between parts";
-  const blockColour = flag ? flagColour(flag, p.flag, p.text3) : p.rule;
+  const flagC = flag ? flagColour(flag, p.flag, p.text3) : p.text3;
+  const alert = !!flag && /\b(SC|VSC|FCY|SAFETY|YELLOW|SLOW|RED)\b/i.test(flag);
 
   const w = (k: string) => valueAt(weather, k, t);
   const wx = weather
@@ -105,11 +106,12 @@ function SessionInfo({ panel }: PanelProps) {
         </div>
       ) : null}
       {show("status") ? (
-        <div className="wb-info__flag" style={{ background: blockColour, color: onColour(blockColour.startsWith("#") ? blockColour : "#8d8d8d") }}>
+        <div className={`wb-info__flag${alert ? " is-alert" : ""}`} style={{ ["--c" as string]: flagC }}>
+          <i className="wb-flag" />
           <span className="wb-info__flagname">{flag ? flagLabel(flag) : "No status yet"}</span>
           {status.message && flag && status.message.toUpperCase() !== flag ? (
             <span className="wb-info__flagmsg" title={status.message}>
-              {status.message}
+              {sentenceCase(status.message)}
             </span>
           ) : null}
         </div>
@@ -117,8 +119,9 @@ function SessionInfo({ panel }: PanelProps) {
       {show("status") && status.sectors.length ? (
         <div className="wb-info__sectors">
           {status.sectors.map((sc) => (
-            <span key={sc.sector} className="wb-info__sector" style={{ background: flagColour(sc.flag, p.flag, p.text3), color: onColour(flagColour(sc.flag, p.flag, "#8d8d8d")) }}>
-              {flagLabel(sc.flag)} S{sc.sector}
+            <span key={sc.sector} className="wb-info__sector">
+              <i className="wb-flag" style={{ ["--c" as string]: flagColour(sc.flag, p.flag, p.text3) }} />
+              {flagLabel(sc.flag)} in sector {sc.sector}
             </span>
           ))}
         </div>
@@ -181,7 +184,7 @@ function infoMenu(id: string): MenuItem[] {
 export const sessionInfo: PanelDef = {
   type: "session-info",
   title: "Session",
-  description: "Big part clock and time remaining, a filled track-status block, sector flags, a weather line, local time and lap count.",
+  description: "Big part clock and time remaining, the track status, sector flags, a weather line, local time and lap count.",
   icon: "time",
   primary: "info",
   slots: {

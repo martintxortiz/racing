@@ -1,45 +1,46 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 
-import { nextSort, moveColumn, sortBy, toggleColumn, type SortState } from "@/lib/workbench/columns";
+import { fitColumns, nextSort, moveColumn, sortBy, toggleColumn, type SortState } from "@/lib/workbench/columns";
 import { classesOf, sectorCount, segmentAt, timingAt, type CellFlag, type TimingInput, type TimingRow } from "@/lib/workbench/derive";
 import { fmtLap, fmtSector, fmtSigned } from "@/lib/workbench/format";
 import { slotOf } from "@/lib/workbench/selection";
 import type { Entity } from "@/lib/workbench/types";
-import { onColour, usePalette } from "../colors";
+import { usePalette } from "../colors";
 import { cfg, check, entityMenuItems, openPanelMenu, patch, radio } from "../menus";
 import { focusEntity, toggleCompare, useWB, type MenuItem } from "../state";
-import { Empty, Readout, Skeleton, useThrottledT, useTopicState, type PanelDef, type PanelProps } from "./common";
+import { Chip, Empty, Readout, Skeleton, useThrottledT, useTopicState, useWidth, type PanelDef, type PanelProps } from "./common";
 
 /** Every column the table knows. "sectors" expands to as many sector columns as the feed has. */
 export const TIMING_COLUMNS = ["pos", "num", "driver", "name", "team", "cls", "crew", "status", "tyre", "age", "best", "gap", "int", "sectors", "last", "trap", "laps", "pits"] as const;
 export const DEFAULT_COLUMNS = ["pos", "driver", "status", "tyre", "age", "best", "gap", "int", "sectors", "last", "trap", "laps"];
 
-const META: Record<string, { label: string; title: string; num?: boolean; width: number }> = {
-  pos: { label: "Pos", title: "Position", num: true, width: 30 },
-  num: { label: "No.", title: "Car number", num: true, width: 34 },
-  driver: { label: "Driver", title: "Driver / car code", width: 64 },
-  name: { label: "Name", title: "Full name", width: 120 },
-  team: { label: "Team", title: "Team", width: 110 },
-  cls: { label: "Class", title: "Class / category", width: 54 },
-  crew: { label: "In car", title: "Driver in the car (driver swaps)", width: 90 },
-  status: { label: "", title: "Pit, out lap, in lap or stopped", width: 36 },
-  tyre: { label: "Tyre", title: "Compound", width: 34 },
-  age: { label: "Age", title: "Tyre age in laps", num: true, width: 32 },
-  trap: { label: "Trap", title: "Speed trap, last lap (km/h)", num: true, width: 40 },
-  best: { label: "Best", title: "Best lap", num: true, width: 64 },
-  gap: { label: "Gap", title: "Gap", num: true, width: 64 },
-  int: { label: "Int", title: "Interval to the car ahead", num: true, width: 60 },
-  sectors: { label: "Sectors", title: "Sector times", num: true, width: 48 },
-  last: { label: "Last", title: "Last lap", num: true, width: 64 },
-  laps: { label: "Laps", title: "Completed laps", num: true, width: 34 },
-  pits: { label: "Pits", title: "Pit stops", num: true, width: 32 },
+/** Column widths include cell padding. `prio`: lower survives longer in a narrow panel (race, other). */
+const META: Record<string, { label: string; title: string; num?: boolean; center?: boolean; width: number; prio: [number, number] }> = {
+  pos: { label: "Pos", title: "Position", num: true, width: 40, prio: [0, 0] },
+  num: { label: "No.", title: "Car number", num: true, width: 40, prio: [12, 12] },
+  driver: { label: "Driver", title: "Driver / car code", width: 70, prio: [0, 0] },
+  name: { label: "Name", title: "Full name", width: 120, prio: [13, 13] },
+  team: { label: "Team", title: "Team", width: 110, prio: [14, 14] },
+  cls: { label: "Class", title: "Class / category", width: 56, prio: [3, 3] },
+  crew: { label: "In car", title: "Driver in the car (driver swaps)", width: 90, prio: [9, 9] },
+  status: { label: "", title: "Pit, out lap, in lap or stopped", width: 40, prio: [5, 4] },
+  tyre: { label: "Tyre", title: "Compound", center: true, width: 38, prio: [4, 8] },
+  age: { label: "Age", title: "Tyre age in laps", num: true, width: 36, prio: [8, 10] },
+  trap: { label: "Trap", title: "Speed trap, last lap (km/h)", num: true, width: 44, prio: [11, 11] },
+  best: { label: "Best", title: "Best lap", num: true, width: 74, prio: [6, 1] },
+  gap: { label: "Gap", title: "Gap", num: true, width: 66, prio: [2, 2] },
+  int: { label: "Int", title: "Interval to the car ahead", num: true, width: 62, prio: [1, 5] },
+  sectors: { label: "Sectors", title: "Sector times", num: true, width: 60, prio: [7, 3] },
+  last: { label: "Last", title: "Last lap", num: true, width: 78, prio: [3, 4] },
+  laps: { label: "Laps", title: "Completed laps", num: true, width: 40, prio: [10, 10] },
+  pits: { label: "Pits", title: "Pit stops", num: true, width: 38, prio: [7, 12] },
 };
 
 /** Cell fill for a best: purple = field best, green = personal best. */
 const fillOf = (f: CellFlag) => (f === "purple" ? "wb-fill--purple" : f === "green" ? "wb-fill--green" : undefined);
-const STATUS: Record<NonNullable<TimingRow["status"]>, string> = { pit: "PIT", out: "OUT", in: "IN", stopped: "STOP" };
+const STATUS: Record<NonNullable<TimingRow["status"]>, string> = { pit: "Pit", out: "Out", in: "In", stopped: "Stop" };
 
 export function tyreClass(compound: string) {
   const c = compound.toUpperCase();
@@ -105,6 +106,8 @@ function TimingTable({ id, panel }: PanelProps) {
   const hover = useWB((s) => s.hoverEntity);
   const t = useThrottledT(10);
   const p = usePalette();
+  const [host, setHost] = useState<HTMLDivElement | null>(null);
+  const width = useWidth(host);
   const lapsTopic = panel.bindings.laps ?? "/timing/laps";
   const state = useTopicState(lapsTopic);
   const c = panel.config;
@@ -150,9 +153,17 @@ function TimingTable({ id, panel }: PanelProps) {
     [rows, input, classes, derived, nSec],
   );
   const configured = ((c.columns as string[] | undefined) ?? DEFAULT_COLUMNS).filter((k) => META[k]);
-  const cols: Col[] = configured
-    .filter((k) => has[k as keyof typeof has] !== false)
-    .flatMap((k) => (k === "sectors" ? Array.from({ length: nSec }, (_, i) => ({ key: `s${i + 1}`, base: k, sector: i })) : [{ key: k, base: k }]));
+  // Fit the panel: sectors count as one block; the least important columns drop first.
+  const pi = session?.kind === "race" ? 0 : 1;
+  const fit = fitColumns(
+    configured
+      .filter((k) => has[k as keyof typeof has] !== false)
+      .map((k) => ({ key: k, width: k === "sectors" ? META[k].width * nSec : META[k].width, priority: META[k].prio[pi] })),
+    width,
+  );
+  const cols: Col[] = fit.shown.flatMap((x) =>
+    x.key === "sectors" ? Array.from({ length: nSec }, (_, i) => ({ key: `s${i + 1}`, base: x.key, sector: i })) : [{ key: x.key, base: x.key }],
+  );
 
   if (state === "loading" || (!derived && state !== "missing")) return <Skeleton rows={10} />;
   if (state === "missing" || !derived) return <Empty title="No lap data">Bind a laps topic from the panel menu.</Empty>;
@@ -173,19 +184,22 @@ function TimingTable({ id, panel }: PanelProps) {
   const cell = (r: TimingRow, col: Col): [React.ReactNode, string | undefined, React.CSSProperties | undefined] => {
     const e = derived.entityById.get(r.entity);
     switch (col.base) {
-      case "pos": {
-        const k = slotOf(sel, r.entity);
-        // The comparison colour sits on the position cell; the driver cell carries the team.
-        return [grouped ? r.rank : (r.pos ?? r.rank), k >= 0 ? "wb-slot" : undefined, k >= 0 ? { ["--c" as string]: p.series[k % p.series.length] } : undefined];
-      }
+      case "pos":
+        return [grouped ? r.rank : (r.pos ?? r.rank), undefined, undefined];
       case "num":
         return [e?.number ?? "", undefined, undefined];
-      case "driver":
+      case "driver": {
+        // Team colour on the chip; the comparison slot as a small square after it.
+        const k = slotOf(sel, r.entity);
         return [
-          <span key="d" title={`${e?.name ?? ""}${e?.number != null ? ` #${e.number}` : ""}${e?.team ? ` · ${e.team}` : ""}`}>{e?.code ?? r.entity}</span>,
+          <span key="d" className="wb-driver">
+            <Chip code={e?.code ?? r.entity} colour={e?.colour} title={`${e?.name ?? ""}${e?.number != null ? ` #${e.number}` : ""}${e?.team ? ` · ${e.team}` : ""}`} />
+            {k >= 0 ? <i className="wb-slotdot" style={{ ["--c" as string]: p.series[k % p.series.length] }} /> : null}
+          </span>,
           "wb-team-cell",
-          { ["--c" as string]: e?.colour ?? "#8d8d8d", ["--fg" as string]: onColour(e?.colour ?? "#8d8d8d") },
+          undefined,
         ];
+      }
       case "name":
         return [<span key="n" className="wb-ellipsis">{e?.name ?? ""}</span>, undefined, undefined];
       case "team":
@@ -255,7 +269,7 @@ function TimingTable({ id, panel }: PanelProps) {
   for (const r of ordered) {
     if (grouped && r.cls !== lastCls) {
       body.push(
-        <tr key={`g-${r.cls}`} className="wb-timing__group">
+        <tr key={`g-${r.cls}`} className="wb-t__group">
           <td colSpan={cols.length}>{r.cls ?? "Other"}</td>
         </tr>,
       );
@@ -287,7 +301,7 @@ function TimingTable({ id, panel }: PanelProps) {
         {cols.map((col) => {
           const [content, fill, style] = cell(r, col);
           return (
-            <td key={col.key} className={[META[col.base].num && "is-num", fill].filter(Boolean).join(" ") || undefined} style={style}>
+            <td key={col.key} className={[META[col.base].num && "is-num", META[col.base].center && "is-center", fill].filter(Boolean).join(" ") || undefined} style={style}>
               {content}
             </td>
           );
@@ -296,43 +310,51 @@ function TimingTable({ id, panel }: PanelProps) {
     );
   }
 
+  const hiddenCols = fit.hidden.map((x) => META[x.key].title);
   return (
     <>
       <Readout>
-        <span className="pw-faint">
+        <span>
           {race ? "Gaps by elapsed time" : partScope && part ? `Bests in ${part.id}` : "Gaps by best lap"}
           {cutAfter ? ` · top ${cutAfter} go through` : ""}
           {sortCol ? ` · sorted by ${sortCol.key === sortCol.base ? META[sortCol.base].label : sortCol.key.toUpperCase()}` : ""}
         </span>
+        {hiddenCols.length ? (
+          <span className="wb-hiddencols" title={`Hidden to fit the panel: ${hiddenCols.join(", ")}`}>
+            {hiddenCols.length} {hiddenCols.length === 1 ? "column" : "columns"} hidden
+          </span>
+        ) : null}
       </Readout>
-      <table className="pw-table wb-timing" tabIndex={0} onKeyDown={onKey}>
-        <colgroup>
-          {cols.map((col) => (
-            <col key={col.key} style={{ width: META[col.base].width }} />
-          ))}
-        </colgroup>
-        <thead>
-          <tr>
+      <div className="wb-scroll" ref={setHost}>
+        <table className="wb-t wb-timing" tabIndex={0} onKeyDown={onKey}>
+          <colgroup>
             {cols.map((col) => (
-              <th
-                key={col.key}
-                title={col.sector !== undefined ? `Sector ${col.sector + 1} (best lap)` : META[col.base].title}
-                className={[META[col.base].num && "is-num", sort?.key === col.key && "is-sorted"].filter(Boolean).join(" ")}
-                aria-sort={sort?.key === col.key ? (sort.dir === "asc" ? "ascending" : "descending") : undefined}
-                onClick={() => patch(id, { sort: nextSort(sort, col.key) })}
-                onContextMenu={(e) => {
-                  e.preventDefault();
-                  openPanelMenu(id, e.clientX, e.clientY, () => columnMenu(id, col.key, col.base));
-                }}
-              >
-                {col.sector !== undefined ? `S${col.sector + 1}` : META[col.base].label}
-                {sort?.key === col.key ? <span className={`wb-sort pw-icon pw-icon--caret-${sort.dir === "asc" ? "up" : "down"}`} /> : null}
-              </th>
+              <col key={col.key} style={{ width: META[col.base].width }} />
             ))}
-          </tr>
-        </thead>
-        <tbody>{body}</tbody>
-      </table>
+          </colgroup>
+          <thead>
+            <tr>
+              {cols.map((col) => (
+                <th
+                  key={col.key}
+                  title={col.sector !== undefined ? `Sector ${col.sector + 1} (best lap)` : META[col.base].title}
+                  className={["is-sortable", META[col.base].num && "is-num", META[col.base].center && "is-center", sort?.key === col.key && "is-sorted"].filter(Boolean).join(" ")}
+                  aria-sort={sort?.key === col.key ? (sort.dir === "asc" ? "ascending" : "descending") : undefined}
+                  onClick={() => patch(id, { sort: nextSort(sort, col.key) })}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    openPanelMenu(id, e.clientX, e.clientY, () => columnMenu(id, col.key, col.base));
+                  }}
+                >
+                  {col.sector !== undefined ? `S${col.sector + 1}` : META[col.base].label}
+                  {sort?.key === col.key ? <span className={`wb-sort pw-icon pw-icon--caret-${sort.dir === "asc" ? "up" : "down"}`} /> : null}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>{body}</tbody>
+        </table>
+      </div>
     </>
   );
 }

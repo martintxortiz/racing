@@ -93,13 +93,19 @@ export function EChart({
   );
 }
 
-/** Shared axis styling from the design tokens: light grid, 12 px ticks, axis titles. */
-export function axisStyle(p: { grid: string; axis: string; text2: string; text3: string; font: string }) {
+/**
+ * The one chart look, from the design tokens: 11 px Plex labels in the tertiary text colour,
+ * hairline grid, no ticks. `line: false` drops the axis line (value axes on the left).
+ */
+export function axisStyle(p: { grid: string; axis: string; text2: string; text3: string; font: string }, opts: { line?: boolean } = {}) {
   return {
-    axisLine: { show: true, lineStyle: { color: p.axis, width: 1 } },
+    axisLine: { show: opts.line ?? true, lineStyle: { color: p.axis, width: 1 } },
     axisTick: { show: false },
     splitLine: { show: true, lineStyle: { color: p.grid, width: 1 } },
-    axisLabel: { color: p.text2, fontSize: 12, fontFamily: p.font, hideOverlap: true },
-    nameTextStyle: { color: p.text2, fontSize: 12, fontFamily: p.font, fontWeight: 500 },
+    axisLabel: { color: p.text3, fontSize: 11, fontFamily: p.font, hideOverlap: true, margin: 6 },
+    nameTextStyle: { color: p.text3, fontSize: 11, fontFamily: p.font },
   };
 }
+
+/** Chart margins in px, the same in every chart: room for 5-character y labels and one row of x labels. */
+export const CHART_GRID = { left: 44, right: 12, top: 12, bottom: 22 } as const;

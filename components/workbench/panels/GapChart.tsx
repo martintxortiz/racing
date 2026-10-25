@@ -6,7 +6,7 @@ import { lapSeries, type LapSeriesMode } from "@/lib/workbench/analysis";
 import { fmtLap, fmtSigned } from "@/lib/workbench/format";
 import { referenceOf, slotOf } from "@/lib/workbench/selection";
 import { useEntityStyles, usePalette } from "../colors";
-import { axisStyle, EChart, type EChartsInstance, type EChartsOption } from "../EChart";
+import { axisStyle, CHART_GRID, EChart, type EChartsInstance, type EChartsOption } from "../EChart";
 import { cfg, check, entityMenuItems, openPanelMenu, patch, radio } from "../menus";
 import { focusEntity, toggleCompare, useWB, type MenuItem } from "../state";
 import { Empty, Readout, Skeleton, useThrottledT, usePanelEntities, useTopicState, type PanelDef, type PanelProps } from "./common";
@@ -71,9 +71,11 @@ function GapChart({ id, panel }: PanelProps) {
     const anyPicked = sel.compare.length > 0;
     const sparse = mode === "pace" || mode === "delta";
     const fmtV = (v: number) => (mode === "pace" ? fmtLap(v) : mode === "position" ? `P${v}` : mode === "delta" ? fmtSigned(v, 2) : `+${v.toFixed(1)}`);
+    // Axis labels: no trailing ".0" on whole seconds.
+    const fmtAxis = (v: number) => (mode === "pace" ? fmtLap(v).replace(/\.?0+$/, "") : mode === "gap" || mode === "interval" ? `+${+v.toFixed(1)}` : fmtV(v));
     return {
       animation: false,
-      grid: { left: 52, right: 44, top: 10, bottom: 24 },
+      grid: { ...CHART_GRID, left: mode === "pace" ? 44 : 40, right: 40 },
       xAxis: { type: "value", min: 1, max: maxLap, minInterval: 1, ...ax, splitLine: { show: false } },
       yAxis: {
         type: "value",
@@ -81,8 +83,8 @@ function GapChart({ id, panel }: PanelProps) {
         min: mode === "position" ? 1 : min,
         max: mode === "position" ? Math.max(shown.length, 1) : max,
         minInterval: mode === "position" ? 1 : undefined,
-        ...ax,
-        axisLabel: { ...ax.axisLabel, formatter: (v: number) => fmtV(v) },
+        ...axisStyle(p, { line: false }),
+        axisLabel: { ...ax.axisLabel, formatter: fmtAxis, showMaxLabel: false },
       },
       tooltip: {
         trigger: "item",
@@ -100,7 +102,8 @@ function GapChart({ id, panel }: PanelProps) {
       series: shown.map((e) => {
         const slot = slotOf(sel, e);
         const picked = slot >= 0;
-        const colour = picked ? p.series[slot % p.series.length] : (styles.get(e)?.colour ?? p.text3);
+        // With a comparison the rest of the field turns grey context; without one, team colours.
+        const colour = picked ? p.series[slot % p.series.length] : anyPicked ? p.text3 : (styles.get(e)?.colour ?? p.text3);
         const pts = series.get(e) ?? [];
         return {
           id: e,
@@ -110,10 +113,11 @@ function GapChart({ id, panel }: PanelProps) {
           connectNulls: sparse,
           showSymbol: sparse || (picked && pts.length < 80),
           symbolSize: sparse && !picked ? 3 : 4,
-          lineStyle: { color: colour, width: picked ? 2 : 1, opacity: anyPicked && !picked ? (sparse ? 0.12 : 0.25) : 0.9, type: styles.get(e)?.second && !picked ? "dashed" : "solid" },
+          lineStyle: { color: colour, width: picked ? 2 : 1.25, opacity: anyPicked && !picked ? (sparse ? 0.15 : 0.3) : 0.9, type: styles.get(e)?.second && !picked && !anyPicked ? "dashed" : "solid" },
           itemStyle: { color: colour, opacity: anyPicked && !picked ? 0.35 : 1 },
           emphasis: { focus: "series", lineStyle: { width: 2.5 } },
-          endLabel: { show: picked || shown.length <= 6, formatter: derived?.entityById.get(e)?.code ?? e, color: colour, fontFamily: p.font, fontSize: 11, fontWeight: 600 },
+          endLabel: { show: picked || (!anyPicked && shown.length <= 6), formatter: derived?.entityById.get(e)?.code ?? e, color: colour, fontFamily: p.font, fontSize: 11, fontWeight: 600, distance: 4 },
+          labelLayout: { moveOverlap: "shiftY" },
           z: picked ? 3 : 2,
         };
       }),
@@ -127,7 +131,7 @@ function GapChart({ id, panel }: PanelProps) {
   return (
     <>
       <Readout>
-        <span className="pw-faint">
+        <span>
           {label}
           {toRef && ref && mode === "gap" ? ` · to ${derived.entityById.get(ref)?.code ?? ref}` : ""}
         </span>

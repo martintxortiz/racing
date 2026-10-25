@@ -2,13 +2,13 @@
 
 import { useEffect, useMemo, useRef } from "react";
 
-import { segmentClock } from "@/lib/workbench/format";
+import { segmentClock, sentenceCase } from "@/lib/workbench/format";
 import { slotOf } from "@/lib/workbench/selection";
-import { onColour, usePalette } from "../colors";
+import { usePalette } from "../colors";
 import { flagColour } from "./SessionInfo";
 import { cfg, check, entityMenuItems, openPanelMenu, patch } from "../menus";
 import { focusEntity, setT, toggleCompare, useWB, type MenuItem } from "../state";
-import { Empty, Readout, Skeleton, useThrottledT, useTopicState, type PanelDef, type PanelProps } from "./common";
+import { Chip, Empty, Readout, Skeleton, useThrottledT, useTopicState, type PanelDef, type PanelProps } from "./common";
 
 interface Ev {
   i: number;
@@ -79,12 +79,11 @@ function EventLog({ id, panel }: PanelProps) {
   const list = newest ? [...shown].reverse() : shown;
   const showCat = panel.config.showCategory === true;
   const tbl = (
-    <table className="pw-table wb-rc">
+    <table className="wb-t wb-rc">
       <colgroup>
-        <col style={{ width: 72 }} />
-        {showCat ? <col style={{ width: 76 }} /> : null}
-        <col style={{ width: 86 }} />
-        <col style={{ width: 40 }} />
+        <col style={{ width: (derived?.segments.length ?? 1) > 1 ? 96 : 60 }} />
+        {showCat ? <col style={{ width: 84 }} /> : null}
+        <col style={{ width: 92 }} />
         <col />
       </colgroup>
       <thead>
@@ -92,7 +91,6 @@ function EventLog({ id, panel }: PanelProps) {
           <th>Time</th>
           {showCat ? <th>Category</th> : null}
           <th>Flag</th>
-          <th>Car</th>
           <th>Message</th>
         </tr>
       </thead>
@@ -124,20 +122,28 @@ function EventLog({ id, panel }: PanelProps) {
             >
               <td className="is-num wb-rc__t">{session && derived ? shortClock(segmentClock(e.t, derived.segments, session.session), derived.segments.length) : e.t.toFixed(1)}</td>
               {showCat ? <td className="wb-rc__cat">{categoryLabel(e.category)}</td> : null}
-              <td className={fc ? "wb-rc__flag" : undefined} style={fc ? { ["--c" as string]: fc, ["--fg" as string]: onColour(fc.startsWith("#") ? fc : "#8d8d8d") } : undefined}>
-                {e.flag ? flagText(e.flag) + sector : ""}
+              <td>
+                {e.flag ? (
+                  <span className="wb-rc__flag">
+                    <i className="wb-flag" style={{ ["--c" as string]: fc || p.text3 }} />
+                    {flagText(e.flag) + sector}
+                  </span>
+                ) : null}
               </td>
-              <td
-                className={ent ? "wb-team-cell" : undefined}
-                style={ent ? { ["--c" as string]: ent.colour, ["--fg" as string]: onColour(ent.colour) } : undefined}
-                onClick={(ev) => {
-                  if (!ent || ev.shiftKey || ev.metaKey || ev.ctrlKey) return;
-                  focusEntity(e.entity!);
-                }}
-              >
-                {code(e.entity)}
+              <td className="wb-rc__msg" title={raw ? undefined : e.message}>
+                {ent ? (
+                  <span
+                    className="wb-team-cell"
+                    onClick={(ev) => {
+                      if (ev.shiftKey || ev.metaKey || ev.ctrlKey) return;
+                      focusEntity(e.entity!);
+                    }}
+                  >
+                    <Chip code={code(e.entity)} colour={ent.colour} title={ent.name} />
+                  </span>
+                ) : null}
+                {raw ? <code className="wb-log__raw">{JSON.stringify(e.raw)}</code> : sentenceCase(e.message)}
               </td>
-              <td className="wb-rc__msg">{raw ? <code className="wb-log__raw">{JSON.stringify(e.raw)}</code> : e.message}</td>
             </tr>
           );
         })}
@@ -148,7 +154,7 @@ function EventLog({ id, panel }: PanelProps) {
   return (
     <>
       <Readout>
-        <span className="pw-faint">
+        <span>
           {past} of {shown.length}
           {hidden.size || only ? " · filtered" : ""}
         </span>
@@ -176,6 +182,8 @@ export function categoryLabel(c: string): string {
   const w = c.replace(/([a-z])([A-Z])/g, "$1 $2").replace(/_/g, " ");
   return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
 }
+
+export { sentenceCase } from "@/lib/workbench/format";
 
 /** "DOUBLE YELLOW" → "Dbl yellow", "CHEQUERED" → "Chequered". */
 export function flagText(f: string): string {

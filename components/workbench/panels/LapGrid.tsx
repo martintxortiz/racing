@@ -5,10 +5,9 @@ import { useMemo } from "react";
 import { gridMetrics, lapGrid, orderAt, type GridCell } from "@/lib/workbench/analysis";
 import { fmtLap, fmtSector, fmtSigned } from "@/lib/workbench/format";
 import { slotOf } from "@/lib/workbench/selection";
-import { teamCell } from "../colors";
 import { cfg, check, entityMenuItems, openPanelMenu, patch, radio } from "../menus";
 import { focusEntity, setT, toggleCompare, useWB, type MenuItem } from "../state";
-import { Empty, Readout, Skeleton, useThrottledT, usePanelEntities, useTopicState, type PanelDef, type PanelProps } from "./common";
+import { Chip, Empty, Readout, Skeleton, useThrottledT, usePanelEntities, useTopicState, type PanelDef, type PanelProps } from "./common";
 
 const LAPS = "/timing/laps";
 
@@ -51,25 +50,29 @@ function LapGrid({ id, panel }: PanelProps) {
   return (
     <>
       <Readout>
-        <span className="pw-faint">
+        <span>
           {label}
           {grid.field !== null ? ` · best ${fmt(grid.field)}` : ""}
         </span>
       </Readout>
       <div className="wb-scroll">
-        <table className="pw-table wb-grid">
+        <table className="wb-t wb-grid" style={{ width: 44 + ids.length * 76 }}>
+          <colgroup>
+            <col style={{ width: 44 }} />
+            {ids.map((e) => (
+              <col key={e} style={{ width: 76 }} />
+            ))}
+          </colgroup>
           <thead>
             <tr>
               <th className="is-num wb-grid__lap">Lap</th>
               {ids.map((e) => {
                 const ent = derived?.entityById.get(e);
-                const tc = teamCell(ent?.colour);
                 const slot = slotOf(sel, e);
                 return (
                   <th
                     key={e}
-                    className={`${tc.className} is-center${slot >= 0 ? " is-selected" : ""}`}
-                    style={tc.style}
+                    className={`is-num wb-team-cell${slot >= 0 ? " is-selected" : ""}`}
                     title={ent?.name}
                     onClick={(ev) => (ev.shiftKey || ev.metaKey || ev.ctrlKey ? toggleCompare(e) : focusEntity(e))}
                     onContextMenu={(ev) => {
@@ -78,7 +81,7 @@ function LapGrid({ id, panel }: PanelProps) {
                       openPanelMenu(id, ev.clientX, ev.clientY, () => entityMenuItems(e));
                     }}
                   >
-                    {ent?.code ?? e}
+                    <Chip code={ent?.code ?? e} colour={ent?.colour} />
                   </th>
                 );
               })}
@@ -108,7 +111,7 @@ function LapGrid({ id, panel }: PanelProps) {
                       {c?.kind === "deleted" ? (
                         <s>{fmt(c.value)}</s>
                       ) : (c?.kind === "out" || c?.kind === "in") && !c.flag ? (
-                        <span className="wb-grid__tag">{c.kind === "out" ? "OUT" : "IN"}</span>
+                        <span className="wb-grid__tag">{c.kind === "out" ? "Out" : "In"}</span>
                       ) : (
                         fmt(c?.value ?? null)
                       )}
