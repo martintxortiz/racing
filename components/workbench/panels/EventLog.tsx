@@ -4,7 +4,8 @@ import { useEffect, useMemo, useRef } from "react";
 
 import { segmentClock } from "@/lib/workbench/format";
 import { slotOf } from "@/lib/workbench/selection";
-import { usePalette } from "../colors";
+import { onColour, usePalette } from "../colors";
+import { flagColour } from "./SessionInfo";
 import { cfg, check, entityMenuItems, openPanelMenu, patch } from "../menus";
 import { focusEntity, setT, toggleCompare, useWB, type MenuItem } from "../state";
 import { Empty, Readout, Skeleton, useThrottledT, useTopicState, type PanelDef, type PanelProps } from "./common";
@@ -48,7 +49,7 @@ function EventLog({ id, panel }: PanelProps) {
   const follow = panel.config.follow !== false;
   const raw = panel.config.raw === true;
   const only = panel.config.only === true;
-  const future = panel.config.future !== false;
+  const future = panel.config.future === true;
   const hidden = useMemo(() => new Set((panel.config.categories as string[]) ?? []), [panel.config.categories]);
   const scroller = useRef<HTMLDivElement>(null);
 
@@ -62,15 +63,87 @@ function EventLog({ id, panel }: PanelProps) {
   // Follow: keep the latest event at or before the cursor in view.
   useEffect(() => {
     if (!follow || !scroller.current) return;
-    const row = scroller.current.querySelector<HTMLElement>(`[data-row="${past - 1}"]`);
-    row?.scrollIntoView({ block: "nearest" });
-  }, [past, follow]);
+    const lastPast = shown.filter((e) => e.t <= t).at(-1);
+    const row = lastPast ? scroller.current.querySelector<HTMLElement>(`[data-row="${lastPast.i}"]`) : null;
+    if (row) row.scrollIntoView({ block: "nearest" });
+    else if (panel.config.newest !== false) scroller.current.scrollTop = 0;
+  }, [past, follow]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (state === "loading") return <Skeleton rows={8} />;
   if (state === "missing") return <Empty title="No messages">This recording has no {topic} topic.</Empty>;
 
   const known = (e: string | null) => (e ? derived?.entityById.get(e) : undefined);
   const code = (e: string | null) => (e ? (known(e)?.code ?? e) : "");
+
+  const newest = panel.config.newest !== false;
+  const list = newest ? [...shown].reverse() : shown;
+  const showCat = panel.config.showCategory === true;
+  const tbl = (
+    <table className="pw-table wb-rc">
+      <colgroup>
+        <col style={{ width: 72 }} />
+        {showCat ? <col style={{ width: 76 }} /> : null}
+        <col style={{ width: 70 }} />
+        <col style={{ width: 40 }} />
+        <col />
+      </colgroup>
+      <thead>
+        <tr>
+          <th>Time</th>
+          {showCat ? <th>Category</th> : null}
+          <th>Flag</th>
+          <th>Car</th>
+          <th>Message</th>
+        </tr>
+      </thead>
+      <tbody>
+        {list.map((e) => {
+          const slot = e.entity ? slotOf(sel, e.entity) : -1;
+          const ent = known(e.entity);
+          const fc = e.flag ? flagColour(e.flag, p.flag, "") : "";
+          const sector = e.raw.sector != null ? ` S${e.raw.sector}` : "";
+          return (
+            <tr
+              key={e.i}
+              data-row={e.i}
+              className={[e.t > t && "is-future", slot >= 0 && "is-selected"].filter(Boolean).join(" ") || undefined}
+              onClick={(ev) => {
+                setT(e.t);
+                if (ent && (ev.shiftKey || ev.metaKey || ev.ctrlKey)) toggleCompare(e.entity!);
+              }}
+              onContextMenu={(ev) => {
+                ev.preventDefault();
+                openPanelMenu(id, ev.clientX, ev.clientY, () => [
+                  { label: "Move cursor here", onSelect: () => setT(e.t) },
+                  { label: "Copy message", onSelect: () => void navigator.clipboard?.writeText(e.message) },
+                  { label: `Hide “${e.category}”`, onSelect: () => patch(id, { categories: [...hidden, e.category] }) },
+                  { label: `Only “${e.category}”`, onSelect: () => patch(id, { categories: categoriesOf(events).filter((c) => c !== e.category) }) },
+                  ...(ent ? [{ separator: true } as const, ...entityMenuItems(e.entity!)] : []),
+                ]);
+              }}
+            >
+              <td className="is-num wb-rc__t">{session && derived ? shortClock(segmentClock(e.t, derived.segments, session.session), derived.segments.length) : e.t.toFixed(1)}</td>
+              {showCat ? <td className="wb-rc__cat">{categoryLabel(e.category)}</td> : null}
+              <td className={fc ? "wb-rc__flag" : undefined} style={fc ? { ["--c" as string]: fc, ["--fg" as string]: onColour(fc.startsWith("#") ? fc : "#8d8d8d") } : undefined}>
+                {e.flag ? flagText(e.flag) + sector : ""}
+              </td>
+              <td
+                className={ent ? "wb-team-cell" : undefined}
+                style={ent ? { ["--c" as string]: ent.colour, ["--fg" as string]: onColour(ent.colour) } : undefined}
+                onClick={(ev) => {
+                  if (!ent || ev.shiftKey || ev.metaKey || ev.ctrlKey) return;
+                  focusEntity(e.entity!);
+                }}
+              >
+                {code(e.entity)}
+              </td>
+              <td className="wb-rc__msg">{raw ? <code className="wb-log__raw">{JSON.stringify(e.raw)}</code> : e.message}</td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
+  );
 
   return (
     <>
@@ -81,53 +154,37 @@ function EventLog({ id, panel }: PanelProps) {
         </span>
       </Readout>
       <div className="wb-log__rows" ref={scroller}>
-        {shown.length === 0 ? <Empty title="No messages match">Right-click to change the filters.</Empty> : null}
-        {shown.map((e, k) => {
-          const slot = e.entity ? slotOf(sel, e.entity) : -1;
-          return (
-            <div
-              key={e.i}
-              data-row={k}
-              className={`wb-log__row${e.t > t ? " is-future" : ""}${slot >= 0 ? " is-selected" : ""}`}
-              onClick={(ev) => {
-                setT(e.t);
-                if (e.entity && known(e.entity)) {
-                  if (ev.shiftKey || ev.metaKey || ev.ctrlKey) toggleCompare(e.entity);
-                }
-              }}
-              onContextMenu={(ev) => {
-                ev.preventDefault();
-                openPanelMenu(id, ev.clientX, ev.clientY, () => [
-                  { label: "Move cursor here", onSelect: () => setT(e.t) },
-                  { label: "Copy message", onSelect: () => void navigator.clipboard?.writeText(e.message) },
-                  { label: `Hide “${e.category}”`, onSelect: () => patch(id, { categories: [...hidden, e.category] }) },
-                  ...(e.entity && known(e.entity) ? [{ separator: true } as const, ...entityMenuItems(e.entity)] : []),
-                ]);
-              }}
-            >
-              <span className="wb-log__t">{session && derived ? segmentClock(e.t, derived.segments, session.session) : e.t.toFixed(1)}</span>
-              <span className="wb-log__flag" style={{ background: e.flag ? (p.flag[e.flag] ?? "transparent") : "transparent" }} title={e.flag ?? undefined} />
-              <span
-                className="wb-log__who"
-                onClick={(ev) => {
-                  if (!e.entity || !known(e.entity) || ev.shiftKey || ev.metaKey || ev.ctrlKey) return;
-                  focusEntity(e.entity);
-                }}
-              >
-                {slot >= 0 ? <span className="wb-dot" style={{ background: p.series[slot % p.series.length] }} /> : null}
-                {code(e.entity)}
-              </span>
-              {raw ? <code className="wb-log__raw">{JSON.stringify(e.raw)}</code> : <span className="wb-log__msg">{e.message}</span>}
-            </div>
-          );
-        })}
+        {shown.length === 0 ? <Empty title="No messages match">Right-click to change the filters.</Empty> : tbl}
       </div>
     </>
   );
 }
 
+/** Drop tenths, and the part name when the session has one part: "Session 44:20.9" → "44:20". */
+export function shortClock(s: string, parts: number): string {
+  const x = s.replace(/\.\d$/, "");
+  return parts <= 1 ? x.replace(/^\S+ (?=[+\d−-])/, "") : x;
+}
+
+export function categoriesOf(events: { category: string }[]): string[] {
+  return [...new Set(events.map((e) => e.category))].sort();
+}
+
+/** "SafetyCar" → "Safety car", "CarEvent" → "Car event", "Drs" → "DRS". */
+export function categoryLabel(c: string): string {
+  if (/^drs$/i.test(c)) return "DRS";
+  const w = c.replace(/([a-z])([A-Z])/g, "$1 $2").replace(/_/g, " ");
+  return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
+}
+
+/** "DOUBLE YELLOW" → "Dbl yellow", "CHEQUERED" → "Chequered". */
+export function flagText(f: string): string {
+  const w = f.toLowerCase().replace(/^double /, "dbl ");
+  return w.charAt(0).toUpperCase() + w.slice(1);
+}
+
 function logMenu(id: string, topic: string): MenuItem[] {
-  const cats = [...new Set(readEvents(topic).map((e) => e.category))].sort();
+  const cats = categoriesOf(readEvents(topic));
   return [
     {
       label: "Categories",
@@ -138,7 +195,7 @@ function logMenu(id: string, topic: string): MenuItem[] {
           { label: "Show all", disabled: !hidden.length, onSelect: () => patch(id, { categories: [] }) },
           { separator: true },
           ...cats.map((c) => ({
-            label: c,
+            label: categoryLabel(c),
             checked: !hidden.includes(c),
             keepOpen: true,
             onSelect: () => {
@@ -149,8 +206,10 @@ function logMenu(id: string, topic: string): MenuItem[] {
         ];
       },
     },
+    check("Newest on top", cfg<boolean>(id, "newest", true), (v) => patch(id, { newest: v })),
+    check("Category column", cfg<boolean>(id, "showCategory", false), (v) => patch(id, { showCategory: v })),
     check("Only compared drivers", cfg<boolean>(id, "only", false), (v) => patch(id, { only: v })),
-    check("Show messages after cursor", cfg<boolean>(id, "future", true), (v) => patch(id, { future: v })),
+    check("Show messages after cursor", cfg<boolean>(id, "future", false), (v) => patch(id, { future: v })),
     check("Follow cursor", cfg<boolean>(id, "follow", true), (v) => patch(id, { follow: v })),
     check("Raw rows", cfg<boolean>(id, "raw", false), (v) => patch(id, { raw: v })),
   ];
@@ -159,12 +218,12 @@ function logMenu(id: string, topic: string): MenuItem[] {
 export const eventLog: PanelDef = {
   type: "event-log",
   title: "Race control",
-  description: "Messages, flags and penalties in time order. Click to move the cursor there.",
+  description: "Race control as a table: time, category, flag, car and message. Newest on top; filter categories from the menu.",
   icon: "list",
   primary: "events",
   needs: [EVENTS],
   slots: { events: { schemas: ["rtc.events"], required: true, default: EVENTS } },
-  defaultConfig: { follow: true, raw: false, categories: [], only: false, future: true },
+  defaultConfig: { follow: true, raw: false, categories: [], only: false, future: false, newest: true, showCategory: false },
   menu: ({ id, panel }) => logMenu(id, panel.bindings.events ?? EVENTS),
   Component: EventLog,
 };
