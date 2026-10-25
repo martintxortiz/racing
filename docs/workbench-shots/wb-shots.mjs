@@ -56,7 +56,7 @@ const tab = async (page, name) => {
 for (const [src, label] of [["demo", "quali"], [race, "race"]]) {
   for (const theme of ["light", "dark"]) {
     const { ctx, page } = await open(theme, src);
-    for (const t of ["Timing", "Telemetry", "Strategy"]) {
+    for (const t of ["Timing", "Telemetry", "Strategy", "Laps"]) {
       await tab(page, t);
       await shot(page, `${label}-${t.toLowerCase()}-${theme}`);
     }
@@ -69,9 +69,20 @@ for (const [src, label] of [["demo", "quali"], [race, "race"]]) {
       }
       await tab(page, "Timing");
       await page.locator('.wb-panel[data-type="session-info"]').first().screenshot({ path: `${out}/widget-session-info.png` });
+      await page.locator('.wb-panel[data-type="timing-table"]').first().screenshot({ path: `${out}/widget-timing-table.png` });
       await tab(page, "Telemetry");
-      await page.locator('.wb-panel[data-type="sectors"]').first().screenshot({ path: `${out}/widget-sectors.png` });
-      await page.locator('.wb-panel[data-type="trace"]').first().screenshot({ path: `${out}/widget-trace.png` });
+      for (const type of ["sectors", "trace", "pedal"]) await page.locator(`.wb-panel[data-type="${type}"]`).first().screenshot({ path: `${out}/widget-${type}.png` });
+      await tab(page, "Laps");
+      for (const type of ["lap-grid", "lap-distribution"]) await page.locator(`.wb-panel[data-type="${type}"]`).first().screenshot({ path: `${out}/widget-${type}.png` });
+      await page.locator(".wb-grid tbody td.is-num").nth(4).click({ button: "right" });
+      await page.locator(".wb-menu").last().getByText("Show", { exact: true }).first().hover();
+      await shot(page, "menu-lap-grid");
+      await esc(page);
+      await tab(page, "Timing");
+      await page.locator('.wb-panel[data-type="event-log"] tbody tr').first().click({ button: "right" });
+      await page.locator(".wb-menu").last().getByText("Categories", { exact: true }).first().hover();
+      await shot(page, "menu-race-control");
+      await esc(page);
     }
     await ctx.close();
   }
@@ -85,6 +96,17 @@ for (const [src, label] of [["demo", "quali"], [race, "race"]]) {
     await page.waitForTimeout(400);
   };
   await shot(page, "topbar-light", { shot: { clip: { x: 0, y: 0, width: 1600, height: 44 } } });
+  // Knockout cut line, derived from the data: seek into the break after the first part.
+  {
+    const bb = await page.locator(".pw-timeline__track").boundingBox();
+    await page.mouse.click(bb.x + bb.width * 0.5, bb.y + bb.height / 2);
+    await page.mouse.move(800, 950);
+    await page.waitForTimeout(900);
+    await page.locator('.wb-panel[data-type="timing-table"]').first().screenshot({ path: `${out}/widget-timing-cutline.png` });
+    await page.locator('.wb-panel[data-type="session-info"]').first().screenshot({ path: `${out}/widget-session-info-quali.png` });
+    await page.mouse.click(bb.x + bb.width * 0.62, bb.y + bb.height / 2);
+    await page.mouse.move(800, 950);
+  }
 
   await page.locator('.wb-panel[data-type="timing-table"] tbody tr').nth(4).click({ button: "right" });
   await hover("Lap for telemetry");
