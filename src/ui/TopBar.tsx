@@ -179,6 +179,8 @@ export function TopBar() {
   const status = useApp((s) => s.status);
   const progress = useApp((s) => s.progress);
   const ready = status === "ready";
+  // Tabs show while a file opens too, so the first screen is the workspace itself.
+  const showTabs = ready || status === "opening";
   const activeTab = layout?.tabs.find((t) => t.id === activeId) ?? layout?.tabs[0];
   const st = useApp.getState;
   const pct = progress && progress.total > 0 ? (progress.loaded / progress.total) * 100 : status === "opening" ? 12 : 0;
@@ -189,7 +191,7 @@ export function TopBar() {
         <span className={css.mark} aria-hidden />
         Racing Workbench
       </div>
-      {ready && layout && (
+      {showTabs && layout && (
         <nav
           className={css.tabs}
           role="tablist"
@@ -208,7 +210,7 @@ export function TopBar() {
           </button>
         </nav>
       )}
-      {!ready && <div className={css.tabs} />}
+      {!showTabs && <div className={css.tabs} />}
       <div className={css.right}>
         {ready && layout && (
           <>

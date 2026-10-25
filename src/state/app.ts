@@ -94,7 +94,8 @@ interface Persisted {
 function initialWorkspace(): Persisted {
   const layouts: Record<string, L.Layout> = {};
   for (const p of PRESETS) layouts[p.id] = buildPreset(p.id);
-  const layoutId = PRESETS[0].id;
+  // The bundled sample is a race, so a first visit opens on the Race preset's Monitor tab.
+  const layoutId = presetFor("race").id;
   return {
     layouts,
     order: PRESETS.map((p) => p.id),
@@ -187,6 +188,9 @@ export const useApp = create<AppState>((set, get) => {
       const c = client;
       c.onProgress = (p) => gen === generation && set({ progress: p });
       const name = src.name ?? src.file?.name ?? decodeURIComponent(src.url?.split("/").pop()?.split("?")[0] || "session.mcap");
+      // Every file opens on the first tab (Monitor) unless the address names one.
+      const urlTab = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("tab") : null;
+      if (!urlTab) set({ activeTab: Object.fromEntries(Object.values(get().layouts).map((l) => [l.id, l.tabs[0].id])) });
       set({
         status: "opening",
         error: null,

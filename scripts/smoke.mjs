@@ -1,6 +1,6 @@
 // Headless smoke test against a running dev or start server.
 //   BASE_URL   default http://localhost:3313
-//   SMOKE_SRC  file URL to open with ?src= instead of clicking "Load sample"
+//   SMOKE_SRC  file URL to open with ?src= instead of the sample the app opens by itself
 //   SHOTS_DIR  when set, saves screenshots of the steps there
 //   CHROME     browser binary, default /usr/bin/google-chrome
 import puppeteer from "puppeteer-core";
@@ -58,17 +58,11 @@ const rightClick = async (selector, dx = 0.5, dy = 0.5) => {
 try {
   step = "load";
   await page.goto(SRC ? `${BASE}/?src=${encodeURIComponent(SRC)}` : BASE, { waitUntil: "networkidle2" });
-  if (!SRC) {
-    await shot("smoke-empty");
-    const clicked = await page.evaluate(() => {
-      const b = [...document.querySelectorAll("button")].find((x) => x.textContent.trim() === "Load sample");
-      b?.click();
-      return !!b;
-    });
-    if (!clicked) fail("no Load sample button");
-  }
-  await page.waitForSelector("[data-testid=timing-table]", { timeout: 120000 });
-  ok("file loaded, timing table rendered");
+  // With no ?src the app opens the sample by itself, straight into the Monitor tab.
+  await page.waitForSelector("[data-testid=ranking-tower]", { timeout: 120000 });
+  const first = await page.$$eval("[role=tab][aria-selected=true]", (els) => els.map((e) => e.textContent.trim()));
+  if (!first.some((x) => x.startsWith("Monitor"))) fail(`opened on ${first.join(", ")}, not Monitor`);
+  ok("file loaded into Monitor, ranking tower rendered");
 
   step = "tabs";
   const names = await tabs();
@@ -86,7 +80,7 @@ try {
   await sleep(800);
 
   step = "row menu";
-  await rightClick("[data-testid=timing-table] tbody tr[data-entity]", 0.3, 0.5);
+  await rightClick("[data-testid=ranking-tower] tbody tr[data-entity]", 0.3, 0.5);
   if (!(await menuOpen())) fail("row menu did not open");
   const items = await page.$$eval("[data-menu] [role=menuitem]", (els) => els.map((e) => e.textContent.trim()));
   if (!items.some((x) => /^Compare/.test(x))) fail(`row menu has no Compare item: ${items.join(" | ")}`);

@@ -38,30 +38,49 @@ function build(tabs: [string, Tree][]): { tabs: Tab[]; panels: Record<string, Pa
 }
 
 /** Bump when the built-in tabs change, so saved copies of the presets are rebuilt. */
-export const PRESET_REV = 2;
+export const PRESET_REV = 4;
 
 const speed = () => w("compare", { channels: ["speed_kph"], delta: true }, "Speed trace");
 const trackWeather = () => w("session", {}, "Track & weather");
 const raceControl = () => w("events", { dense: true, hide: ["blue"] }, "Race control messages");
 
 /**
- * Monitor: the first screen of a pit wall. Three columns: session state and track on the left,
- * the running order with strategy in the middle, radio, trace, stops and speed on the right.
- * `mid` and `right` swap race-only panels for their qualifying and practice counterparts.
+ * Monitor: the first screen of a pit wall, with the proportions of Pitwall v2's Monitor tab
+ * (measured from its default screen, 1280 x 800):
+ * - left 27.8 %: Track & weather and race control over the track map beside the lap time distribution;
+ * - middle 63.2 % of the rest: ranking tower over the circle map beside tyre strategy, pit window below;
+ * - right: team radio, race trace, pit stops, speed trace.
+ * Every session type gets the same arrangement. Panels that only make sense in a race are swapped for
+ * the nearest general one: lap times for the race trace, sectors for pit stops, pit stops for the pit window.
  */
+export const MONITOR = {
+  left: 0.278,
+  mid: 0.632,
+  leftTop: 0.313,
+  weather: 0.39,
+  map: 0.618,
+  tower: 0.433,
+  strategyRow: 0.736,
+  circle: 0.36,
+  radio: 0.243,
+  trace: 0.328,
+  stops: 0.36,
+} as const;
+
 function monitor(race: boolean): Tree {
-  const left = col(0.075, trackWeather(), col(0.24, raceControl(), row(0.6, w("map", { labels: "all" }, "Track map"), w("ladder", {}, "Lap time distribution"))));
+  const m = MONITOR;
+  const left = col(m.leftTop, col(m.weather, trackWeather(), raceControl()), row(m.map, w("map", { labels: "all" }, "Track map"), w("ladder", {}, "Lap time distribution")));
   const mid = col(
-    0.5,
+    m.tower,
     w("tower", {}, "Ranking tower"),
-    race ? col(0.74, row(0.4, w("circle", {}, "Circle map"), w("stints", {}, "Tyre strategy")), w("pitwindow", {}, "Pit window")) : row(0.4, w("circle", {}, "Circle map"), w("sectors", {}, "Sectors")),
+    col(m.strategyRow, row(m.circle, w("circle", {}, "Circle map"), w("stints", {}, "Tyre strategy")), race ? w("pitwindow", {}, "Pit window") : w("pitstops", {}, "Pit stops")),
   );
   const right = col(
-    0.24,
+    m.radio,
     w("radio", {}, "Team radio"),
-    col(0.33, race ? w("gaps", {}, "Race trace") : w("laptimes", {}, "Lap times"), col(0.45, race ? w("pitstops", {}, "Pit stops") : w("stints", {}, "Tyre strategy"), speed())),
+    col(m.trace, race ? w("gaps", {}, "Race trace") : w("laptimes", {}, "Lap times"), col(m.stops, race ? w("pitstops", {}, "Pit stops") : w("sectors", {}, "Sectors"), speed())),
   );
-  return row(0.25, left, row(0.645, mid, right));
+  return row(m.left, left, row(m.mid, mid, right));
 }
 
 const TREES: Record<string, [string, Tree][]> = {

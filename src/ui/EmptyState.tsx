@@ -9,39 +9,44 @@ import css from "./Empty.module.css";
 
 const FORMAT_URL = "https://github.com/martintxortiz/f1data/blob/main/docs/DATA_FORMAT.md";
 
+function usePhase() {
+  const progress = useApp((s) => s.progress);
+  const pct = progress && progress.total > 0 ? (progress.loaded / progress.total) * 100 : progress?.phase === "download" ? 4 : 60;
+  const phase =
+    progress?.phase === "download"
+      ? progress.total
+        ? `Downloading ${fmtBytes(progress.loaded)} of ${fmtBytes(progress.total)}`
+        : `Downloading ${fmtBytes(progress.loaded)}`
+      : progress?.phase === "index"
+        ? "Reading the file index"
+        : "Decoding timing and session data";
+  return { pct, phase, known: !!progress?.total };
+}
+
+/** Sits where the replay transport goes while a file opens. */
+export function OpeningStrip() {
+  const source = useApp((s) => s.source);
+  const { pct, phase, known } = usePhase();
+  return (
+    <div className={css.strip} aria-busy="true" data-testid="opening">
+      <span className={css.stripName}>Opening {source?.name ?? "session"}</span>
+      <div className={css.stripBar}>
+        <div className={css.bar} style={{ width: `${pct}%` }} />
+      </div>
+      <span className={css.phase}>
+        {phase}
+        {known ? ` · ${Math.round(pct)}%` : ""}
+      </span>
+    </div>
+  );
+}
+
 export function EmptyState() {
   const status = useApp((s) => s.status);
   const error = useApp((s) => s.error);
-  const progress = useApp((s) => s.progress);
   const source = useApp((s) => s.source);
   const [over, setOver] = useState(false);
   const open = useApp.getState().openSource;
-
-  if (status === "opening") {
-    const pct = progress && progress.total > 0 ? (progress.loaded / progress.total) * 100 : progress?.phase === "download" ? 4 : 60;
-    const phase =
-      progress?.phase === "download"
-        ? progress.total
-          ? `Downloading ${fmtBytes(progress.loaded)} of ${fmtBytes(progress.total)}`
-          : `Downloading ${fmtBytes(progress.loaded)}`
-        : progress?.phase === "index"
-          ? "Reading the file index"
-          : "Decoding timing and session data";
-    return (
-      <div className={css.wrap}>
-        <div className={css.card} aria-busy="true">
-          <h1 className={css.title}>Opening {source?.name ?? "session"}</h1>
-          <div className={css.progress}>
-            <div className={css.bar} style={{ width: `${pct}%` }} />
-          </div>
-          <div className={css.phase}>
-            <span>{phase}</span>
-            <span className="num">{progress?.total ? `${Math.round(pct)}%` : ""}</span>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className={css.wrap}>

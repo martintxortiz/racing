@@ -5,7 +5,8 @@ import { useCursor } from "@/state/cursor";
 import { useMenu } from "@/state/menu";
 import { ContextMenu } from "./ContextMenu";
 import { Dialogs } from "./Dialogs";
-import { EmptyState } from "./EmptyState";
+import { EmptyState, OpeningStrip } from "./EmptyState";
+import { SAMPLE_URL } from "./files";
 import { Mosaic } from "./Mosaic";
 import { Picker } from "./Picker";
 import { TopBar } from "./TopBar";
@@ -108,7 +109,9 @@ export function Workbench() {
   useEffect(() => {
     hydrateWorkspace();
     const src = new URLSearchParams(window.location.search).get("src");
+    // No file named: open the sample straight away, so the first screen is the Monitor tab, not a picker.
     if (src) useApp.getState().openSource({ url: new URL(src, window.location.href).toString(), kind: "url" });
+    else useApp.getState().openSource({ url: SAMPLE_URL, name: "Sample session", kind: "sample" });
   }, []);
   useEffect(() => {
     if (hydrated) document.documentElement.dataset.theme = theme;
@@ -156,10 +159,11 @@ export function Workbench() {
   return (
     <div className={css.app} data-status={status}>
       <TopBar />
-      {status === "ready" ? (
+      {status === "ready" || (status === "opening" && hydrated) ? (
         <>
+          {/* While a file opens, the tab's panels are already in place and fill in when it is read. */}
           <Mosaic />
-          <Transport />
+          {status === "ready" ? <Transport /> : <OpeningStrip />}
         </>
       ) : (
         hydrated && <EmptyState />

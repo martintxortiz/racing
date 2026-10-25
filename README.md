@@ -32,9 +32,9 @@ Other scripts:
 
 ## Open a file
 
+- With no `?src=`, the app opens the sample session straight into the Monitor
+  tab. To use another sample, set `NEXT_PUBLIC_SAMPLE_MCAP_URL` at build time.
 - Click **Open .mcap**, or drop a file anywhere on the window.
-- Click **Load sample** to open the sample session. To use another sample,
-  set `NEXT_PUBLIC_SAMPLE_MCAP_URL` at build time.
 - Add `?src=<url>` to load any `.mcap` URL that allows cross-origin requests.
 
 Other URL parameters:
@@ -55,6 +55,13 @@ Other URL parameters:
   track and weather, race control messages, track map, lap time distribution,
   ranking tower, circle map, tyre strategy, pit window (races), team radio,
   race trace or lap times, pit stops and a speed trace.
+- **Responsive panels:** text and rows keep their design size. A narrow
+  panel drops its least useful columns or labels and says how many are
+  hidden; a wide one shows more.
+- **Track map rotation:** by default the map turns to whichever angle fills
+  the panel best, and re-fits on resize. Right-click the map, then
+  **Rotation**, to fix it at 0, 90, 180 or 270 degrees or a typed angle. The
+  N arrow shows the file's +y axis.
 - **Layouts:** the Qualifying, Race and Practice / Endurance presets are
   ordinary layouts of the same widgets. Save your own layout from the layout
   menu. Tabs and layouts are kept in localStorage.
