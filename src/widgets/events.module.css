@@ -3,17 +3,6 @@
   inset: 0;
   overflow: auto;
 }
-.flag {
-  display: inline-flex;
-  align-items: center;
-  height: 18px;
-  padding: 0 6px;
-  border-radius: 2px;
-  font-size: 11px;
-  font-weight: 600;
-  white-space: nowrap;
-  min-width: 64px;
-}
 .msg {
   /* One dense line; the full text is in the tooltip, or wrap from the menu. */
   width: 100%;
@@ -22,6 +11,23 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   color: var(--text) !important;
+  /* Text starts where the pill text in the other columns starts. */
+  padding-left: calc(3px + var(--pill-px)) !important;
+}
+.dense {
+  table-layout: fixed;
+}
+.dense td {
+  vertical-align: top;
+  padding-top: 2px;
+  padding-bottom: 2px;
+  height: auto;
+  min-height: var(--row-dense);
+}
+.dense td.msg {
+  max-width: none;
+  line-height: 16px;
+  padding-top: 2px !important;
 }
 .wrapMsg {
   white-space: normal !important;
@@ -33,6 +39,9 @@
 .time {
   width: 1%;
   color: var(--text-2);
+}
+.dense .time {
+  width: auto;
 }
 .future td {
   opacity: 0.4;

@@ -8,6 +8,7 @@ import { useCursor } from "@/state/cursor";
 import { openMenu } from "@/state/menu";
 import { timeOfDay } from "@/ui/clock";
 import { HeaderSlot, usePanel } from "@/ui/panelContext";
+import { Pill, type Tone } from "./cells";
 import { useT } from "./hooks";
 import type { WidgetDef, WidgetProps } from "./types";
 import tcss from "./table.module.css";
@@ -23,6 +24,8 @@ export interface EventsConfig {
   raw?: boolean;
   /** Wrap long messages instead of one line with an ellipsis. */
   wrap?: boolean;
+  /** Dense race control table: lap (or time outside races), type and message. */
+  dense?: boolean;
 }
 
 const KIND_LABEL: Record<EventKind, string> = {
@@ -41,32 +44,37 @@ export function eventKind(e: RcEvent): EventKind {
   return "notes";
 }
 
-function flagStyle(e: RcEvent): { label: string; bg: string; fg: string; border?: string } | null {
-  const f = e.flag;
+/** Type of a message as a pill: flags in their colour, everything else in a tinted tone. */
+export function eventType(e: RcEvent): { label: string; tone: Tone } {
   const sector = e.scope?.toUpperCase() === "SECTOR" && e.sector != null ? ` S${e.sector}` : "";
-  switch (f) {
+  switch (e.flag) {
     case "GREEN":
-      return { label: "Green", bg: "var(--flag-green)", fg: "#fff" };
+      return { label: "Green", tone: "good" };
     case "YELLOW":
-      return { label: `Yellow${sector}`, bg: "var(--flag-yellow)", fg: "#15171a" };
+      return { label: `Yellow${sector}`, tone: "flagYellow" };
     case "DOUBLE YELLOW":
-      return { label: `Double yellow${sector}`, bg: "var(--flag-yellow)", fg: "#15171a" };
+      return { label: `Double yellow${sector}`, tone: "flagYellow" };
     case "RED":
-      return { label: "Red", bg: "var(--flag-red)", fg: "#fff" };
+      return { label: "Red", tone: "flagRed" };
     case "BLUE":
-      return { label: "Blue", bg: "var(--flag-blue)", fg: "#fff" };
+      return { label: "Blue", tone: "info" };
     case "CHEQUERED":
-      return { label: "Chequered", bg: "var(--text)", fg: "var(--panel)" };
+      return { label: "Chequered", tone: "chequered" };
     case "CLEAR":
-      return { label: `Clear${sector}`, bg: "var(--pb-bg)", fg: "var(--pb-fg)" };
+      return { label: `Clear${sector}`, tone: "good" };
     case "BLACK AND WHITE":
-      return { label: "Black/white", bg: "linear-gradient(135deg, #15171a 50%, #fff 50%)", fg: "transparent", border: "1px solid var(--line-2)" };
+      return { label: "Black/white", tone: "neutral" };
     case "BLACK":
-      return { label: "Black", bg: "#15171a", fg: "#fff" };
+      return { label: "Black", tone: "chequered" };
   }
-  if (e.category === "SafetyCar") return { label: /VIRTUAL|VSC/i.test(e.message) ? "VSC" : "Safety car", bg: "var(--flag-sc)", fg: "#15171a" };
-  if (e.category === "SessionStatus") return { label: "Session", bg: "var(--panel-2)", fg: "var(--text-2)", border: "1px solid var(--line-2)" };
-  return null;
+  if (e.category === "SafetyCar") return { label: /VIRTUAL|VSC/i.test(e.message) ? "VSC" : "Safety car", tone: "flagYellow" };
+  if (e.category === "SessionStatus") return { label: "Session", tone: "neutral" };
+  const m = e.message.toUpperCase();
+  if (/PENALTY|REPRIMAND|DISQUALIF/.test(m) && !/NO FURTHER|NO PENALTY/.test(m)) return { label: "Penalty", tone: "bad" };
+  if (/INVESTIGAT|NOTED|UNDER REVIEW|SUMMONED/.test(m)) return { label: "Investigation", tone: "warn" };
+  if (/DELETED|TRACK LIMITS/.test(m)) return { label: "Track limits", tone: "neutral" };
+  if (/DRS/.test(m) || e.category === "Drs") return { label: "DRS", tone: "info" };
+  return { label: "Info", tone: "neutral" };
 }
 
 function EventLog({ session, config, setConfig }: WidgetProps<EventsConfig>) {
@@ -78,6 +86,8 @@ function EventLog({ session, config, setConfig }: WidgetProps<EventsConfig>) {
   const hide = useMemo(() => new Set<EventKind>(config.hide ?? ["blue"]), [config.hide]);
   const follow = config.follow !== false;
   const race = session.kind === "race";
+  const dense = !!config.dense;
+  const showTime = !dense || !race;
 
   const list = useMemo(() => {
     const out = session.events.filter((e) => {
@@ -106,6 +116,7 @@ function EventLog({ session, config, setConfig }: WidgetProps<EventsConfig>) {
     { id: "follow", label: "Hide messages after the replay time", checked: follow, run: () => setConfig({ follow: !follow }) },
     { id: "wrap", label: "Wrap long messages", checked: !!config.wrap, run: () => setConfig({ wrap: !config.wrap }) },
     { id: "raw", label: "Original capitals", checked: !!config.raw, run: () => setConfig({ raw: !config.raw }) },
+    { id: "dense", label: "Dense", checked: dense, run: () => setConfig({ dense: !dense }) },
   ];
 
   const rowMenu = (e: React.MouseEvent, ev: RcEvent) => {
@@ -133,30 +144,46 @@ function EventLog({ session, config, setConfig }: WidgetProps<EventsConfig>) {
           {hide.size ? `, ${[...hide].map((k) => KIND_LABEL[k].toLowerCase()).join(", ")} hidden` : ""}
         </span>
       </HeaderSlot>
-      <table className={tcss.table}>
+      <table className={`${tcss.table} ${dense ? `${tcss.dense} ${css.dense}` : ""}`} data-testid="event-log">
+        {dense && (
+          <colgroup>
+            {showTime && <col style={{ width: 64 }} />}
+            {race && <col style={{ width: 36 }} />}
+            <col style={{ width: 118 }} />
+            <col />
+          </colgroup>
+        )}
         <thead>
           <tr>
-            <th className={tcss.l}>Time</th>
+            {showTime && <th className={tcss.l}>Time</th>}
             {race && <th>Lap</th>}
-            <th className={tcss.l}>Flag</th>
+            <th className={tcss.l}>Type</th>
             <th className={tcss.l}>Message</th>
           </tr>
         </thead>
         <tbody>
           {shown.map((ev, i) => {
-            const fs = flagStyle(ev);
+            const ty = eventType(ev);
             return (
               <tr key={`${ev.t}-${i}`} className={!follow && ev.t > t ? css.future : ""} onClick={() => useCursor.getState().setT(ev.t)} onContextMenu={(e) => rowMenu(e, ev)}>
-                <td className={`${tcss.l} ${css.time} num`}>{timeOfDay(session, ev.t, clock).text}</td>
-                {race && <td className="num">{ev.lap ?? ""}</td>}
-                <td className={tcss.l} style={{ width: "1%" }}>
-                  {fs && (
-                    <span className={css.flag} style={{ background: fs.bg, color: fs.fg, border: fs.border }} title={fs.label}>
-                      {fs.label}
-                    </span>
-                  )}
+                {showTime && (
+                  <td className={`${tcss.l} ${css.time} num`}>
+                    <Pill>{timeOfDay(session, ev.t, clock).text}</Pill>
+                  </td>
+                )}
+                {race && (
+                  <td className="num">
+                    <Pill muted={ev.lap == null}>{ev.lap ?? "\u2014"}</Pill>
+                  </td>
+                )}
+                <td className={tcss.l} style={dense ? undefined : { width: "1%" }}>
+                  <Pill tone={ty.tone} title={ty.label}>
+                    {ty.label}
+                  </Pill>
                 </td>
-                <td className={`${tcss.l} ${css.msg} ${config.wrap ? css.wrapMsg : ""}`} title={ev.message}>{config.raw ? ev.message : sentenceCase(ev.message)}</td>
+                <td className={`${tcss.l} ${css.msg} ${config.wrap || dense ? css.wrapMsg : ""}`} title={ev.message}>
+                  {config.raw ? ev.message : sentenceCase(ev.message)}
+                </td>
               </tr>
             );
           })}
