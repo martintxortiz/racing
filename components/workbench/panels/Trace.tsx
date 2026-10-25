@@ -19,7 +19,7 @@ const CHANNELS: Record<string, { label: string; unit: string; weight: number; st
   gear: { label: "Gear", unit: "", weight: 1.5, step: true, digits: 0 },
   rpm: { label: "RPM", unit: "", weight: 2, digits: 0 },
 };
-const PAD = { left: 52, right: 12, top: 6, bottom: 22, gap: 6 };
+const PAD = { left: 52, right: 12, top: 18, bottom: 22, gap: 6 };
 
 interface Grid {
   ch: string;
@@ -157,7 +157,7 @@ function Trace({ panel, setConfig }: PanelProps) {
           lineStyle: { color: p.grid, width: 1, type: "solid" },
           label: {
             show: i === 0,
-            position: "insideEndTop",
+            position: "end",
             formatter: (x: { name: string }) => x.name,
             color: p.text3,
             fontSize: 10,
@@ -221,7 +221,7 @@ function Trace({ panel, setConfig }: PanelProps) {
   useEffect(() => {
     const place = () => {
       const el = cursorEl.current;
-      const c = chart.current;
+      const c = chart.current && !chart.current.isDisposed() ? chart.current : null;
       const { ta, la } = live.current;
       if (!el) return;
       const tau = la ? useWB.getState().t - la.t0 : NaN;
@@ -246,8 +246,10 @@ function Trace({ panel, setConfig }: PanelProps) {
     return () => {
       cancelAnimationFrame(raf);
       unsub();
-      c?.off("datazoom", place);
-      c?.off("finished", place);
+      if (c && !c.isDisposed()) {
+        c.off("datazoom", place);
+        c.off("finished", place);
+      }
     };
   }, [option]);
 
@@ -372,8 +374,11 @@ function Trace({ panel, setConfig }: PanelProps) {
                 if (ta && la) setT(la.t0 + interp(ta.d, ta.tau, toKm(e.offsetX) * 1000));
               }
             });
+            return () => {
+              chart.current = null;
+            };
           }}
-          onResize={(c) => setHeight((h) => (h === c.getHeight() ? h : c.getHeight()))}
+          onResize={(c) => setHeight(c.getHeight())}
         >
           {grids.map((g) => (
             <div key={g.ch} className="wb-chlabel" style={{ top: g.top, left: PAD.left + 4 }}>

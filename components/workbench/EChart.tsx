@@ -61,6 +61,7 @@ export function EChart({
     const ro = new ResizeObserver(() => {
       cancelAnimationFrame(raf);
       raf = requestAnimationFrame(() => {
+        if (c.isDisposed()) return;
         c.resize();
         onResizeRef.current?.(c);
       });

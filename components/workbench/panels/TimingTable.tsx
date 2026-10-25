@@ -10,16 +10,16 @@ import { openMenu, setA, setB, swapAB, useWB } from "../state";
 import { Empty, Readout, Skeleton, useThrottledT, useTopicState, type PanelDef, type PanelProps } from "./common";
 
 const COLS: Record<string, { label: string; num?: boolean; width: number }> = {
-  pos: { label: "Pos", num: true, width: 34 },
-  driver: { label: "Driver", width: 84 },
-  tyre: { label: "Tyre", width: 52 },
-  best: { label: "Best", num: true, width: 72 },
-  gap: { label: "Gap", num: true, width: 64 },
-  s1: { label: "S1", num: true, width: 56 },
-  s2: { label: "S2", num: true, width: 56 },
-  s3: { label: "S3", num: true, width: 56 },
-  last: { label: "Last", num: true, width: 72 },
-  laps: { label: "Laps", num: true, width: 40 },
+  pos: { label: "Pos", num: true, width: 28 },
+  driver: { label: "Driver", width: 58 },
+  tyre: { label: "Tyre", width: 36 },
+  best: { label: "Best", num: true, width: 60 },
+  gap: { label: "Gap", num: true, width: 48 },
+  s1: { label: "S1", num: true, width: 50 },
+  s2: { label: "S2", num: true, width: 50 },
+  s3: { label: "S3", num: true, width: 50 },
+  last: { label: "Last", num: true, width: 58 },
+  laps: { label: "Laps", num: true, width: 30 },
 };
 
 const flagClass = (f: CellFlag) => (f === "purple" ? "pw-c-purple" : f === "green" ? "pw-c-pb" : undefined);
@@ -100,8 +100,7 @@ function TimingTable({ panel }: PanelProps) {
         return (
           <span className="wb-driver">
             <i className="pw-team" style={{ ["--c" as string]: st?.colour }} />
-            <b>{e?.code ?? r.entity}</b>
-            <span className="pw-faint">{e?.number ?? r.entity}</span>
+            <b title={`${e?.name ?? ""} #${e?.number ?? r.entity}${e?.team ? ` · ${e.team}` : ""}`}>{e?.code ?? r.entity}</b>
           </span>
         );
       }

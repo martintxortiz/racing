@@ -52,7 +52,7 @@ function LapChart({ panel, setConfig }: PanelProps) {
       const dim = panel.config.dimOthers !== false && (a || b) && !role && l.entity !== hoverEntity;
       const future = l.t1! > t;
       const colour = role === "a" ? p.a : role === "b" ? p.b : (st?.colour ?? p.text3);
-      const opacity = (future ? 0.15 : 1) * (dim ? 0.18 : 1);
+      const opacity = (future ? 0.15 : 1) * (dim ? 0.3 : 1);
       return {
         value: [l.t1, Math.min(l.time!, yRange[1]), l.entity, l.n],
         symbol: l.deleted ? CROSS : "circle",
@@ -68,7 +68,13 @@ function LapChart({ panel, setConfig }: PanelProps) {
     const lineFor = (e: string | null, colour: string, id: string) => ({
       id,
       type: "line",
-      data: e ? laps.filter((l) => l.entity === e && l.timed && !l.deleted).map((l) => [l.t1, Math.min(l.time!, yRange[1])]) : [],
+      // Join A's (B's) clean laps; laps beyond the 107% band break the line instead of spiking.
+      data: e
+        ? laps
+            .filter((l) => l.entity === e && l.timed && !l.deleted)
+            .map((l) => (l.time! < yRange[1] ? [l.t1, l.time] : [l.t1, null]))
+        : [],
+      connectNulls: false,
       showSymbol: false,
       silent: true,
       lineStyle: { color: colour, width: 1, opacity: 0.6 },
@@ -124,15 +130,8 @@ function LapChart({ panel, setConfig }: PanelProps) {
           markArea: {
             silent: true,
             itemStyle: { color: p.chrome },
-            label: { show: true, position: "insideTopLeft", color: p.text3, fontSize: 11, fontFamily: p.font },
-            data: segs.filter((_, i) => i % 2 === 1).map((s) => [{ xAxis: s.t0, name: s.id }, { xAxis: s.t1 ?? w1 }]),
-          },
-          markLine: {
-            silent: true,
-            symbol: "none",
-            lineStyle: { color: p.grid, type: "solid" },
-            label: { show: true, position: "insideStartTop", color: p.text3, fontSize: 11, fontFamily: p.font, formatter: (x: { name: string }) => x.name },
-            data: segs.filter((_, i) => i % 2 === 0).map((s) => ({ xAxis: s.t0, name: s.id })),
+            label: { show: true, position: "insideTopLeft", color: p.text3, fontSize: 11, fontFamily: p.font, fontWeight: 500 },
+            data: segs.map((s) => [{ xAxis: s.t0, name: s.id }, { xAxis: s.t1 ?? w1 }]),
           },
         },
         { id: "points", type: "scatter", data: visible.map(point), cursor: "pointer" },
@@ -208,6 +207,9 @@ function LapChart({ panel, setConfig }: PanelProps) {
             if (l) useWB.setState({ hoverEntity: l.entity });
           });
           c.on("mouseout", () => useWB.setState({ hoverEntity: null }));
+          return () => {
+            chart.current = null;
+          };
         }}
       >
         <div ref={cursorEl} className="wb-vline wb-vline--cursor" style={{ top: 10, bottom: 24 }} />

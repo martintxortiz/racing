@@ -126,7 +126,10 @@
 .wb-textbtn[aria-pressed="true"] { color: var(--pw-text-1); }
 
 /* timing table */
-.wb-timing { table-layout: fixed; outline: none; }
+.wb-timing { table-layout: fixed; outline: none; font-size: var(--pw-fs-sm); }
+.wb-timing th, .wb-timing td { padding: 0 4px; }
+.wb-timing th:first-child, .wb-timing td:first-child { padding-left: 8px; }
+.wb-timing th:last-child, .wb-timing td:last-child { padding-right: 8px; }
 .wb-timing thead th { position: sticky; top: 0; z-index: 1; background: var(--pw-bg); }
 .wb-timing tbody tr { cursor: pointer; }
 .wb-timing tr.is-a td:first-child { box-shadow: inset 2px 0 0 var(--pw-series-1); }
